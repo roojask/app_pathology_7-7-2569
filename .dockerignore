@@ -1,0 +1,32 @@
+# Ignore python virtual environments
+venv/
+env/
+.env
+
+# Ignore cache directories
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore local database and dynamic user files
+data/
+outputs/
+uploads/
+sound/
+audio_cases/
+
+# Ignore heavy binary and model files
+ffmpeg.exe
+ffmpeg-8.0.1/
+vosk-model/
+pyinstaller_data/
+
+# Ignore git and ide directories
+.git/
+.gitignore
+.vscode/
+.idea/
+*.spec
+build/
+dist/

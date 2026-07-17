@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Container
+  db:
+    image: postgres:15-alpine
+    container_name: pathology_db_server
+    environment:
+      POSTGRES_USER: pathology_user
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: pathology_db
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Flask Pathology Application Container
+  pathology-app:
+    build: .
+    container_name: pathology_ai
+    ports:
+      - "7860:7860"  # maps port 7860 of host to 7860 of container
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://pathology_user:secure_password@db:5432/pathology_db
+      - USE_HTTPS=True
+    volumes:
+      # map dynamic data folders out to host
+      - ./data:/app/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
