@@ -10,11 +10,11 @@ __pycache__/
 *.pyd
 
 # Ignore local database and dynamic user files
-data/
-outputs/
-uploads/
+data/uploads/
+data/outputs/
+data/instance/
+data/audio_cases/
 sound/
-audio_cases/
 
 # Ignore heavy binary and model files
 ffmpeg.exe
