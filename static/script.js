@@ -563,6 +563,32 @@ document.addEventListener('DOMContentLoaded', function () {
         t = t.replace(/,/g, ' ');
         t = t.replace(/\./g, ' '); // Clean dots to prevent regex disruption
         
+        // Thai dictation translation mapping
+        const thaiToEnglish = {
+            "ข้างขวา": "right",
+            "ขวา": "right",
+            "ข้างซ้าย": "left",
+            "ซ้าย": "left",
+            "ตัดเต้านม": "mastectomy",
+            "มาสเทค": "mastectomy",
+            "รักแร้": "axillary",
+            "ต่อมน้ำเหลือง": "lymph node",
+            "เซนติเนล": "sentinel",
+            "ก้อนเนื้อ": "mass",
+            "ขนาด": "",
+            "คูณ": "x",
+            "ผิวหนัง": "skin",
+            "ปกติ": "normal",
+            "หัวนม": "nipple",
+            "ดึงรั้ง": "inverted",
+            "บอด": "inverted",
+            "แผลเป็น": "scar",
+            "แผลเปื่อย": "ulceration"
+        };
+        for (const [thai, eng] of Object.entries(thaiToEnglish)) {
+            t = t.replace(new RegExp(thai, 'g'), eng);
+        }
+
         // Smart Medical Abbreviation & Typo correction
         const medicalTypos = {
             "max tech to me": "mastectomy",
@@ -855,10 +881,61 @@ document.addEventListener('DOMContentLoaded', function () {
             const normText = normalizeText(rawText);
             const extracted = parseTextLocally(normText);
             applyLocalDataToForm(extracted);
+            validateFormData();
             if (micStatusContainer) {
                 micStatusContainer.innerHTML = '<span style="color:#27ae60;"><i class="fas fa-keyboard"></i> พิมพ์แก้ไข: ปรับปรุงฟอร์มเรียลไทม์สำเร็จ</span>';
             }
         });
+    }
+
+    // --- Smart Clinical Validation Warning Engine ---
+    function validateFormData() {
+        const warnings = [];
+        
+        // Helper to get input float value
+        function getFloatVal(name) {
+            const el = document.querySelector(`[name="${name}"]`);
+            return el ? parseFloat(el.value) || 0 : 0;
+        }
+
+        // 1. Compare Tumor dimensions with Specimen dimensions
+        const specX = getFloatVal('s3_dims_0');
+        const specY = getFloatVal('s3_dims_1');
+        const specZ = getFloatVal('s3_dims_2');
+        const tumorX = getFloatVal('s10_inf_dims_0');
+        const tumorY = getFloatVal('s10_inf_dims_1');
+        const tumorZ = getFloatVal('s10_inf_dims_2');
+
+        const specMax = Math.max(specX, specY, specZ);
+        const tumorMax = Math.max(tumorX, tumorY, tumorZ);
+
+        if (tumorMax > 0 && specMax > 0 && tumorMax > specMax) {
+            warnings.push(`ขนาดก้อนมะเร็งใหญ่สุด (${tumorMax} cm) มีขนาดใหญ่กว่าขนาดชิ้นเนื้อเต้านมที่ตัดมา (${specMax} cm) ซึ่งขัดแย้งทางกายภาพ`);
+        }
+
+        // 2. Check MRM procedure completeness (Modified Radical Mastectomy)
+        const isModified = document.querySelector('[name="s2_proc"][value="modified"]')?.checked;
+        const axillaryCheck = document.querySelector('[name="s4_check"]')?.checked;
+        const lymphCheck = document.querySelector('[name="s14_check"]')?.checked;
+
+        if (isModified) {
+            if (!axillaryCheck && !lymphCheck) {
+                warnings.push(`แจ้งเตือน: เลือกการผ่าตัดแบบ MRM แต่ยังไม่ได้ติ๊กเลือก "Axillary Content" หรือ "Sentinel Lymph Node" ของชิ้นเนื้อรักแร้`);
+            }
+        }
+
+        // Display warnings in the UI warning box
+        const warnBox = document.getElementById('clinical-warning-box');
+        const warnText = document.getElementById('clinical-warning-text');
+        
+        if (warnBox && warnText) {
+            if (warnings.length > 0) {
+                warnText.innerHTML = warnings.join('<br>');
+                warnBox.style.display = 'block';
+            } else {
+                warnBox.style.display = 'none';
+            }
+        }
     }
 
     // --- Manual Field Locking Helpers ---
@@ -867,6 +944,7 @@ document.addEventListener('DOMContentLoaded', function () {
             el.removeAttribute('data-manual');
             el.style.border = "";
         });
+        validateFormData();
     }
 
     function initManualFieldLocking() {
@@ -876,6 +954,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const lockHandler = function() {
                 el.setAttribute('data-manual', 'true');
                 el.style.border = "1px dashed #e67e22"; // visual indicator for manual overwrite
+                validateFormData(); // Recalculate validation when user manual edits
             };
 
             el.addEventListener('change', lockHandler);
@@ -885,6 +964,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize Manual Lock listeners
     initManualFieldLocking();
+    validateFormData(); // Initial validation check
 
     const btnLocalExtract = document.getElementById('btn-local-extract');
     if (btnLocalExtract) {
@@ -904,6 +984,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const normText = normalizeText(rawText);
                 const extracted = parseTextLocally(normText);
                 applyLocalDataToForm(extracted);
+                validateFormData();
 
                 // Remove shimmer class
                 document.querySelectorAll('.patho-form input[type="text"], .patho-form textarea, .patho-form .checkbox-visual, .patho-form .circle-option').forEach(el => {

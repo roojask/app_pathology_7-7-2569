@@ -92,6 +92,12 @@
                 <input type="hidden" name="transcription" value="{{ transcription }}">
                 <input type="hidden" name="audio_filename" value="{{ audio_filename if audio_filename else '' }}">
 
+                <!-- Clinical Safety Warning Box -->
+                <div id="clinical-warning-box" style="display: none; background-color: #fdf2e9; border: 1px dashed #e67e22; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; color: #d35400; font-size: 14px; font-weight: 500; text-align: left; line-height: 1.5;">
+                    <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                    <span id="clinical-warning-text"></span>
+                </div>
+
                 <div class="form-header">
                     Surgical Number S
                     <input type="text" name="s0_surgical_no" class="inline-input" style="width: 150px;"
