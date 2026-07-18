@@ -51,15 +51,26 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         recognition.onend = function () {
-            isRecording = false;
-            btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
-            btnMicToggle.style.backgroundColor = '#ddd';
+            if (isRecording) {
+                // If it ended but isRecording is still true, it was a silence timeout. Restart!
+                try {
+                    recognition.start();
+                    if (micStatusContainer) {
+                        micStatusContainer.innerHTML = '<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-redo"></i> กู้คืนช่องสัญญาณไมค์อัตโนมัติ (Mic Auto-reconnected)...</span>';
+                    }
+                } catch (e) {
+                    console.log("Failed to auto-restart speech recognition:", e);
+                }
+            } else {
+                btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
+                btnMicToggle.style.backgroundColor = '#ddd';
 
-            const boxMic = document.getElementById('box-mic');
-            if (boxMic) {
-                boxMic.innerText = "MIC OFF";
-                boxMic.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-                boxMic.style.border = "1px solid rgba(255, 255, 255, 0.3)";
+                const boxMic = document.getElementById('box-mic');
+                if (boxMic) {
+                    boxMic.innerText = "MIC OFF";
+                    boxMic.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+                    boxMic.style.border = "1px solid rgba(255, 255, 255, 0.3)";
+                }
             }
         };
 
@@ -116,6 +127,12 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         recognition.onerror = function (event) {
+            if (event.error === 'no-speech') {
+                if (micStatusContainer) micStatusContainer.innerHTML = '<span style="color:#e67e22;"><i class="fas fa-clock"></i> พักเสียงพูดชั่วคราว (Silence Detected)...</span>';
+                // Do NOT set isRecording = false; to allow auto-restart in onend
+                return;
+            }
+
             isRecording = false;
             btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
             btnMicToggle.style.backgroundColor = '#ddd';
@@ -124,8 +141,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 showError("ไม่อนุญาตให้ใช้ไมโครโฟน (Not Allowed). กรุณากด 'Allow' ที่แถบ URL หรือตรวจสอบการตั้งค่า");
             } else if (event.error === 'network') {
                 showError("เกิดข้อผิดพลาดเครือข่าย (Network). ตรวจสอบอินเทอร์เน็ต หรือหากใช้ Chrome ปัญหาอาจเกิดจากการไม่ได้ใช้ HTTPS");
-            } else if (event.error === 'no-speech') {
-                if (micStatusContainer) micStatusContainer.innerText = "ไม่ได้รับเสียง (No Speech Detected)";
             } else {
                 showError("ข้อผิดพลาด: " + event.error);
             }
@@ -133,8 +148,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         btnMicToggle.addEventListener('click', function () {
             if (isRecording) {
+                isRecording = false; // Set to false first to tell onend not to auto-restart
                 recognition.stop();
             } else {
+                isRecording = true;
                 if (micStatusContainer) micStatusContainer.innerText = 'กำลังเริ่ม... (Starting...)';
                 try {
                     recognition.start();
@@ -542,11 +559,37 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Client-Side Local JS Processing Engine ---
     function normalizeText(text) {
         let t = text.toLowerCase();
+        
         t = t.replace(/,/g, ' ');
+        t = t.replace(/\./g, ' '); // Clean dots to prevent regex disruption
+        
+        // Smart Medical Abbreviation & Typo correction
+        const medicalTypos = {
+            "max tech to me": "mastectomy",
+            "max tech domy": "mastectomy",
+            "mastech to me": "mastectomy",
+            "modified radical": "modified radical mastectomy",
+            "mod rad mas": "modified radical mastectomy",
+            "sentinel node": "sentinel lymph node",
+            "sentinel lymph": "sentinel lymph node",
+            "auxiliary": "axillary",
+            "axillary contents": "axillary content",
+            "lymph nodes": "lymph node",
+            "deep margin": "deep",
+            "subareola": "subareolar",
+            "skin ellipse": "skin ellipse",
+            "ellipse of skin": "skin ellipse",
+            "infiltrative mass": "infiltrative",
+            "ulceration": "ulceration"
+        };
+        for (const [typo, correct] of Object.entries(medicalTypos)) {
+            t = t.replace(new RegExp(typo, 'g'), correct);
+        }
+
         const numWords = {
             "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
             "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
-            "by": "x"
+            "by": "x", "times": "x", "point": "."
         };
         for (const [word, val] of Object.entries(numWords)) {
             t = t.replace(new RegExp(`\\b${word}\\b`, 'g'), val);
