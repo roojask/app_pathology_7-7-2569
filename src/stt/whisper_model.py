@@ -1,10 +1,10 @@
 import whisper
 import threading
-from configs.config import Config
-
 import subprocess
 import os
+import requests
 from pathlib import Path
+from configs.config import Config
 
 # Global lock to prevent Whisper from running concurrently if app scales (optional but safe)
 whisper_lock = threading.Lock()
@@ -42,15 +42,58 @@ def denoise_audio(input_path):
         print(f"[Denoise Warning] Failed to denoise audio using FFmpeg: {e}. Falling back to raw audio.")
         return input_path
 
+def transcribe_via_groq(audio_path, api_key):
+    """
+    Transcribes audio using Groq Cloud API (Whisper Large V3) via REST request.
+    This runs in < 0.5s and consumes 0% local CPU.
+    """
+    url = "https://api.groq.com/openai/v1/audio/transcriptions"
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+    try:
+        with open(audio_path, "rb") as f:
+            files = {
+                "file": (os.path.basename(audio_path), f, "audio/wav")
+            }
+            data = {
+                "model": "whisper-large-v3",
+                "initial_prompt": Config.PATHOLOGY_PROMPT,
+                "language": "en",
+                "response_format": "json"
+            }
+            response = requests.post(url, headers=headers, files=files, data=data, timeout=12)
+            response.raise_for_status()
+            result = response.json()
+            print("[Groq Cloud STT] Successfully transcribed using Whisper Large V3!")
+            return result.get("text", "")
+    except Exception as e:
+        print(f"[Groq Error] Failed to transcribe via Groq: {e}. Falling back to local Whisper.")
+        return None
+
 def transcribe_audio(audio_path):
     """
-    Transcribes audio using Whisper with the Medical Prompt from Config.
-    Uses a thread lock to prevent simultaneous execution crashes.
+    Transcribes audio using Groq Cloud API (if API key is present)
+    with a graceful fallback to local CPU Whisper if offline or key is missing.
     """
     try:
         # Denoise the audio first to remove background noise!
         processed_audio_path = denoise_audio(audio_path)
         
+        # Check if GROQ_API_KEY is available
+        groq_key = os.environ.get("GROQ_API_KEY") or getattr(Config, "GROQ_API_KEY", None)
+        if groq_key and groq_key.strip():
+            print("[STT Pipeline] GROQ_API_KEY detected. Processing via Groq Cloud Whisper...")
+            transcription = transcribe_via_groq(processed_audio_path, groq_key)
+            if transcription:
+                # Clean up temporary denoised file
+                if processed_audio_path != audio_path and os.path.exists(processed_audio_path):
+                    try: os.remove(processed_audio_path)
+                    except: pass
+                return transcription
+        
+        # Fallback to local CPU Whisper
+        print("[STT Pipeline] No Groq Key or Groq failed. Falling back to local CPU Whisper...")
         with whisper_lock:
             current_model = get_model()
             result = current_model.transcribe(

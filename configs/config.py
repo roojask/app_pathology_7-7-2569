@@ -17,6 +17,9 @@ class Config:
         
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # Groq Cloud API Key
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
+    
     # SSL/HTTPS Server configuration
     USE_HTTPS = os.environ.get("USE_HTTPS", "True").lower() in ("true", "1", "yes")
     SSL_CERT_PATH = DATA_DIR / "cert.pem"
