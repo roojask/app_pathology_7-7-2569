@@ -102,8 +102,13 @@
                     <td>
                         {% if h.audio_filename %}
                         <audio controls style="height: 30px; width: 220px; vertical-align: middle;">
+                            {% if h.audio_filename.startswith('http://') or h.audio_filename.startswith('https://') %}
+                            <source src="{{ h.audio_filename }}" type="audio/wav">
+                            {% else %}
                             <source src="{{ url_for('get_upload', filename=h.audio_filename) }}" type="audio/wav">
+                            {% endif %}
                             No audio
+
                         </audio>
                         {% else %}
                         <span style="color:#aaa; font-style:italic; font-size:12px;">No Audio</span>

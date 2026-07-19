@@ -26,6 +26,11 @@ class Config:
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
     GROQ_MODEL = os.environ.get("GROQ_MODEL", "whisper-large-v3")
 
+    # Supabase Configuration
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+
     
     # SSL/HTTPS Server configuration
     USE_HTTPS = os.environ.get("USE_HTTPS", "True").lower() in ("true", "1", "yes")

@@ -130,13 +130,22 @@ def index():
         if audio_file and audio_file.filename != '':
             from werkzeug.utils import secure_filename
             orig_filename = secure_filename(audio_file.filename)
-            # Prepend unique UUID to prevent file name collisions under concurrent user access
             filename = f"{uuid.uuid4().hex}_{orig_filename}"
             audio_path = Config.UPLOAD_DIR / filename 
             audio_file.save(audio_path)
             audio_fn = filename
-
             transcription = transcribe_audio(audio_path)
+
+
+
+            # Upload to Supabase Storage if configured
+            if Config.SUPABASE_URL and Config.SUPABASE_KEY:
+                from src.storage.supabase_client import upload_audio_to_supabase
+                public_url = upload_audio_to_supabase(audio_path, filename, Config.SUPABASE_URL, Config.SUPABASE_KEY)
+                if public_url:
+                    print(f"[App] Audio uploaded to Supabase Storage: {public_url}")
+                    audio_fn = public_url
+
 
             
             # Text Normalization is already handled inside extract_data_15_sections,
