@@ -57,7 +57,7 @@ def transcribe_via_groq(audio_path, api_key):
                 "file": (os.path.basename(audio_path), f, "audio/wav")
             }
             data = {
-                "model": "whisper-large-v3",
+                "model": Config.GROQ_MODEL,
                 "initial_prompt": Config.PATHOLOGY_PROMPT,
                 "language": "en",
                 "response_format": "json"

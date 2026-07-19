@@ -55,3 +55,8 @@ pyinstaller_data/
 
 # Build Artifacts
 *.spec
+
+# Local Environment Variables
+.env
+*.env
+

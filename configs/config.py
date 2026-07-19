@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from local .env file
+load_dotenv()
 
 BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -8,17 +12,20 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "pathology-secret")
     
     # Database setting: Auto-switch between PostgreSQL and SQLite
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", 
-        "postgresql://neondb_owner:npg_KCviVYxf46ZT@ep-plain-poetry-azzx4hmt-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
-    )
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    if not SQLALCHEMY_DATABASE_URI:
+        # Fallback to local SQLite if no environment variable is provided
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{DATA_DIR / 'instance' / 'local_pathology.db'}"
+
     if SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
         
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Groq Cloud API Key
-    GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+    GROQ_MODEL = os.environ.get("GROQ_MODEL", "whisper-large-v3")
+
     
     # SSL/HTTPS Server configuration
     USE_HTTPS = os.environ.get("USE_HTTPS", "True").lower() in ("true", "1", "yes")
