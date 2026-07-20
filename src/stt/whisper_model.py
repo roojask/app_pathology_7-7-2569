@@ -47,6 +47,10 @@ def transcribe_via_groq(audio_path, api_key):
     Transcribes audio using Groq Cloud API (Whisper Large V3) via REST request.
     This runs in < 0.5s and consumes 0% local CPU.
     """
+    if not os.path.exists(audio_path) or os.path.getsize(audio_path) < 1000:
+        print("[Groq STT] Audio file is missing or empty (<1KB). Skipping Groq API request.")
+        return None
+
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
     headers = {
         "Authorization": f"Bearer {api_key}"
@@ -58,18 +62,21 @@ def transcribe_via_groq(audio_path, api_key):
             }
             data = {
                 "model": Config.GROQ_MODEL,
-                "initial_prompt": Config.PATHOLOGY_PROMPT,
+                "prompt": Config.PATHOLOGY_PROMPT,
                 "language": "en",
                 "response_format": "json"
             }
             response = requests.post(url, headers=headers, files=files, data=data, timeout=12)
-            response.raise_for_status()
+            if response.status_code != 200:
+                print(f"[Groq Error] HTTP {response.status_code}: {response.text}")
+                return None
             result = response.json()
             print("[Groq Cloud STT] Successfully transcribed using Whisper Large V3!")
             return result.get("text", "")
     except Exception as e:
         print(f"[Groq Error] Failed to transcribe via Groq: {e}. Falling back to local Whisper.")
         return None
+
 
 def transcribe_audio(audio_path):
     """
