@@ -400,3 +400,113 @@ input[type="radio"] {
     0% { background-position: -468px 0; }
     100% { background-position: 468px 0; }
 }
+
+/* --- Responsive Layout for iPad, Tablets & Mobile Devices --- */
+@media (max-width: 1024px) {
+    body {
+        height: auto;
+        overflow-y: auto;
+        padding: 10px;
+    }
+
+    .main-container {
+        flex-direction: column;
+        height: auto;
+        gap: 15px;
+    }
+
+    .document-pane {
+        flex: none;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 25px 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .side-pane {
+        flex: none;
+        width: 100%;
+        box-sizing: border-box;
+        order: -1; /* Display camera & upload tools at top or accessible placement */
+    }
+
+    .header-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .controls {
+        flex-wrap: wrap;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .camera-feed {
+        max-width: 480px;
+        width: 100%;
+        margin: 0 auto;
+        height: 320px;
+    }
+
+    /* iPad Touch-friendly sizing (Minimum 44px for buttons, larger checkboxes) */
+    .btn-generate {
+        min-height: 44px;
+        font-size: 1.05rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .checkbox-visual {
+        width: 20px;
+        height: 20px;
+        margin-right: 6px;
+    }
+
+    input[type="checkbox"]:checked+.checkbox-visual::after {
+        top: -3px;
+        left: 2px;
+        font-size: 18px;
+    }
+
+    .inline-input {
+        min-height: 34px;
+        padding: 2px 8px;
+        font-size: 1.05rem;
+    }
+
+    .circle-option {
+        padding: 4px 8px;
+        margin: 2px;
+        display: inline-block;
+    }
+
+    .form-row {
+        line-height: 2.2;
+        margin-bottom: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .document-pane {
+        padding: 15px 12px;
+    }
+
+    .app-title {
+        font-size: 1.1rem;
+    }
+
+    .patho-form {
+        font-size: 1rem;
+    }
+
+    .btn-generate {
+        font-size: 0.95rem;
+        padding: 12px 10px;
+    }
+
+    .camera-feed {
+        height: 260px;
+    }
+}
