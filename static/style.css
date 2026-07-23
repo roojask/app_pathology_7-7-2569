@@ -196,7 +196,26 @@ input[type="radio"] {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s ease-in-out;
 }
+
+.camera-feed.collapsed {
+    height: 45px;
+    background: #1e293b;
+}
+
+.camera-feed.collapsed .output_canvas,
+.camera-feed.collapsed .camera-scanner-overlay,
+.camera-feed.collapsed .gesture-controls {
+    display: none !important;
+}
+
+.camera-feed.collapsed .camera-overlay-text {
+    position: static;
+    padding: 0;
+    background: transparent;
+}
+
 
 .input_video {
     display: none;

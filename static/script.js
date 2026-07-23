@@ -464,6 +464,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Camera Toggle Controls ---
+    const cameraFeedEl = document.querySelector('.camera-feed');
+
     if (btnCameraToggle) {
         btnCameraToggle.addEventListener('click', function() {
             if (!cameraInstance) return;
@@ -471,6 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (isCameraRunning) {
                 cameraInstance.stop();
                 isCameraRunning = false;
+                if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
                 btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
                 btnCameraToggle.style.backgroundColor = '#ddd';
                 if (canvasCtx) {
@@ -481,10 +484,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 cameraInstance.start()
                     .then(() => {
                         isCameraRunning = true;
+                        if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
                         btnCameraToggle.innerHTML = '<i class="fas fa-video-slash"></i> ปิดกล้อง (Stop)';
                         btnCameraToggle.style.backgroundColor = '#ffcccc';
                     })
                     .catch(err => {
+                        isCameraRunning = false;
+                        if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
                         btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
                         btnCameraToggle.style.backgroundColor = '#ddd';
                         showError("Camera Error: " + err.message);
@@ -524,6 +530,7 @@ document.addEventListener('DOMContentLoaded', function () {
             cameraInstance.start()
                 .then(() => {
                     isCameraRunning = true;
+                    if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
                     if (btnCameraToggle) {
                         btnCameraToggle.innerHTML = '<i class="fas fa-video-slash"></i> ปิดกล้อง (Stop)';
                         btnCameraToggle.style.backgroundColor = '#ffcccc';
@@ -531,6 +538,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .catch(err => {
                     isCameraRunning = false;
+                    if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
                     if (btnCameraToggle) {
                         btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
                         btnCameraToggle.style.backgroundColor = '#ddd';
@@ -543,6 +551,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
         }
     } else {
+
         console.warn("MediaPipe Hands library not loaded.");
     }
 
