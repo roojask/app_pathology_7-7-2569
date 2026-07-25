@@ -88,12 +88,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const totalText = finalTranscript + interimTranscript;
             
-            // Check for voice reset commands
+            // --- Text-to-Speech (TTS) & Hands-Free Feedback ---
+            let isVoiceFeedbackEnabled = true;
+            const btnHandsfreeToggle = document.getElementById('btn-handsfree-toggle');
+
+            function speakFeedback(text, lang = 'th-TH') {
+                if (!isVoiceFeedbackEnabled) return;
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = lang;
+                    utterance.rate = 1.05;
+                    utterance.pitch = 1.0;
+                    window.speechSynthesis.speak(utterance);
+                }
+            }
+
+            if (btnHandsfreeToggle) {
+                btnHandsfreeToggle.addEventListener('click', function () {
+                    isVoiceFeedbackEnabled = !isVoiceFeedbackEnabled;
+                    if (isVoiceFeedbackEnabled) {
+                        btnHandsfreeToggle.style.backgroundColor = '#28a745';
+                        btnHandsfreeToggle.style.color = 'white';
+                        btnHandsfreeToggle.innerHTML = '<i class="fas fa-volume-up"></i> เสียงตอบรับ (Hands-Free): ON';
+                        speakFeedback('เปิดระบบเสียงตอบรับเรียบร้อยแล้ว');
+                    } else {
+                        btnHandsfreeToggle.style.backgroundColor = '#7f8c8d';
+                        btnHandsfreeToggle.style.color = 'white';
+                        btnHandsfreeToggle.innerHTML = '<i class="fas fa-volume-mute"></i> เสียงตอบรับ (Hands-Free): OFF';
+                    }
+                });
+            }
+
+            // Check for voice commands
             const checkText = totalText.toLowerCase().trim();
-            if (checkText.endsWith("clear all") || checkText.endsWith("reset form")) {
+
+            // 1. Voice Command: Reset / Clear Form
+            if (checkText.endsWith("clear all") || checkText.endsWith("reset form") || checkText.endsWith("ล้างข้อมูล")) {
                 txtTranscription.value = "";
                 if (typeof unlockAllFields === 'function') unlockAllFields();
-                // Clear the form fields
                 document.querySelectorAll('.patho-form input[type="text"], .patho-form textarea').forEach(el => {
                     el.value = '';
                 });
@@ -101,10 +134,39 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.checked = false;
                 });
                 if (micStatusContainer) micStatusContainer.innerText = "ล้างฟอร์มเรียบร้อยแล้ว (Form Cleared)";
+                speakFeedback("ล้างข้อมูลเรียบร้อยแล้ว");
                 recognition.stop();
                 setTimeout(() => {
                     try { recognition.start(); } catch(e) {}
                 }, 200);
+                return;
+            }
+
+            // 2. Voice Command: Generate PDF / Save Report
+            if (checkText.endsWith("generate pdf") || checkText.endsWith("save report") || checkText.endsWith("ออกรายงาน") || checkText.endsWith("สร้าง pdf")) {
+                speakFeedback("กำลังออกรายงาน PDF");
+                if (micStatusContainer) micStatusContainer.innerText = "กำลังสร้างรายงาน PDF...";
+                const saveBtn = document.getElementById('btn-save-submit');
+                if (saveBtn) {
+                    setTimeout(() => saveBtn.click(), 800);
+                }
+                return;
+            }
+
+            // 3. Voice Command: Stop Recording
+            if (checkText.endsWith("stop record") || checkText.endsWith("หยุดบันทึก") || checkText.endsWith("หยุดอัดเสียง")) {
+                isRecording = false;
+                recognition.stop();
+                speakFeedback("หยุดบันทึกเสียงแล้ว");
+                return;
+            }
+
+            // 4. Voice Command: Extract Data
+            if (checkText.endsWith("extract data") || checkText.endsWith("สกัดข้อมูล")) {
+                speakFeedback("กำลังสกัดข้อมูลลงแบบฟอร์ม");
+                if (micStatusContainer) micStatusContainer.innerText = "กำลังสกัดข้อมูลลงแบบฟอร์ม...";
+                const extractBtn = document.querySelector('button[type="submit"].btn-generate');
+                if (extractBtn) extractBtn.click();
                 return;
             }
 

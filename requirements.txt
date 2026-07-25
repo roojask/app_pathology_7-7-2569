@@ -6,7 +6,7 @@ openai-whisper==20250625
 pdf2docx==0.5.8
 spacy==3.8.11
 jiwer==3.0.3
-psycopg2-binary==2.9.9
+psycopg2-binary>=2.9.10
 cryptography==42.0.5
 waitress==3.0.0
 python-dotenv==1.0.1
