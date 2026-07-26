@@ -63,7 +63,6 @@ def transcribe_via_groq(audio_path, api_key):
             data = {
                 "model": Config.GROQ_MODEL,
                 "prompt": Config.PATHOLOGY_PROMPT,
-                "language": "en",
                 "response_format": "json"
             }
             response = requests.post(url, headers=headers, files=files, data=data, timeout=12)
@@ -105,7 +104,6 @@ def transcribe_audio(audio_path):
             current_model = get_model()
             result = current_model.transcribe(
                 str(processed_audio_path), 
-                language="en", 
                 initial_prompt=Config.PATHOLOGY_PROMPT
             )
             

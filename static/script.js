@@ -29,12 +29,36 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    let currentMicLang = 'th-TH';
+    const btnLangToggle = document.getElementById('btn-lang-toggle');
+
+    if (btnLangToggle) {
+        btnLangToggle.addEventListener('click', function () {
+            if (currentMicLang === 'th-TH') {
+                currentMicLang = 'en-US';
+                btnLangToggle.style.backgroundColor = '#8e44ad';
+                btnLangToggle.innerHTML = '<i class="fas fa-language"></i> ไมค์: Eng (en-US)';
+            } else {
+                currentMicLang = 'th-TH';
+                btnLangToggle.style.backgroundColor = '#3498db';
+                btnLangToggle.innerHTML = '<i class="fas fa-language"></i> ไมค์: ไทย (th-TH)';
+            }
+            if (recognition) {
+                recognition.lang = currentMicLang;
+                if (isRecording) {
+                    recognition.stop();
+                    setTimeout(() => { try { recognition.start(); } catch(e) {} }, 200);
+                }
+            }
+        });
+    }
+
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        recognition.lang = currentMicLang;
 
         recognition.onstart = function () {
             isRecording = true;
