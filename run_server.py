@@ -9,8 +9,13 @@ sys.path.append(str(Path(__file__).parent))
 def start_server():
     print("==================================================")
     print("[INIT] Pathology Assistant Server Initialization")
-    print("==================================================")
-    
+    # Auto-backup database on startup to guarantee zero data loss
+    try:
+        from scripts.backup_db import backup_database
+        backup_database()
+    except Exception as e:
+        print(f"⚠️ Automated backup warning: {e}")
+
     cert_path = Path("configs") / "cert.pem"
     key_path = Path("configs") / "key.pem"
     
