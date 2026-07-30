@@ -4,28 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Form History - Patho Voice Assistant</title>
+    <title>Database & Form History - Patho Voice Assistant</title>
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .history-container {
-            max-width: 800px;
-            margin: 50px auto;
+            max-width: 950px;
+            margin: 40px auto;
             background: white;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 15px;
+            font-size: 14px;
         }
 
         th,
         td {
-            padding: 12px;
+            padding: 10px 12px;
             text-align: left;
             border-bottom: 1px solid #eee;
         }
@@ -43,7 +44,7 @@
         .btn-load {
             background-color: #28a745;
             color: white;
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 4px;
             text-decoration: none;
             font-size: 13px;
@@ -59,6 +60,42 @@
             align-items: center;
             margin-bottom: 20px;
         }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: none;
+            background: #eef2f3;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .tab-btn.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .db-badge {
+            background: #20c997;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 
@@ -66,11 +103,15 @@
 
     <div class="history-container">
         <div class="header-top">
-            <h2><i class="fas fa-history"></i> My Form History (ประวัติแบบฟอร์ม)</h2>
+            <h2><i class="fas fa-database"></i> Database & History Viewer</h2>
             <a href="{{ url_for('index') }}" class="btn-generate"
                 style="background-color: #6c757d; width: auto; padding: 8px 15px; text-decoration: none; font-size: 14px;">
-                <i class="fas fa-arrow-left"></i> Back to Main
+                <i class="fas fa-arrow-left"></i> Back to Main App
             </a>
+        </div>
+
+        <div class="db-badge">
+            <i class="fas fa-server"></i> Database: {{ db_uri.split('@')[-1] if '@' in db_uri else db_uri }}
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -84,50 +125,142 @@
         {% endif %}
         {% endwith %}
 
-        {% if histories %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Date & Time</th>
-                    <th>Surgical Number</th>
-                    <th>Audio Rec</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for h in histories %}
-                <tr>
-                    <td>{{ h.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                    <td>{{ h.surgical_number or "Not Specified" }}</td>
-                    <td>
-                        {% if h.audio_filename %}
-                        <audio controls style="height: 30px; width: 220px; vertical-align: middle;">
-                            {% if h.audio_filename.startswith('http://') or h.audio_filename.startswith('https://') %}
-                            <source src="{{ h.audio_filename }}" type="audio/wav">
-                            {% else %}
-                            <source src="{{ url_for('get_upload', filename=h.audio_filename) }}" type="audio/wav">
-                            {% endif %}
-                            No audio
+        <!-- Tab Navigation -->
+        <div>
+            <button class="tab-btn active" onclick="showTab('my-history', this)">
+                <i class="fas fa-user-clock"></i> My History (ประวัติของฉัน)
+            </button>
+            <button class="tab-btn" onclick="showTab('all-db-reports', this)">
+                <i class="fas fa-folder-tree"></i> All DB Reports (รายงานทั้งหมดใน DB)
+            </button>
+            <button class="tab-btn" onclick="showTab('all-db-users', this)">
+                <i class="fas fa-users"></i> All Users (รายชื่อผู้ใช้ใน DB)
+            </button>
+        </div>
 
-                        </audio>
-                        {% else %}
-                        <span style="color:#aaa; font-style:italic; font-size:12px;">No Audio</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('load_history', history_id=h.id) }}" class="btn-load">
-                            <i class="fas fa-folder-open"></i> Load Form
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p style="text-align: center; color: #777; padding: 30px 0;">No history found. Generate a PDF to save a form.
-        </p>
-        {% endif %}
+        <hr style="border: 0; border-top: 2px solid #007bff; margin: 0 0 20px 0;">
+
+        <!-- Tab 1: My History -->
+        <div id="my-history" class="tab-content active">
+            {% if histories %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Surgical Number</th>
+                        <th>Audio Rec</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in histories %}
+                    <tr>
+                        <td>{{ h.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td><strong>{{ h.surgical_number or "Not Specified" }}</strong></td>
+                        <td>
+                            {% if h.audio_filename %}
+                            <audio controls style="height: 30px; width: 220px; vertical-align: middle;">
+                                {% if h.audio_filename.startswith('http://') or h.audio_filename.startswith('https://') %}
+                                <source src="{{ h.audio_filename }}" type="audio/wav">
+                                {% else %}
+                                <source src="{{ url_for('get_upload', filename=h.audio_filename) }}" type="audio/wav">
+                                {% endif %}
+                                No audio
+                            </audio>
+                            {% else %}
+                            <span style="color:#aaa; font-style:italic; font-size:12px;">No Audio</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('load_history', history_id=h.id) }}" class="btn-load">
+                                <i class="fas fa-folder-open"></i> Load Form
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="text-align: center; color: #777; padding: 30px 0;">No personal history found. Generate a PDF to save a form.</p>
+            {% endif %}
+        </div>
+
+        <!-- Tab 2: All DB Reports -->
+        <div id="all-db-reports" class="tab-content">
+            <h4 style="margin: 0 0 10px 0; color: #333;"><i class="fas fa-table"></i> Form History Table (`form_history`)</h4>
+            {% if all_histories %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Surgical No</th>
+                        <th>Author</th>
+                        <th>Created At</th>
+                        <th>Audio File</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in all_histories %}
+                    <tr>
+                        <td><strong>#{{ h.id }}</strong></td>
+                        <td><span style="color: #007bff; font-weight: bold;">{{ h.surgical_number or "N/A" }}</span></td>
+                        <td><i class="fas fa-user-circle"></i> {{ h.author.name or h.author.username if h.author else 'User #' ~ h.user_id }}</td>
+                        <td>{{ h.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>
+                            {% if h.audio_filename %}
+                            <i class="fas fa-file-audio" style="color: #e67e22;"></i> {{ h.audio_filename[:25] }}...
+                            {% else %}
+                            <span style="color:#ccc;">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="text-align: center; color: #777; padding: 20px 0;">No records found in database.</p>
+            {% endif %}
+        </div>
+
+        <!-- Tab 3: All Users -->
+        <div id="all-db-users" class="tab-content">
+            <h4 style="margin: 0 0 10px 0; color: #333;"><i class="fas fa-user-shield"></i> User Accounts Table (`user`)</h4>
+            {% if all_users %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in all_users %}
+                    <tr>
+                        <td><strong>#{{ u.id }}</strong></td>
+                        <td><i class="fas fa-user"></i> {{ u.username }}</td>
+                        <td>{{ u.name or "N/A" }}</td>
+                        <td>{{ u.email }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="text-align: center; color: #777; padding: 20px 0;">No users found in database.</p>
+            {% endif %}
+        </div>
+
     </div>
+
+    <script>
+        function showTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+    </script>
 
 </body>
 

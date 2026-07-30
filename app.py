@@ -347,7 +347,16 @@ def forgot_password():
 @login_required
 def history():
     user_histories = FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).all()
-    return render_template("history.html", histories=user_histories)
+    all_histories = FormHistory.query.order_by(FormHistory.timestamp.desc()).all()
+    all_users = User.query.all()
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    return render_template(
+        "history.html", 
+        histories=user_histories, 
+        all_histories=all_histories, 
+        all_users=all_users, 
+        db_uri=db_uri
+    )
 
 @app.route("/history/load/<int:history_id>")
 @login_required
