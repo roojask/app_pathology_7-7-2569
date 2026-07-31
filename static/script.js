@@ -813,7 +813,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (t.includes("ulceration")) {
             data["s8_check"] = true;
-            if (dims2d.length > 1) {
+            const ulcerDim = t.match(/ulceration\s+([\d.]+)\s*x\s*([\d.]+)/i);
+            if (ulcerDim) {
+                data["s8_dims"] = [ulcerDim[1], ulcerDim[2]];
+            } else if (dims2d.length > 1) {
                 data["s8_dims"] = dims2d[1];
             }
         }
@@ -825,6 +828,24 @@ document.addEventListener('DOMContentLoaded', function () {
         if (t.includes("ulceration")) s9_val.push("ulceration");
         if (s9_val.length > 0) data["s9_val"] = s9_val;
 
+        // 7.5 Tumor Quadrants (Section 10.5)
+        const quadrantVals = [];
+        const locMatch = t.match(/(?:upper|lower|central)\s*(?:inner|outer)?\s*quadrant/i);
+        if (locMatch) {
+            const locText = locMatch[0].toLowerCase();
+            if (locText.includes("central")) quadrantVals.push("central");
+            else {
+                if (locText.includes("upper")) quadrantVals.push("upper");
+                if (locText.includes("lower")) quadrantVals.push("lower");
+                if (locText.includes("inner")) quadrantVals.push("inner");
+                if (locText.includes("outer")) quadrantVals.push("outer");
+            }
+        }
+        if (quadrantVals.length > 0) {
+            data["s10_5_quadrant_check"] = true;
+            data["s10_5_quadrant_vals"] = quadrantVals;
+        }
+
         // 8. Margins
         const margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"];
         margins.forEach(m => {
@@ -835,15 +856,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // 9. Lymph nodes
-        if ((t.includes("lymph node") || t.includes("nodes")) && !t.includes("not found") && !t.includes("no lymph")) {
+        // 9. Lymph nodes (Scoped to lymph sentence)
+        const lymphSentence = t.match(/[^.!?]*\b(?:lymph|node|nodes)\b[^.!?]*/i);
+        if (lymphSentence && !lymphSentence[0].includes("not found") && !lymphSentence[0].includes("no lymph")) {
             data["s14_check"] = true;
-            const sizes = t.match(/\b(\d+(?:\.\d+)?)\b/g);
+            const sizes = lymphSentence[0].match(/\b(\d+(?:\.\d+)?)\b/g);
             if (sizes && sizes.length >= 2) {
-                const sizesFloat = sizes.map(Number);
-                data["s14_min"] = Math.min(...sizesFloat).toString();
-                data["s14_max"] = Math.max(...sizesFloat).toString();
+                const sizesFloat = sizes.map(Number).filter(n => n <= 10.0);
+                if (sizesFloat.length >= 2) {
+                    data["s14_min"] = Math.min(...sizesFloat).toString();
+                    data["s14_max"] = Math.max(...sizesFloat).toString();
+                }
             }
+            const countMatch = lymphSentence[0].match(/(\d+)\s+(?:lymph\s+)?node/i);
+            if (countMatch) data["s14_num"] = countMatch[1];
         }
 
         // 10. Sections Mapping
@@ -978,6 +1004,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 setVal('[name="s10_inf_dims_2"]', data.s10_inf_dims[2]);
             }
         }
+        // Tumor Quadrants (10.5)
+        if (data.s10_5_quadrant_check && data.s10_5_quadrant_vals) {
+            setCheck('[name="s10_5_quadrant_check"]', true);
+            data.s10_5_quadrant_vals.forEach(q => {
+                setCheck(`[name="s10_5_quadrant_vals"][value="${q}"]`, true);
+            });
+        }
         // Margins
         const margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"];
         margins.forEach(m => {
@@ -988,6 +1021,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Lymph nodes
         if (data.s14_check) {
             setCheck('[name="s14_check"]', true);
+            if (data.s14_num) setVal('[name="s14_num"]', data.s14_num);
             if (data.s14_min) setVal('[name="s14_min"]', data.s14_min);
             if (data.s14_max) setVal('[name="s14_max"]', data.s14_max);
         }
