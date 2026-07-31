@@ -869,17 +869,28 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyLocalDataToForm(data) {
         function setVal(selector, val) {
             const el = document.querySelector(selector);
-            if (el && !el.hasAttribute('data-manual')) el.value = val || '';
+            if (el && !el.hasAttribute('data-manual')) {
+                if (val && el.value !== val) {
+                    el.value = val;
+                    el.classList.remove('field-updated');
+                    void el.offsetWidth; // Trigger reflow
+                    el.classList.add('field-updated');
+                }
+            }
         }
         function setCheck(selector, isChecked) {
             const el = document.querySelector(selector);
-            if (el && !el.hasAttribute('data-manual')) el.checked = isChecked;
+            if (el && !el.hasAttribute('data-manual')) {
+                if (el.checked !== isChecked) {
+                    el.checked = isChecked;
+                    if (el.parentElement) {
+                        el.parentElement.classList.remove('field-updated');
+                        void el.parentElement.offsetWidth;
+                        el.parentElement.classList.add('field-updated');
+                    }
+                }
+            }
         }
-
-        // Reset check status for all checkboxes / radios first (only if not manual)
-        document.querySelectorAll('.patho-form input[type="checkbox"], .patho-form input[type="radio"]').forEach(el => {
-            if (!el.hasAttribute('data-manual')) el.checked = false;
-        });
 
         // 1. Surgical Number
         if (data.s0_surgical_no) {
@@ -887,10 +898,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // 2. Side
         if (data.s1_side) {
+            const oppSide = data.s1_side === 'right' ? 'left' : 'right';
+            setCheck(`[name="s1_side"][value="${oppSide}"]`, false);
             setCheck(`[name="s1_side"][value="${data.s1_side}"]`, true);
         }
         // 3. Procedure
         if (data.s2_proc) {
+            ['modified', 'simple', 'other'].forEach(p => {
+                if (p !== data.s2_proc) setCheck(`[name="s2_proc"][value="${p}"]`, false);
+            });
             setCheck(`[name="s2_proc"][value="${data.s2_proc}"]`, true);
             if (data.s2_proc === 'other' && data.s2_other_text) {
                 setVal('[name="s2_other_text"]', data.s2_other_text);
@@ -966,6 +982,27 @@ document.addEventListener('DOMContentLoaded', function () {
             for (const [key, code] of Object.entries(data.sections)) {
                 setVal(`[name="${key}"]`, code);
             }
+        }
+
+        // Live Count Filled Sections
+        let filledCount = 0;
+        if (document.querySelector('[name="s0_surgical_no"]')?.value) filledCount++;
+        if (document.querySelector('[name="s1_side"]:checked')) filledCount++;
+        if (document.querySelector('[name="s2_proc"]:checked')) filledCount++;
+        if (document.querySelector('[name="s3_dims_0"]')?.value) filledCount++;
+        if (document.querySelector('[name="s4_check"]:checked')) filledCount++;
+        if (document.querySelector('[name="s5_dims_0"]')?.value || document.querySelector('[name="s5_appears_normal"]:checked')) filledCount++;
+        if (document.querySelector('[name="s6_check"]:checked')) filledCount++;
+        if (document.querySelector('[name="s8_check"]:checked')) filledCount++;
+        if (document.querySelector('[name="s9_val"]:checked')) filledCount++;
+        if (document.querySelector('[name="s10_infiltrative"]:checked')) filledCount++;
+        if (document.querySelector('[name="s11_deep"]')?.value || document.querySelector('[name="s11_superior"]')?.value) filledCount++;
+        if (document.querySelector('[name="s14_check"]:checked')) filledCount++;
+        if (document.querySelector('[name="sec_nipple"]')?.value || document.querySelector('[name="sec_mass"]')?.value) filledCount++;
+
+        const micStatus = document.getElementById('mic-status-container');
+        if (micStatus && filledCount > 0) {
+            micStatus.innerHTML = `<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-magic"></i> สกัดข้อมูลเรียลไทม์สำเร็จแล้ว (${filledCount} / 15 หัวข้อ)</span>`;
         }
     }
 
