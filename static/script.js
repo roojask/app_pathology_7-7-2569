@@ -771,10 +771,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 data["s4_check"] = true;
                 data["s4_dims"] = dims3d[1];
             }
-            if (t.includes("mass") || t.includes("infiltrative")) {
+            if (t.includes("mass") || t.includes("infiltrative") || t.includes("tumor")) {
                 data["s10_infiltrative"] = true;
-                data["s10_inf_dims"] = dims3d[dims3d.length - 1];
                 data["s10_grammar"] = "is a";
+
+                // Assign mass dimensions only if a distinct 3D dimension exists or is near mass keywords
+                if (dims3d.length > 1) {
+                    data["s10_inf_dims"] = dims3d[dims3d.length - 1];
+                } else if (dims3d.length === 1) {
+                    const massKwIdx = Math.max(t.indexOf("mass"), t.indexOf("infiltrative"), t.indexOf("tumor"));
+                    const dimRegexSingle = /([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/;
+                    const singleMatch = dimRegexSingle.exec(t);
+                    if (singleMatch && massKwIdx !== -1 && Math.abs(massKwIdx - singleMatch.index) < 50) {
+                        data["s10_inf_dims"] = dims3d[0];
+                    }
+                }
             }
         }
 
