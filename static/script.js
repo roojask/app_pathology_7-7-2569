@@ -779,12 +779,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // 5. Skin ellipse dimensions (2D)
+        // Strip out all 3D dimension patterns first so 20x30x40 is not partially matched as 20x3
+        const textWithout3D = t.replace(/[\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+/gi, '[3D_DIMS]');
         const dims2d = [];
-        const dim2dRegex = /([\d.]+)\s*x\s*([\d.]+)(?!\s*x)/g;
-        while ((match = dim2dRegex.exec(t)) !== null) {
+        const dim2dRegex = /\b([\d.]+)\s*x\s*([\d.]+)\b/g;
+        while ((match = dim2dRegex.exec(textWithout3D)) !== null) {
             dims2d.push([match[1], match[2]]);
         }
-        if (dims2d.length > 0) {
+        // Only set skin ellipse if there is a standalone 2D dimension and skin/ellipse context
+        if (dims2d.length > 0 && (t.includes("skin") || t.includes("ellipse"))) {
             data["s5_dims"] = dims2d[0];
         }
         if (t.includes("appears normal") || t.includes("skin normal")) {
