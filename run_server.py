@@ -14,7 +14,7 @@ def start_server():
         from scripts.backup_db import backup_database
         backup_database()
     except Exception as e:
-        print(f"⚠️ Automated backup warning: {e}")
+        print(f" Automated backup warning: {e}")
 
     cert_path = Path("configs") / "cert.pem"
     key_path = Path("configs") / "key.pem"

@@ -133,6 +133,15 @@ def setup_postgres(password="postgres"):
                 print(f"  • Migrated {len(sqlite_histories)} pathology case reports to PostgreSQL.")
                 sq_conn.close()
 
+                # Reset PostgreSQL ID Sequences so future inserts don't hit UniqueViolation
+                try:
+                    db.session.execute(db.text("SELECT setval('form_history_id_seq', (SELECT COALESCE(MAX(id), 1) FROM form_history));"))
+                    db.session.execute(db.text("SELECT setval('user_id_seq', (SELECT COALESCE(MAX(id), 1) FROM \"user\"));"))
+                    db.session.commit()
+                    print("  • Updated PostgreSQL primary key sequences to match latest IDs.")
+                except Exception as seq_err:
+                    print(f"  • Sequence sync note: {seq_err}")
+
             except Exception as me:
                 print(f"⚠️ Migration note: {me}")
 
