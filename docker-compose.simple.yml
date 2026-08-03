@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  pathology-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    container_name: pathology_test_app
+    ports:
+      - "7860:7860"
+    environment:
+      - USE_HTTPS=True
+      - SECRET_KEY=pathology-simple-secret
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
