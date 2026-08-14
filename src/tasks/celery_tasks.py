@@ -1,5 +1,12 @@
 import os
-from celery import Celery
+
+try:
+    from celery import Celery
+    CELERY_AVAILABLE = True
+except ImportError:
+    Celery = None
+    CELERY_AVAILABLE = False
+
 from app import app, db
 from src.database.models import AudioTask
 from src.stt.whisper_model import transcribe_audio
@@ -13,21 +20,27 @@ db_path = os.path.join(db_dir, "celery_queue.db")
 broker_url = f"sqla+sqlite:///{db_path}"
 backend_url = f"db+sqlite:///{db_path}"
 
-celery_app = Celery(
-    "tasks",
-    broker=broker_url,
-    backend=backend_url
-)
+if CELERY_AVAILABLE:
+    celery_app = Celery(
+        "tasks",
+        broker=broker_url,
+        backend=backend_url
+    )
+    # Configure celery serialization
+    celery_app.conf.update(
+        task_serializer="json",
+        result_serializer="json",
+        accept_content=["json"]
+    )
+    task_decorator = celery_app.task
+else:
+    celery_app = None
+    def task_decorator(func):
+        return func
 
-# Configure celery serialization
-celery_app.conf.update(
-    task_serializer="json",
-    result_serializer="json",
-    accept_content=["json"]
-)
-
-@celery_app.task
+@task_decorator
 def transcribe_audio_task(task_id, file_path):
+
     """
     Celery background task to transcribe audio file.
     Updates the database record status to 'processing' and then to 'completed' or 'failed'.

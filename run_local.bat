@@ -47,15 +47,16 @@ if %errorlevel% neq 0 (
 )
 
 :: 5. Check FFmpeg dependency (Critical for Whisper)
+set "PATH=%CD%\bin;%PATH%"
 ffmpeg -version >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
     echo [WARNING] FFmpeg was not found in your system PATH.
     echo OpenAI Whisper requires FFmpeg for audio processing.
     echo.
-    if not exist ffmpeg.exe (
+    if not exist bin\ffmpeg.exe (
         echo [4/4] Downloading portable FFmpeg.exe for offline running...
-        :: Use curl to download a portable static build of FFmpeg from a reliable build provider
+        if not exist bin mkdir bin
         curl -L -o ffmpeg.zip https://github.com/GyanD/codexffmpeg/releases/download/6.0/ffmpeg-6.0-essentials_build.zip
         if %errorlevel% neq 0 (
             echo [WARNING] Failed to download FFmpeg automatically.
@@ -63,19 +64,20 @@ if %errorlevel% neq 0 (
         ) else (
             echo [Loading] Extracting portable FFmpeg...
             tar -xf ffmpeg.zip
-            move ffmpeg-6.0-essentials_build\bin\ffmpeg.exe . >nul 2>&1
-            move ffmpeg-6.0-essentials_build\bin\ffprobe.exe . >nul 2>&1
+            move ffmpeg-6.0-essentials_build\bin\ffmpeg.exe bin\ >nul 2>&1
+            move ffmpeg-6.0-essentials_build\bin\ffprobe.exe bin\ >nul 2>&1
             :: Cleanup
             del ffmpeg.zip
             rmdir /s /q ffmpeg-6.0-essentials_build >nul 2>&1
-            echo [Success] Portable FFmpeg downloaded and set up successfully.
+            echo [Success] Portable FFmpeg downloaded and set up into bin/ folder.
         )
     ) else (
-        echo [Success] Portable ffmpeg.exe is already present in project folder.
+        echo [Success] Portable ffmpeg.exe is already present in bin/ folder.
     )
 ) else (
-    echo [Success] FFmpeg is already installed globally on this system.
+    echo [Success] FFmpeg is ready.
 )
+
 
 echo.
 echo ====================================================================

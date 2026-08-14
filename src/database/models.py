@@ -26,3 +26,14 @@ class FormHistory(db.Model):
     form_data = db.Column(db.Text, nullable=False) # Store JSON string of data dict
     audio_filename = db.Column(db.String(200), nullable=True) # Unique audio filename
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+
+class AudioTask(db.Model):
+    id = db.Column(db.String(36), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    file_path = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), default="pending")  # pending, processing, completed, failed
+    result_text = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+

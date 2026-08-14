@@ -1,62 +1,57 @@
-venv/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
 env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-data/outputs/
-*.pdf
-*.docx
-!data/assets/*.pdf
-!data/assets/*.docx
-.vscode/
-.idea/
+ENV/
+pyvenv.cfg
 
-# Models and Large Binaries
-vosk-model/
-ffmpeg-8.0.1/
-ffmpeg.exe
-PathoVoiceAssistant.exe
-data/sound/
 
-# App Data
-data/instance/*.db
-data/uploads/*
-!data/uploads/.gitkeep
-data/audio_cases/
-sound/
-*.jpg
-model_comparison_chart.png
-
-# Benchmark Results
-benchmark_results_all.json
-stt_benchmark_results.json
-eval_stt_cases.json
-wer_results.txt
-benchmark_output/
-benchmarks_and_tools/
-pyinstaller_data/
-
-# Build Artifacts
+# Binaries & Executables
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
 *.spec
+dist/
+build/
 
-# Local Environment Variables
+# Local Environment & Secrets
 .env
 *.env
+*.pem
+*.key
+*.cert
 
+# Application Data & User Uploads
+data/instance/
+data/dataset_1000/audio/
+data/uploads/*
+!data/uploads/.gitkeep
+data/outputs/*
+!data/outputs/.gitkeep
+data/backups/*
+!data/backups/.gitkeep
+data/audio_cases/
+data/sound/
+scratch/
+
+
+# Large Benchmark Audio Data
+benchmarks/datasets/*.wav
+benchmarks/datasets/*.mp3
+
+# Model Checkpoints (unless tracked with Git LFS)
+models/pathowhisper_lora/*.safetensors
+models/pathowhisper_lora/*.bin
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

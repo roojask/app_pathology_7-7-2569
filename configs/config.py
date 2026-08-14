@@ -7,6 +7,12 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
+BIN_DIR = BASE_DIR / "bin"
+
+# Automatically add project bin folder to PATH (for portable ffmpeg / tools)
+if BIN_DIR.exists():
+    os.environ["PATH"] = str(BIN_DIR) + os.pathsep + os.environ.get("PATH", "")
+
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "pathology-secret")

@@ -98,14 +98,11 @@ def transcribe_audio(audio_path):
                     except: pass
                 return transcription
         
-        # Fallback to local CPU Whisper
-        print("[STT Pipeline] No Groq Key or Groq failed. Falling back to local CPU Whisper...")
-        with whisper_lock:
-            current_model = get_model()
-            result = current_model.transcribe(
-                str(processed_audio_path), 
-                initial_prompt=Config.PATHOLOGY_PROMPT
-            )
+        # Fallback to local CPU PathoWhisper (Faster-Whisper CTranslate2 INT8 Engine - 2x Speedup)
+        print("[STT Pipeline] Processing via local CPU PathoWhisper CTranslate2 INT8 Engine...")
+        from src.stt.faster_whisper_engine import transcribe_faster_whisper
+        transcription_text = transcribe_faster_whisper(str(processed_audio_path), initial_prompt=Config.PATHOLOGY_PROMPT)
+        result = {'text': transcription_text}
             
         # Clean up temporary denoised file
         if processed_audio_path != audio_path and os.path.exists(processed_audio_path):

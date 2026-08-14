@@ -9,7 +9,17 @@ def normalize_text(text):
     t = re.sub(r"\btimes\b", "x", t)
     
     # 2. ระบบแก้คำผิดอัจฉริยะ (Smart Self-Correction)
-    t = re.sub(r"([\d.]+\s*x\s*[\d.]+(?:\s*x\s*[\d.]+)?)(?:[\s\.,]*(?:cm|centimeters|mm))?[\s\.,]*(?:sorry|wait|weight|correction|actually|no wait)+[\s\.,]*(?:measuring|size is|it is|actually)?\s*", "", t)
+    t = re.sub(r"([\d.]+\s*x\s*[\d.]+(?:\s*x\s*[\d.]+)?)(?:[\s\.,]*(?:cm|centimeters|mm))?[\s\.,]*(?:sorry|wait|weight|correction|actually|no wait|แก้เป็น|ขอแก้|ไม่ใช่|เปลี่ยนเป็น)+[\s\.,]*(?:measuring|size is|it is|actually)?\s*", "", t)
+    
+    # 2.5. แปลงคำอ่านภาษาไทย-อังกฤษ (Thai-English Phonetic Normalization)
+    t = t.replace("ข้างขวา", "right").replace("เต้าขวา", "right").replace("ขวา", "right")
+    t = t.replace("ข้างซ้าย", "left").replace("เต้าซ้าย", "left").replace("ซ้าย", "left")
+    t = t.replace("ก้อน", "mass").replace("แมส", "mass")
+    t = t.replace("ต่อมน้ำเหลือง", "lymph nodes")
+    t = t.replace("ขอบตัด", "margin").replace("ขอบ", "margin")
+    t = t.replace("บนนอก", "upper outer").replace("บนใน", "upper inner")
+    t = t.replace("ล่างนอก", "lower outer").replace("ล่างใน", "lower inner")
+    t = t.replace("ขนาด", "measuring")
     
     # 3. แปลงหน่วยและคำพ้องความหมาย (Synonyms)
     t = t.replace("centimeters", "cm").replace("centimeter", "cm")
