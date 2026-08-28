@@ -26,7 +26,7 @@ def get_faster_whisper_model(model_size="small", compute_type="int8", device="cp
                 print(f"[Success] Faster-Whisper ({model_size}) loaded successfully!")
     return _faster_whisper_model
 
-def transcribe_faster_whisper(audio_path, initial_prompt=None):
+def transcribe_faster_whisper(audio_path, initial_prompt=None, language=None):
     """
     Transcribes audio using Faster-Whisper (CTranslate2 INT8)
     Returns transcribed string.
@@ -41,7 +41,7 @@ def transcribe_faster_whisper(audio_path, initial_prompt=None):
         str(audio_path),
         beam_size=1,
         best_of=1,
-        language="en",
+        language=language,
         initial_prompt=initial_prompt,
         vad_filter=False
     )

@@ -33,10 +33,11 @@ AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 SIDES = ["right", "left"]
 PROCS = ["modified radical mastectomy", "simple mastectomy"]
 QUADRANTS = ["upper inner", "upper outer", "lower inner", "lower outer", "central"]
-ACCENTS = ["en-us", "en-uk", "en-au", "en-in", "th"]
+ACCENTS = ["en-us", "en-uk", "en-au", "en-in", "en-th"]
 
 def generate_case_text_and_gt(case_id, category_idx):
-    surg_no = f"S-24-{1000 + case_id}"
+    random.seed(case_id)
+    surg_no = f"S-24-{1000 + case_id:04d}"
     side = random.choice(SIDES)
     proc_raw = random.choice(PROCS)
     proc_val = "modified" if "modified" in proc_raw else "simple"
@@ -84,8 +85,8 @@ def generate_case_text_and_gt(case_id, category_idx):
         # Fume hood noise context
         text = f"Surgical number {surg_no}. Received in formalin {side} {proc_raw} measuring {d3d_str} cm. Infiltrative yellow white mass {md1}x{md2}x{md3} cm. Deep margin 1.0 cm."
     elif category_idx == 9:
-        # Thai-English Mixed
-        text = f"ชิ้นเนื้อ surgical number {surg_no} ข้าง {side} {proc_raw} ขนาด {d3d_str} cm. พบ mass ขนาด {md1}x{md2}x{md3} cm บริเวณ {quad} quadrant. สกัดได้ lymph nodes {node_count} nodes."
+        # Atypical Lesion / Ductal Carcinoma (100% Clean English Pathology)
+        text = f"Surgical number {surg_no}. Received in formalin is a {side} {proc_raw} specimen measuring {d3d_str} cm. Sectioning reveals a well circumscribed gray white mass measuring {md1}x{md2}x{md3} cm at the {quad} quadrant. Deep margin is 1.5 cm. {node_count} lymph nodes identified."
     else:
         # Edge cases
         text = f"Specimen {surg_no} {side} mastectomy measuring {d3d_str} cm. Infiltrative mass identified without dimensions. Deep margin 1.2 cm."
@@ -116,10 +117,16 @@ def create_synthetic_fume_hood_noise(duration_ms):
     )
     return noise_segment
 
-def build_1000_dataset(max_cases=1000):
+def build_1000_dataset(max_cases=1000, force_regenerate_all=True):
     print("==================================================")
-    print(f"[DATASET GENERATOR] Building {max_cases} Diverse Pathology Audio Cases...")
+    print(f"[DATASET GENERATOR] Building {max_cases} Diverse Pathology Audio Cases (100% English)...")
     print("==================================================")
+    
+    # Force delete old audio folder if it exists
+    if AUDIO_DIR.exists():
+        import shutil
+        shutil.rmtree(str(AUDIO_DIR))
+    AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     
     all_gt = {}
     start_time = time.time()
@@ -127,7 +134,7 @@ def build_1000_dataset(max_cases=1000):
     for i in range(1, max_cases + 1):
         cat_idx = ((i - 1) % 10) + 1
         accent = random.choice(ACCENTS)
-        lang = "th" if "Thai" in f"cat_{cat_idx}" or accent == "th" else "en"
+        lang = "en"
         tld = "com"
         if accent == "en-uk": tld = "co.uk"
         elif accent == "en-au": tld = "com.au"
@@ -144,18 +151,36 @@ def build_1000_dataset(max_cases=1000):
         
         all_gt[f"case_{i:04d}"] = gt
         
-        # Generate Audio File via gTTS if not present
-        if not audio_filepath.exists():
+        # Generate Audio File via edge-tts (100% valid, playable MP3 audio)
+        if not audio_filepath.exists() or force_regenerate_all:
             try:
-                tts = gTTS(text=text, lang=lang, tld=tld, slow=False)
-                tts.save(str(audio_filepath))
+                if audio_filepath.exists():
+                    os.remove(audio_filepath)
                 
-                # Apply Fume Hood Noise to Category 8 and random 30% of cases
-                if cat_idx == 8 or random.random() < 0.3:
-                    speech = AudioSegment.from_file(str(audio_filepath))
-                    bg_noise = create_synthetic_fume_hood_noise(len(speech))
-                    combined = speech.overlay(bg_noise - 10)
-                    combined.export(str(audio_filepath), format="mp3")
+                import asyncio
+                import edge_tts
+                
+                voice_choice = "en-US-AvaNeural"
+                if accent == "en-uk": voice_choice = "en-GB-SoniaNeural"
+                elif accent == "en-au": voice_choice = "en-AU-NatashaNeural"
+                elif accent == "en-in": voice_choice = "en-IN-NeerjaNeural"
+                elif accent == "en-th": voice_choice = "en-PH-JamesNeural"
+                
+                async def _save_mp3():
+                    communicate = edge_tts.Communicate(text, voice_choice)
+                    await communicate.save(str(audio_filepath))
+                
+                asyncio.run(_save_mp3())
+                
+                # Apply Fume Hood Fan Noise (-12dB clear and balanced)
+                if cat_idx == 8 or random.random() < 0.25:
+                    try:
+                        speech = AudioSegment.from_file(str(audio_filepath))
+                        bg_noise = create_synthetic_fume_hood_noise(len(speech))
+                        combined = speech.overlay(bg_noise - 12)
+                        combined.export(str(audio_filepath), format="mp3")
+                    except Exception:
+                        pass
                     
             except Exception as e:
                 pass

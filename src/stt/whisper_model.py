@@ -27,20 +27,19 @@ def denoise_audio(input_path):
     """
     denoised_path = Path(input_path).parent / f"denoised_{Path(input_path).name}"
     try:
-        # Run FFmpeg command: afftdn is the built-in FFT denoiser
         cmd = [
             "ffmpeg", "-y", 
             "-i", str(input_path), 
             "-af", "afftdn", 
             str(denoised_path)
         ]
-        # Run subprocess silently
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-        print(f"[Denoise] Successfully denoised audio file: {denoised_path.name}")
-        return denoised_path
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        if res.returncode == 0 and denoised_path.exists() and denoised_path.stat().st_size > 0:
+            return denoised_path
+        else:
+            return Path(input_path)
     except Exception as e:
-        print(f"[Denoise Warning] Failed to denoise audio using FFmpeg: {e}. Falling back to raw audio.")
-        return input_path
+        return Path(input_path)
 
 def transcribe_via_groq(audio_path, api_key):
     """
@@ -98,11 +97,22 @@ def transcribe_audio(audio_path):
                     except: pass
                 return transcription
         
-        # Fallback to local CPU PathoWhisper (Faster-Whisper CTranslate2 INT8 Engine - 2x Speedup)
-        print("[STT Pipeline] Processing via local CPU PathoWhisper CTranslate2 INT8 Engine...")
-        from src.stt.faster_whisper_engine import transcribe_faster_whisper
-        transcription_text = transcribe_faster_whisper(str(processed_audio_path), initial_prompt=Config.PATHOLOGY_PROMPT)
-        result = {'text': transcription_text}
+        # Check if Faster-Whisper CTranslate2 INT8 Engine is explicitly requested
+        use_faster = getattr(Config, "USE_FASTER_WHISPER_ENGINE", False)
+        if use_faster:
+            print("[STT Pipeline] Processing via local CPU PathoWhisper CTranslate2 INT8 Engine (Configured Alternative)...")
+            from src.stt.faster_whisper_engine import transcribe_faster_whisper
+            transcription_text = transcribe_faster_whisper(str(processed_audio_path), initial_prompt=Config.PATHOLOGY_PROMPT)
+            result = {'text': transcription_text}
+        else:
+            # Default to Standard OpenAI PyTorch Whisper Small Engine
+            print("[STT Pipeline] Processing via Standard OpenAI PyTorch Whisper Small Engine (Default)...")
+            with whisper_lock:
+                current_model = get_model()
+                result = current_model.transcribe(
+                    str(processed_audio_path), 
+                    initial_prompt=Config.PATHOLOGY_PROMPT
+                )
             
         # Clean up temporary denoised file
         if processed_audio_path != audio_path and os.path.exists(processed_audio_path):

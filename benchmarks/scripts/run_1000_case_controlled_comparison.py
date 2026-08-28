@@ -5,7 +5,7 @@ import math
 import re
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
 
 if hasattr(sys.stdout, 'reconfigure'):

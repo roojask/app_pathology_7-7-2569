@@ -29,28 +29,69 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    let currentMicLang = 'th-TH';
-    const btnLangToggle = document.getElementById('btn-lang-toggle');
+    // Default to 100% English Dictation (en-US) for Medical Pathology
+    let currentMicLang = 'en-US';
 
-    if (btnLangToggle) {
-        btnLangToggle.addEventListener('click', function () {
-            if (currentMicLang === 'th-TH') {
-                currentMicLang = 'en-US';
-                btnLangToggle.style.backgroundColor = '#8e44ad';
-                btnLangToggle.innerHTML = '<i class="fas fa-language"></i> ไมค์: Eng (en-US)';
+    // --- Web Audio Chime Synthesizer for Zero-Latency Audio Feedback ---
+    function playAudioChime(type) {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            
+            if (type === 'start') {
+                // Beep Up: 880Hz -> 1046Hz
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1046, ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 0.15);
+            } else if (type === 'stop') {
+                // Beep Down: 880Hz -> 587Hz
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(587, ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 0.15);
+            } else if (type === 'success') {
+                // Success Chime: 523Hz -> 659Hz -> 784Hz Major Chord
+                [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime + idx * 0.06);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.06 + 0.25);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + idx * 0.06);
+                    osc.stop(ctx.currentTime + idx * 0.06 + 0.25);
+                });
+            }
+        } catch(e) {
+            console.log("Chime playback note:", e);
+        }
+    }
+
+    function updateHandsFreeBadge(statusText, ringColor='#95a5a6', pulse=false) {
+        const badgeText = document.getElementById('mic-status-text');
+        const pulseRing = document.getElementById('mic-pulse-ring');
+        if (badgeText) badgeText.innerText = statusText;
+        if (pulseRing) {
+            pulseRing.style.background = ringColor;
+            if (pulse) {
+                pulseRing.style.boxShadow = `0 0 10px ${ringColor}`;
             } else {
-                currentMicLang = 'th-TH';
-                btnLangToggle.style.backgroundColor = '#3498db';
-                btnLangToggle.innerHTML = '<i class="fas fa-language"></i> ไมค์: ไทย (th-TH)';
+                pulseRing.style.boxShadow = 'none';
             }
-            if (recognition) {
-                recognition.lang = currentMicLang;
-                if (isRecording) {
-                    recognition.stop();
-                    setTimeout(() => { try { recognition.start(); } catch(e) {} }, 200);
-                }
-            }
-        });
+        }
     }
 
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -62,6 +103,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         recognition.onstart = function () {
             isRecording = true;
+            playAudioChime('start');
+            updateHandsFreeBadge('Mic Listening...', '#e74c3c', true);
+
             btnMicToggle.innerHTML = '<i class="fas fa-stop-circle" style="color:red;"></i> หยุดบันทึก (Stop)';
             btnMicToggle.style.backgroundColor = '#ffcccc';
 
@@ -86,6 +130,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log("Failed to auto-restart speech recognition:", e);
                 }
             } else {
+                playAudioChime('stop');
+                updateHandsFreeBadge('Hands-Free Ready', '#95a5a6', false);
                 btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
                 btnMicToggle.style.backgroundColor = '#ddd';
 
@@ -148,7 +194,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const checkText = totalText.toLowerCase().trim();
 
             // 1. Voice Command: Reset / Clear Form
-            if (checkText.endsWith("clear all") || checkText.endsWith("reset form") || checkText.endsWith("ล้างข้อมูล")) {
+            if (checkText.endsWith("clear all") || checkText.endsWith("reset form") || checkText.endsWith("ล้างข้อมูล") || checkText.endsWith("เริ่มเคสใหม่") || checkText.endsWith("ล้างฟอร์ม")) {
+                playAudioChime('stop');
+                updateHandsFreeBadge('Form Reset', '#f39c12', true);
                 txtTranscription.value = "";
                 if (typeof unlockAllFields === 'function') unlockAllFields();
                 document.querySelectorAll('.patho-form input[type="text"], .patho-form textarea').forEach(el => {
@@ -158,16 +206,47 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.checked = false;
                 });
                 if (micStatusContainer) micStatusContainer.innerText = "ล้างฟอร์มเรียบร้อยแล้ว (Form Cleared)";
-                speakFeedback("ล้างข้อมูลเรียบร้อยแล้ว");
+                speakFeedback("ล้างข้อมูลเตรียมเคสใหม่เรียบร้อยแล้ว");
                 recognition.stop();
                 setTimeout(() => {
                     try { recognition.start(); } catch(e) {}
-                }, 200);
+                }, 300);
                 return;
             }
 
-            // 2. Voice Command: Generate PDF / Save Report
+            // 2. Voice Command: Camera Toggle (เปิดกล้อง / ปิดกล้อง)
+            if (checkText.endsWith("เปิดกล้อง") || checkText.endsWith("open camera")) {
+                playAudioChime('success');
+                updateHandsFreeBadge('Camera ON', '#27ae60', true);
+                speakFeedback("เปิดกล้องเรียบร้อยแล้ว");
+                const camBtn = document.getElementById('btn-camera-toggle');
+                if (camBtn && !isCameraRunning) camBtn.click();
+                return;
+            }
+            if (checkText.endsWith("ปิดกล้อง") || checkText.endsWith("close camera")) {
+                playAudioChime('stop');
+                updateHandsFreeBadge('Camera OFF', '#7f8c8d', false);
+                speakFeedback("ปิดกล้องเรียบร้อยแล้ว");
+                const camBtn = document.getElementById('btn-camera-toggle');
+                if (camBtn && isCameraRunning) camBtn.click();
+                return;
+            }
+
+            // 3. Voice Command: Local Extract (สกัดคำ / ดึงข้อมูล)
+            if (checkText.endsWith("สกัดคำ") || checkText.endsWith("ดึงข้อมูล") || checkText.endsWith("extract data") || checkText.endsWith("สกัดข้อมูล")) {
+                playAudioChime('success');
+                updateHandsFreeBadge('AI Extracted!', '#2ecc71', true);
+                speakFeedback("สกัดข้อมูลลงแบบฟอร์มสำเร็จ");
+                if (micStatusContainer) micStatusContainer.innerText = "กำลังสกัดข้อมูลลงแบบฟอร์ม...";
+                const localExtractBtn = document.getElementById('btn-local-extract');
+                if (localExtractBtn) localExtractBtn.click();
+                return;
+            }
+
+            // 4. Voice Command: Generate PDF / Save Report
             if (checkText.endsWith("generate pdf") || checkText.endsWith("save report") || checkText.endsWith("ออกรายงาน") || checkText.endsWith("สร้าง pdf")) {
+                playAudioChime('success');
+                updateHandsFreeBadge('Generating PDF...', '#3498db', true);
                 speakFeedback("กำลังออกรายงาน PDF");
                 if (micStatusContainer) micStatusContainer.innerText = "กำลังสร้างรายงาน PDF...";
                 const saveBtn = document.getElementById('btn-save-submit');
@@ -177,20 +256,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // 3. Voice Command: Stop Recording
+            // 5. Voice Command: Stop Recording
             if (checkText.endsWith("stop record") || checkText.endsWith("หยุดบันทึก") || checkText.endsWith("หยุดอัดเสียง")) {
                 isRecording = false;
+                playAudioChime('stop');
+                updateHandsFreeBadge('Mic Stopped', '#95a5a6', false);
                 recognition.stop();
                 speakFeedback("หยุดบันทึกเสียงแล้ว");
-                return;
-            }
-
-            // 4. Voice Command: Extract Data
-            if (checkText.endsWith("extract data") || checkText.endsWith("สกัดข้อมูล")) {
-                speakFeedback("กำลังสกัดข้อมูลลงแบบฟอร์ม");
-                if (micStatusContainer) micStatusContainer.innerText = "กำลังสกัดข้อมูลลงแบบฟอร์ม...";
-                const extractBtn = document.querySelector('button[type="submit"].btn-generate');
-                if (extractBtn) extractBtn.click();
                 return;
             }
 
@@ -232,17 +304,34 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
 
-        btnMicToggle.addEventListener('click', function () {
+        btnMicToggle.addEventListener('click', async function () {
             if (isRecording) {
                 isRecording = false; // Set to false first to tell onend not to auto-restart
-                recognition.stop();
+                try { recognition.stop(); } catch(e) {}
+                playAudioChime('stop');
+                updateHandsFreeBadge('Hands-Free Ready', '#95a5a6', false);
+                btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
+                btnMicToggle.style.backgroundColor = '#ddd';
             } else {
+                // Request microphone permission if needed
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    try {
+                        const testAudio = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        testAudio.getTracks().forEach(t => t.stop());
+                    } catch(micErr) {
+                        showError("กรุณากด 'อนุญาต (Allow)' ไมโครโฟนในป๊อปอัปของเบราว์เซอร์");
+                        return;
+                    }
+                }
+
                 isRecording = true;
                 if (micStatusContainer) micStatusContainer.innerText = 'กำลังเริ่ม... (Starting...)';
                 try {
                     recognition.start();
                 } catch (e) {
-                    showError("ไม่สามารถเริ่มไมค์ได้: " + e.message);
+                    console.warn("Speech recognition error, trying Whisper fallback:", e);
+                    // Fallback to Whisper recording
+                    if (btnRecordAudio) btnRecordAudio.click();
                 }
             }
         });
@@ -256,10 +345,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const canvasElement = document.querySelector('.output_canvas');
     let canvasCtx = null;
 
-    if (!window.isSecureContext) {
-        showError("Camera Error: App is NOT running in a Secure Context (HTTPS).");
-    } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showError("Camera Error: Browser API 'navigator.mediaDevices' is missing.");
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            showError(`⚠️ เบราว์เซอร์บล็อกกล้องและไมโครโฟนบน IP (${window.location.hostname}). <a href="https://localhost:7860" style="color:#2980b9; text-decoration:underline; font-weight:bold; font-size:15px; margin-left:6px;">👉 คลิกที่นี่เพื่อเปิดผ่าน https://localhost:7860</a> เพื่อให้กล้องและไมค์ทำงานได้ 100%`);
+        } else {
+            showError("Camera/Mic Error: Browser API 'navigator.mediaDevices' is missing. Please use Chrome or Edge.");
+        }
     }
 
     if (canvasElement) {
@@ -270,23 +361,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const ACTION_COOLDOWN = 800;
 
     function onResults(results) {
-        if (!canvasCtx) return;
-
-        canvasCtx.save();
-        canvasCtx.translate(canvasElement.width, 0);
-        canvasCtx.scale(-1, 1);
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+        if (!canvasCtx || !canvasElement) return;
 
         if (results.multiHandLandmarks) {
+            canvasCtx.save();
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
             for (const landmarks of results.multiHandLandmarks) {
                 // Neon Cyan connections and white points with cyan glow
                 drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00f0ff', lineWidth: 3 });
                 drawLandmarks(canvasCtx, landmarks, { color: '#ffffff', fillColor: '#00f0ff', lineWidth: 1, radius: 4 });
                 detectGesture(landmarks);
             }
+            canvasCtx.restore();
         }
-        canvasCtx.restore();
     }
 
     function detectGesture(landmarks) {
@@ -549,97 +637,132 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // --- Camera Toggle Controls ---
+    // --- Robust Camera Stream Engine (Direct WebRTC + MediaPipe Support) ---
     const cameraFeedEl = document.querySelector('.camera-feed');
+    let localVideoStream = null;
+    let handsInstance = null;
+    let animFrameId = null;
+
+    if (typeof Hands !== 'undefined') {
+        try {
+            handsInstance = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+            handsInstance.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.7
+            });
+            handsInstance.onResults(onResults);
+        } catch (e) {
+            console.warn("Hands init note:", e);
+        }
+    }
+
+    async function startCameraDirectly() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showError("เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง หรือไม่ได้รันบน HTTPS");
+            return false;
+        }
+
+        try {
+            if (btnCameraToggle) {
+                btnCameraToggle.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังเปิดกล้อง...';
+            }
+
+            localVideoStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user'
+                },
+                audio: false
+            });
+
+            if (videoElement) {
+                videoElement.srcObject = localVideoStream;
+                await videoElement.play();
+            }
+
+            isCameraRunning = true;
+            if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
+            if (btnCameraToggle) {
+                btnCameraToggle.innerHTML = '<i class="fas fa-video-slash"></i> ปิดกล้อง (Stop)';
+                btnCameraToggle.style.backgroundColor = '#ffcccc';
+            }
+
+            // Start Hands processing loop
+            async function processVideoFrame() {
+                if (!isCameraRunning) return;
+                
+                // Mirror and draw webcam video onto canvas every frame
+                if (canvasCtx && canvasElement && videoElement && videoElement.readyState >= 2) {
+                    canvasCtx.save();
+                    canvasCtx.translate(canvasElement.width, 0);
+                    canvasCtx.scale(-1, 1);
+                    canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                    canvasCtx.restore();
+                }
+
+                if (handsInstance && videoElement && videoElement.readyState >= 2) {
+                    try {
+                        await handsInstance.send({ image: videoElement });
+                    } catch (e) {}
+                }
+                animFrameId = requestAnimationFrame(processVideoFrame);
+            }
+            processVideoFrame();
+
+            return true;
+        } catch (err) {
+            console.error("Camera direct start error:", err);
+            isCameraRunning = false;
+            if (btnCameraToggle) {
+                btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
+                btnCameraToggle.style.backgroundColor = '#ddd';
+            }
+            showError("ไม่สามารถเปิดกล้องได้ (" + (err.name || err.message) + "). กรุณาตรวจสอบว่าได้กด 'Allow' กล้องแล้ว");
+            return false;
+        }
+    }
+
+    function stopCameraDirectly() {
+        isCameraRunning = false;
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        if (localVideoStream) {
+            localVideoStream.getTracks().forEach(t => t.stop());
+            localVideoStream = null;
+        }
+        if (videoElement) {
+            videoElement.srcObject = null;
+        }
+        if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
+        if (btnCameraToggle) {
+            btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
+            btnCameraToggle.style.backgroundColor = '#ddd';
+        }
+        if (canvasCtx && canvasElement) {
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        }
+    }
 
     if (btnCameraToggle) {
         btnCameraToggle.addEventListener('click', function() {
-            if (!cameraInstance) return;
-            
             if (isCameraRunning) {
-                cameraInstance.stop();
-                isCameraRunning = false;
-                if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
-                btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
-                btnCameraToggle.style.backgroundColor = '#ddd';
-                if (canvasCtx) {
-                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-                }
+                stopCameraDirectly();
             } else {
-                btnCameraToggle.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังเปิด...';
-                cameraInstance.start()
-                    .then(() => {
-                        isCameraRunning = true;
-                        if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
-                        btnCameraToggle.innerHTML = '<i class="fas fa-video-slash"></i> ปิดกล้อง (Stop)';
-                        btnCameraToggle.style.backgroundColor = '#ffcccc';
-                    })
-                    .catch(err => {
-                        isCameraRunning = false;
-                        if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
-                        btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
-                        btnCameraToggle.style.backgroundColor = '#ddd';
-                        showError("Camera Error: " + err.message);
-                    });
+                startCameraDirectly();
             }
         });
     }
 
-    if (typeof Hands !== 'undefined') {
-        const hands = new Hands({
-            locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-            }
-        });
-
-        hands.setOptions({
-            maxNumHands: 1,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.7
-        });
-
-        hands.onResults(onResults);
-
-        if (videoElement) {
-            cameraInstance = new Camera(videoElement, {
-                onFrame: async () => {
-                    if (isCameraRunning) {
-                        await hands.send({ image: videoElement });
-                    }
-                },
-                width: 480,
-                height: 360
-            });
-            
-            // Auto-start camera
-            cameraInstance.start()
-                .then(() => {
-                    isCameraRunning = true;
-                    if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
-                    if (btnCameraToggle) {
-                        btnCameraToggle.innerHTML = '<i class="fas fa-video-slash"></i> ปิดกล้อง (Stop)';
-                        btnCameraToggle.style.backgroundColor = '#ffcccc';
-                    }
-                })
-                .catch(err => {
-                    isCameraRunning = false;
-                    if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
-                    if (btnCameraToggle) {
-                        btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
-                        btnCameraToggle.style.backgroundColor = '#ddd';
-                    }
-                    const overlay = document.querySelector('.camera-overlay-text');
-                    if (overlay) {
-                        overlay.innerHTML = `<span style="color: red; font-weight: bold;">Camera Error: ${err.message || err.name}. Please allow camera access.</span>`;
-                    }
-                    showError("Camera Error: " + (err.message || err.name));
-                });
+    // Auto-start camera on page load
+    setTimeout(() => {
+        if (!isCameraRunning) {
+            startCameraDirectly();
         }
-    } else {
-
-        console.warn("MediaPipe Hands library not loaded.");
-    }
+    }, 400);
 
     // Apply shimmer loading state when transcription form is submitted
     const transcriptionForm = document.getElementById('transcription-form');
@@ -750,7 +873,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (t.includes("simple mastectomy")) {
             data["s2_proc"] = "simple";
         } else {
-            const procMatch = t.match(/procedure is ([a-zA-Z\s]+)/);
+            const procMatch = t.match(/\b(quadrantectomy|lumpectomy|wide excision|excisional biopsy|re-excision|segmentectomy)\b(?:\s+specimen)?/i) || t.match(/procedure\s+is\s+([a-zA-Z\s]+)/i);
             if (procMatch) {
                 data["s2_proc"] = "other";
                 data["s2_other_text"] = procMatch[1].trim();
@@ -771,19 +894,54 @@ document.addEventListener('DOMContentLoaded', function () {
                 data["s4_check"] = true;
                 data["s4_dims"] = dims3d[1];
             }
-            if (t.includes("mass") || t.includes("infiltrative") || t.includes("tumor")) {
-                data["s10_infiltrative"] = true;
+            // 4A. Previous surgical cavity with residual mass (s10_prev2)
+            if (t.includes("previous surgical cavity") && (t.includes("residual") || t.includes("residual mass"))) {
+                data["s10_prev2"] = true;
                 data["s10_grammar"] = "is a";
+                const mCavity = /(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
+                if (mCavity) {
+                    data["s10_prev2_cavity_dims"] = [mCavity[1].replace(/\.$/, ''), mCavity[2].replace(/\.$/, ''), mCavity[3].replace(/\.$/, '')];
+                }
+                const mRes = /(?:residual mass|residual)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
+                if (mRes) {
+                    data["s10_prev2_mass_dims"] = [mRes[1].replace(/\.$/, ''), mRes[2].replace(/\.$/, ''), mRes[3].replace(/\.$/, '')];
+                }
+            }
+            // 4B. Previous surgical cavity without residual mass (s10_prev1)
+            else if (t.includes("previous surgical cavity")) {
+                data["s10_prev1"] = true;
+                data["s10_grammar"] = "is a";
+                const mCavity = /(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
+                if (mCavity) {
+                    data["s10_prev1_dims"] = [mCavity[1].replace(/\.$/, ''), mCavity[2].replace(/\.$/, ''), mCavity[3].replace(/\.$/, '')];
+                }
+            }
+            // 4C. Well-defined firm white mass with slit-like appearance (s10_well)
+            else if (t.includes("well defined") || t.includes("well-defined") || t.includes("slit like") || t.includes("slit-like")) {
+                data["s10_well"] = true;
+                data["s10_grammar"] = "is a";
+                const mWell = /(?:well-defined|well defined|slit like|slit-like)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
+                if (mWell) {
+                    data["s10_well_dims"] = [mWell[1].replace(/\.$/, ''), mWell[2].replace(/\.$/, ''), mWell[3].replace(/\.$/, '')];
+                }
+            }
+            // 4D. Infiltrative mass (s10_infiltrative)
+            else if (t.includes("mass") || t.includes("infiltrative") || t.includes("tumor") || t.includes("lesion")) {
+                data["s10_infiltrative"] = true;
+                data["s10_grammar"] = t.includes("infiltrative") ? "is an" : "is a";
 
-                // Assign mass dimensions only if a distinct 3D dimension exists or is near mass keywords
                 if (dims3d.length > 1) {
                     data["s10_inf_dims"] = dims3d[dims3d.length - 1];
                 } else if (dims3d.length === 1) {
-                    const massKwIdx = Math.max(t.indexOf("mass"), t.indexOf("infiltrative"), t.indexOf("tumor"));
-                    const dimRegexSingle = /([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/;
-                    const singleMatch = dimRegexSingle.exec(t);
-                    if (singleMatch && massKwIdx !== -1 && Math.abs(massKwIdx - singleMatch.index) < 50) {
-                        data["s10_inf_dims"] = dims3d[0];
+                    const isWithoutDims = t.includes("without dimension") || t.includes("no dimension");
+                    const isSpecimenMeasuring = t.includes("mastectomy") || t.includes("specimen") || t.includes("measuring");
+                    if (!isWithoutDims && !isSpecimenMeasuring) {
+                        const massKwIdx = Math.max(t.indexOf("mass"), t.indexOf("infiltrative"), t.indexOf("tumor"));
+                        const dimRegexSingle = /([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/;
+                        const singleMatch = dimRegexSingle.exec(t);
+                        if (singleMatch && massKwIdx !== -1 && Math.abs(massKwIdx - singleMatch.index) < 50) {
+                            data["s10_inf_dims"] = dims3d[0];
+                        }
                     }
                 }
             }
@@ -844,6 +1002,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (quadrantVals.length > 0) {
             data["s10_5_quadrant_check"] = true;
             data["s10_5_quadrant_vals"] = quadrantVals;
+        } else {
+            const otherLocMatch = t.match(/(?:located\s+(?:in|at)|tumor\s+is\s+in|location\s+is)\s+(?:the\s+)?(axillary\s+tail(?:\s+of\s+spence)?|retroareolar|subareolar|chest\s+wall|deep\s+fascia|[a-zA-Z\s]+?(?:region|plane|tail))/i);
+            if (otherLocMatch) {
+                data["s10_5_other_check"] = true;
+                data["s10_5_other"] = otherLocMatch[1].trim();
+            }
         }
 
         // 8. Margins
@@ -851,21 +1015,47 @@ document.addEventListener('DOMContentLoaded', function () {
         margins.forEach(m => {
             let mMatch = t.match(new RegExp(`([\\d.]+)\\s*cm\\s*(?:from|at)?\\s*${m}\\s*margin`));
             if (!mMatch) mMatch = t.match(new RegExp(`${m}\\s*margin\\s*(?:is)?\\s*([\\d.]+)\\s*cm`));
+            if (!mMatch) mMatch = t.match(new RegExp(`([\\d.]+)\\s*cm\\s*from\\s*${m}`));
             if (mMatch) {
                 data[`s11_${m}`] = mMatch[1];
             }
         });
 
-        // 9. Lymph nodes (Scoped to lymph sentence)
+        // 8.4 Fat to fibrous ratio (Section 12)
+        const ratioMatch = t.match(/(?:fat to fibrous|fat to fiber|parenchyma|ratio).*?(\d+)\s*(?::|to)\s*(\d+)/i);
+        if (ratioMatch) {
+            data["s12_check"] = true;
+            data["s12_val_left"] = ratioMatch[1];
+            data["s12_val_right"] = ratioMatch[2];
+        }
+
+        // 8.5 Remaining breast tissue (Section 13)
+        if (t.includes("unremarkable")) {
+            data["s13_type"] = "unremarkable";
+        } else {
+            const remMatch = t.match(/(?:remaining|other|adjacent|uninvolved|surrounding)\s+(?:of\s+)?(?:the\s+)?(?:breast\s+)?(?:tissue|specimen|parenchyma)\s+(?:shows|is|contains|with)?\s*([a-zA-Z\s,]+?)(?:\.|\n|there\s+are|representative|$)/i);
+            if (remMatch && !remMatch[1].toLowerCase().includes("unremarkable")) {
+                data["s13_type"] = "other";
+                data["s13_text"] = remMatch[1].trim();
+            }
+        }
+
+        // 9. Lymph nodes (Section 14)
         const lymphSentence = t.match(/[^.!?]*\b(?:lymph|node|nodes)\b[^.!?]*/i);
         if (lymphSentence && !lymphSentence[0].includes("not found") && !lymphSentence[0].includes("no lymph")) {
             data["s14_check"] = true;
-            const sizes = lymphSentence[0].match(/\b(\d+(?:\.\d+)?)\b/g);
-            if (sizes && sizes.length >= 2) {
-                const sizesFloat = sizes.map(Number).filter(n => n <= 10.0);
-                if (sizesFloat.length >= 2) {
-                    data["s14_min"] = Math.min(...sizesFloat).toString();
-                    data["s14_max"] = Math.max(...sizesFloat).toString();
+            const rangeMatch = lymphSentence[0].match(/ranging\s+from\s+([\d.]+)\s*(?:cm\s*)?(?:to|-)\s*([\d.]+)\s*cm/i);
+            if (rangeMatch) {
+                data["s14_min"] = rangeMatch[1];
+                data["s14_max"] = rangeMatch[2];
+            } else {
+                const sizes = lymphSentence[0].match(/\b(\d+(?:\.\d+)?)\b/g);
+                if (sizes && sizes.length >= 2) {
+                    const sizesFloat = sizes.map(Number).filter(n => n <= 10.0);
+                    if (sizesFloat.length >= 2) {
+                        data["s14_min"] = Math.min(...sizesFloat).toString();
+                        data["s14_max"] = Math.max(...sizesFloat).toString();
+                    }
                 }
             }
             const countMatch = lymphSentence[0].match(/(\d+)\s+(?:lymph\s+)?node/i);
@@ -897,7 +1087,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (m) {
                     let clean = m[1].replace(/\b(old|is|sampling|with)\b/gi, '').trim().toUpperCase();
                     clean = clean.replace(/[^A-Z0-9-]/g, '');
-                    data["sections"][key] = clean;
+                    let extra = "";
+                    if (key.includes("nearest")) {
+                        const extraMatch = t.match(/(?:nearest\s+resected|nearest\s+margin)[\s\S]{0,40}?(?:margin\s+)?(?:with\s+|,?\s*)(inferior|superior|medial|lateral|deep|anterior|posterior|skin)/i);
+                        if (extraMatch) extra = extraMatch[1];
+                    }
+                    data["sections"][key] = { code: clean, extra: extra };
                     break;
                 }
             }
@@ -909,8 +1104,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyLocalDataToForm(data) {
         function setVal(selector, val) {
             const el = document.querySelector(selector);
-            if (el && !el.hasAttribute('data-manual')) {
-                if (val && el.value !== val) {
+            if (el) {
+                el.removeAttribute('data-manual');
+                el.style.border = "";
+                if (val !== undefined && val !== null) {
                     el.value = val;
                     el.classList.remove('field-updated');
                     void el.offsetWidth; // Trigger reflow
@@ -920,14 +1117,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         function setCheck(selector, isChecked) {
             const el = document.querySelector(selector);
-            if (el && !el.hasAttribute('data-manual')) {
-                if (el.checked !== isChecked) {
-                    el.checked = isChecked;
-                    if (el.parentElement) {
-                        el.parentElement.classList.remove('field-updated');
-                        void el.parentElement.offsetWidth;
-                        el.parentElement.classList.add('field-updated');
-                    }
+            if (el) {
+                el.removeAttribute('data-manual');
+                el.checked = isChecked;
+                if (el.parentElement) {
+                    el.parentElement.classList.remove('field-updated');
+                    void el.parentElement.offsetWidth;
+                    el.parentElement.classList.add('field-updated');
                 }
             }
         }
@@ -997,11 +1193,46 @@ document.addEventListener('DOMContentLoaded', function () {
         // Infiltrative mass
         if (data.s10_infiltrative) {
             setCheck('[name="s10_infiltrative"]', true);
-            setCheck(`[name="s10_grammar"][value="${data.s10_grammar || 'is a'}"]`, true);
+            setCheck(`[name="s10_grammar"][value="${data.s10_grammar || 'is an'}"]`, true);
             if (data.s10_inf_dims) {
                 setVal('[name="s10_inf_dims_0"]', data.s10_inf_dims[0]);
                 setVal('[name="s10_inf_dims_1"]', data.s10_inf_dims[1]);
                 setVal('[name="s10_inf_dims_2"]', data.s10_inf_dims[2]);
+            }
+        }
+        // Well-defined mass with slit-like appearance
+        if (data.s10_well) {
+            setCheck('[name="s10_well"]', true);
+            setCheck(`[name="s10_grammar"][value="${data.s10_grammar || 'is a'}"]`, true);
+            if (data.s10_well_dims) {
+                setVal('[name="s10_well_dims_0"]', data.s10_well_dims[0]);
+                setVal('[name="s10_well_dims_1"]', data.s10_well_dims[1]);
+                setVal('[name="s10_well_dims_2"]', data.s10_well_dims[2]);
+            }
+        }
+        // Previous surgical cavity without residual mass
+        if (data.s10_prev1) {
+            setCheck('[name="s10_prev1"]', true);
+            setCheck(`[name="s10_grammar"][value="${data.s10_grammar || 'is a'}"]`, true);
+            if (data.s10_prev1_dims) {
+                setVal('[name="s10_prev1_dims_0"]', data.s10_prev1_dims[0]);
+                setVal('[name="s10_prev1_dims_1"]', data.s10_prev1_dims[1]);
+                setVal('[name="s10_prev1_dims_2"]', data.s10_prev1_dims[2]);
+            }
+        }
+        // Previous surgical cavity with residual mass
+        if (data.s10_prev2) {
+            setCheck('[name="s10_prev2"]', true);
+            setCheck(`[name="s10_grammar"][value="${data.s10_grammar || 'is a'}"]`, true);
+            if (data.s10_prev2_cavity_dims) {
+                setVal('[name="s10_prev2_cavity_dims_0"]', data.s10_prev2_cavity_dims[0]);
+                setVal('[name="s10_prev2_cavity_dims_1"]', data.s10_prev2_cavity_dims[1]);
+                setVal('[name="s10_prev2_cavity_dims_2"]', data.s10_prev2_cavity_dims[2]);
+            }
+            if (data.s10_prev2_mass_dims) {
+                setVal('[name="s10_prev2_mass_dims_0"]', data.s10_prev2_mass_dims[0]);
+                setVal('[name="s10_prev2_mass_dims_1"]', data.s10_prev2_mass_dims[1]);
+                setVal('[name="s10_prev2_mass_dims_2"]', data.s10_prev2_mass_dims[2]);
             }
         }
         // Tumor Quadrants (10.5)
@@ -1010,25 +1241,44 @@ document.addEventListener('DOMContentLoaded', function () {
             data.s10_5_quadrant_vals.forEach(q => {
                 setCheck(`[name="s10_5_quadrant_vals"][value="${q}"]`, true);
             });
+        if (data.s10_5_other || data.s10_5_other_check) {
+            setCheck('[name="s10_5_other_check"]', true);
+            if (data.s10_5_other) setVal('[name="s10_5_other"]', data.s10_5_other);
         }
-        // Margins
+        // Margins (Section 11)
         const margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"];
         margins.forEach(m => {
             if (data[`s11_${m}`]) {
                 setVal(`[name="s11_${m}"]`, data[`s11_${m}`]);
             }
         });
-        // Lymph nodes
+        // Fat to fibrous ratio (Section 12)
+        if (data.s12_check || data.s12_val_left || data.s12_val_right) {
+            setCheck('[name="s12_check"]', true);
+            if (data.s12_val_left) setVal('[name="s12_val_left"]', data.s12_val_left);
+            if (data.s12_val_right) setVal('[name="s12_val_right"]', data.s12_val_right);
+        }
+        // Remaining Breast Tissue (Section 13)
+        if (data.s13_type === 'unremarkable') {
+            setCheck('[name="s13_type"][value="unremarkable"]', true);
+            setCheck('[name="s13_type"][value="other"]', false);
+        } else if (data.s13_type === 'other' || data.s13_text) {
+            setCheck('[name="s13_type"][value="other"]', true);
+            setCheck('[name="s13_type"][value="unremarkable"]', false);
+            if (data.s13_text) setVal('[name="s13_text"]', data.s13_text);
+        }
+        // Lymph nodes (Section 14)
         if (data.s14_check) {
             setCheck('[name="s14_check"]', true);
             if (data.s14_num) setVal('[name="s14_num"]', data.s14_num);
             if (data.s14_min) setVal('[name="s14_min"]', data.s14_min);
             if (data.s14_max) setVal('[name="s14_max"]', data.s14_max);
         }
-        // Sections
+        // Sections (Section 15)
         if (data.sections) {
-            for (const [key, code] of Object.entries(data.sections)) {
-                setVal(`[name="${key}"]`, code);
+            for (const [key, codeObj] of Object.entries(data.sections)) {
+                const codeVal = typeof codeObj === 'object' ? codeObj.code : codeObj;
+                setVal(`[name="${key}"]`, codeVal);
             }
         }
 
@@ -1078,29 +1328,76 @@ document.addEventListener('DOMContentLoaded', function () {
             return el ? parseFloat(el.value) || 0 : 0;
         }
 
-        // 1. Compare Tumor dimensions with Specimen dimensions
+        // 0. Check Surgical Number (Critical Patient Identifier)
+        const s0Input = document.querySelector('[name="s0_surgical_no"]');
+        const rawTranscription = txtTranscription ? txtTranscription.value.trim() : '';
+        if (s0Input) {
+            if (rawTranscription.length > 10 && !s0Input.value.trim()) {
+                warnings.push(`⚠️ <strong>Missing Surgical Number:</strong> ไม่พบรหัสสิ่งส่งตรวจในข้อความบรรยาย กรุณาระบุรหัสเคส (เช่น S-24-XXXX) เพื่อความปลอดภัยของเวชระเบียน`);
+                s0Input.style.border = "2px solid #e67e22";
+                s0Input.style.backgroundColor = "#fef9e7";
+                s0Input.style.boxShadow = "0 0 8px rgba(230, 126, 34, 0.4)";
+            } else {
+                s0Input.style.border = "";
+                s0Input.style.backgroundColor = "";
+                s0Input.style.boxShadow = "";
+            }
+        }
+
+        // 1. Check Side Selection (Left / Right)
+        const sideRight = document.querySelector('[name="s1_side"][value="right"]')?.checked;
+        const sideLeft = document.querySelector('[name="s1_side"][value="left"]')?.checked;
+        if (rawTranscription.length > 20 && !sideRight && !sideLeft) {
+            warnings.push(`⚠️ <strong>Missing Breast Side:</strong> ยังไม่ได้ระบุข้างของเต้านม (Left หรือ Right)`);
+        }
+
+        // 2. Check Specimen 3D Dimensions Completeness
         const specX = getFloatVal('s3_dims_0');
         const specY = getFloatVal('s3_dims_1');
         const specZ = getFloatVal('s3_dims_2');
+        const specInputs = [document.querySelector('[name="s3_dims_0"]'), document.querySelector('[name="s3_dims_1"]'), document.querySelector('[name="s3_dims_2"]')];
+        
+        if (rawTranscription.length > 20 && (specX === 0 || specY === 0 || specZ === 0)) {
+            warnings.push(`⚠️ <strong>Incomplete Specimen Dimensions:</strong> ขนาดชิ้นเนื้อเต้านม (Measuring) ยังระบุไม่ครบ 3 มิติ (กว้าง x ยาว x สูง)`);
+            specInputs.forEach(inp => {
+                if (inp && (!inp.value || inp.value === '0')) {
+                    inp.style.border = "1.5px solid #e67e22";
+                    inp.style.backgroundColor = "#fef9e7";
+                } else if (inp) {
+                    inp.style.border = "";
+                    inp.style.backgroundColor = "";
+                }
+            });
+        } else {
+            specInputs.forEach(inp => { if (inp) { inp.style.border = ""; inp.style.backgroundColor = ""; } });
+        }
+
+        // 3. Compare Tumor dimensions with Specimen dimensions (Physical Feasibility)
         const tumorX = getFloatVal('s10_inf_dims_0');
         const tumorY = getFloatVal('s10_inf_dims_1');
         const tumorZ = getFloatVal('s10_inf_dims_2');
-
         const specMax = Math.max(specX, specY, specZ);
         const tumorMax = Math.max(tumorX, tumorY, tumorZ);
 
         if (tumorMax > 0 && specMax > 0 && tumorMax > specMax) {
-            warnings.push(`ขนาดก้อนมะเร็งใหญ่สุด (${tumorMax} cm) มีขนาดใหญ่กว่าขนาดชิ้นเนื้อเต้านมที่ตัดมา (${specMax} cm) ซึ่งขัดแย้งทางกายภาพ`);
+            warnings.push(`⚠️ <strong>Physical Contradiction:</strong> ขนาดก้อนมะเร็งใหญ่สุด (${tumorMax} cm) มีขนาดใหญ่กว่าขนาดชิ้นเนื้อเต้านมที่ตัดมา (${specMax} cm) ซึ่งขัดแย้งทางกายภาพ`);
         }
 
-        // 2. Check MRM procedure completeness (Modified Radical Mastectomy)
+        // 4. Check Mass Dimensions when Mass Type is checked
+        const hasInfiltrative = document.querySelector('[name="s10_infiltrative"]')?.checked;
+        const hasWell = document.querySelector('[name="s10_well"]')?.checked;
+        if (hasInfiltrative && (tumorX === 0 || tumorY === 0 || tumorZ === 0)) {
+            warnings.push(`⚠️ <strong>Missing Tumor Dimensions:</strong> ติ๊กเลือกพบก้อนมะเร็ง (Infiltrative mass) แต่ยังไม่ได้ระบุขนาดก้อน 3 มิติครบถ้วน`);
+        }
+
+        // 5. Check MRM procedure completeness (Modified Radical Mastectomy)
         const isModified = document.querySelector('[name="s2_proc"][value="modified"]')?.checked;
         const axillaryCheck = document.querySelector('[name="s4_check"]')?.checked;
         const lymphCheck = document.querySelector('[name="s14_check"]')?.checked;
 
         if (isModified) {
             if (!axillaryCheck && !lymphCheck) {
-                warnings.push(`แจ้งเตือน: เลือกการผ่าตัดแบบ MRM แต่ยังไม่ได้ติ๊กเลือก "Axillary Content" หรือ "Sentinel Lymph Node" ของชิ้นเนื้อรักแร้`);
+                warnings.push(`⚠️ <strong>Clinical Procedure Check:</strong> เลือกการผ่าตัดแบบ MRM แต่ยังไม่ได้ระบุส่วน "Axillary Content" หรือ "Lymph Nodes" ของชิ้นเนื้อรักแร้`);
             }
         }
 
@@ -1110,7 +1407,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (warnBox && warnText) {
             if (warnings.length > 0) {
-                warnText.innerHTML = warnings.join('<br>');
+                warnText.innerHTML = warnings.join('<br><br>');
                 warnBox.style.display = 'block';
             } else {
                 warnBox.style.display = 'none';
@@ -1178,4 +1475,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 300);
         });
     }
+}
 });
+

@@ -17,12 +17,8 @@ if BIN_DIR.exists():
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "pathology-secret")
     
-    # Database setting: Auto-switch between PostgreSQL and SQLite
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
-    if not SQLALCHEMY_DATABASE_URI:
-        # Fallback to local SQLite if no environment variable is provided
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{DATA_DIR / 'instance' / 'local_pathology.db'}"
-
+    # Database setting: PostgreSQL Primary
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "postgresql://postgres:rooj282026@localhost:5432/pathology_db")
     if SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
         
@@ -52,7 +48,11 @@ class Config:
     
     # Whisper Model settings
     WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
+    USE_FASTER_WHISPER_ENGINE = os.environ.get("USE_FASTER_WHISPER_ENGINE", "False").lower() in ("true", "1", "yes")
     PATHOLOGY_PROMPT = (
+        "ชิ้นเนื้อ สิ่งส่งตรวจ รหัส Surgical number S-24-1001 เต้านม ข้างซ้าย ข้างขวา "
+        "มอดิฟายด์ แรดิคัล แมสเทคโทมี ขนาด เซนติเมตร พบก้อนเนื้อ บริเวณ อัปเปอร์ เอาเตอร์ "
+        "ควาแดรนต์ ได้ต่อมน้ำเหลือง จำนวน ต่อม "
         "Received in formalin. Modified radical mastectomy specimen. "
         "Simple mastectomy. Skin ellipse. The nipple is everted, inverted, shows ulceration. "
         "Infiltrative firm yellow-white mass. Well-defined firm white mass with slit-like appearance. "

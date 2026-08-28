@@ -4,9 +4,10 @@ def normalize_text(text):
     t = text.lower()
     t = t.replace("comma", ",")
     
-    # 1. แปลงคำศัพท์เชื่อม
+    # 1. แปลงคำศัพท์เชื่อมและซ่อมตัวเลขขนาดมิติติดกัน (Dimension Repair)
     t = re.sub(r"\bby\b", "x", t)
     t = re.sub(r"\btimes\b", "x", t)
+    t = re.sub(r"(\d+\.\d{1,2})\.?:?(\d+\.\d{1,2})\.?:?\s*(\d+\.\d{1,2})", r"\1 x \2 x \3", t)
     
     # 2. ระบบแก้คำผิดอัจฉริยะ (Smart Self-Correction)
     t = re.sub(r"([\d.]+\s*x\s*[\d.]+(?:\s*x\s*[\d.]+)?)(?:[\s\.,]*(?:cm|centimeters|mm))?[\s\.,]*(?:sorry|wait|weight|correction|actually|no wait|แก้เป็น|ขอแก้|ไม่ใช่|เปลี่ยนเป็น)+[\s\.,]*(?:measuring|size is|it is|actually)?\s*", "", t)
@@ -35,7 +36,10 @@ def normalize_text(text):
     t = t.replace("slit-like", "slit like")
     t = t.replace("the resected", "deep resected")
     
-    # Synonyms (Medical Terms)
+    # Synonyms & Phonetic Repair (Medical Terms)
+    t = re.sub(r"\bs24[\s\-\.]*(\d{3,4})\b", r"s-24-\1", t)
+    t = re.sub(r"(\d+\.\d)\s*s\s*(\d+\.\d)\s*s\s*(\d+\.\d)", r"\1 x \2 x \3", t)
+    t = t.replace("modify radical", "modified radical").replace("left-modified", "left modified").replace("right-modified", "right modified")
     t = t.replace("papilla", "nipple")
     t = t.replace("tissue", "specimen")
     t = t.replace("cutaneous", "skin")

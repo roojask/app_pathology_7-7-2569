@@ -130,12 +130,14 @@
             <button class="tab-btn active" onclick="showTab('my-history', this)">
                 <i class="fas fa-user-clock"></i> My History (ประวัติของฉัน)
             </button>
+            {% if is_admin %}
             <button class="tab-btn" onclick="showTab('all-db-reports', this)">
                 <i class="fas fa-folder-tree"></i> All DB Reports (รายงานทั้งหมดใน DB)
             </button>
             <button class="tab-btn" onclick="showTab('all-db-users', this)">
                 <i class="fas fa-users"></i> All Users (รายชื่อผู้ใช้ใน DB)
             </button>
+            {% endif %}
         </div>
 
         <hr style="border: 0; border-top: 2px solid #007bff; margin: 0 0 20px 0;">
@@ -185,7 +187,8 @@
             {% endif %}
         </div>
 
-        <!-- Tab 2: All DB Reports -->
+        {% if is_admin %}
+        <!-- Tab 2: All DB Reports (Admin Only) -->
         <div id="all-db-reports" class="tab-content">
             <h4 style="margin: 0 0 10px 0; color: #333;"><i class="fas fa-table"></i> Form History Table (`form_history`)</h4>
             {% if all_histories %}
@@ -222,7 +225,7 @@
             {% endif %}
         </div>
 
-        <!-- Tab 3: All Users -->
+        <!-- Tab 3: All Users (Admin Only) -->
         <div id="all-db-users" class="tab-content">
             <h4 style="margin: 0 0 10px 0; color: #333;"><i class="fas fa-user-shield"></i> User Accounts Table (`user`)</h4>
             {% if all_users %}
@@ -250,6 +253,7 @@
             <p style="text-align: center; color: #777; padding: 20px 0;">No users found in database.</p>
             {% endif %}
         </div>
+        {% endif %}
 
     </div>
 

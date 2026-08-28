@@ -1,0 +1,44 @@
+{
+  "whisper_small": {
+    "name": "Whisper Small (Baseline)",
+    "avg_latency": 10.780640331904094,
+    "total_time": 323.9428460597992,
+    "avg_wer": 32.06762334563964,
+    "avg_acc": 82.66666666666667
+  },
+  "whisper_base": {
+    "name": "Whisper Base (Light)",
+    "avg_latency": 4.471436190605163,
+    "total_time": 134.6005346775055,
+    "avg_wer": 39.24241419715201,
+    "avg_acc": 80.22222222222221
+  },
+  "whisper_tiny": {
+    "name": "Whisper Tiny (Ultra-Light)",
+    "avg_latency": 2.6473271369934084,
+    "total_time": 79.91648125648499,
+    "avg_wer": 43.79554949705795,
+    "avg_acc": 80.66666666666667
+  },
+  "faster_whisper": {
+    "name": "Faster-Whisper (INT8 Engine)",
+    "avg_latency": 5.718616278966268,
+    "total_time": 172.05843663215637,
+    "avg_wer": 32.46419322331776,
+    "avg_acc": 82.88888888888889
+  },
+  "wav2vec2": {
+    "name": "Meta Wav2Vec 2.0",
+    "avg_latency": 4.680133072535197,
+    "total_time": 141.1427881717682,
+    "avg_wer": 122.8814897736897,
+    "avg_acc": 76.22222222222221
+  },
+  "vosk": {
+    "name": "Vosk ASR Engine (Kaldi C++)",
+    "avg_latency": 6.278662705421448,
+    "total_time": 189.4054081439972,
+    "avg_wer": 125.27665666037076,
+    "avg_acc": 79.33333333333333
+  }
+}

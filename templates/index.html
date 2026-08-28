@@ -45,13 +45,14 @@
                         style="background:#ddd; padding:5px 10px; border-radius:5px; cursor:pointer;">
                         <i class="fas fa-microphone"></i> เริ่มบันทึกเสียง
                     </div>
-                    <div class="control-item" id="btn-lang-toggle"
-                        style="background:#3498db; color:white; padding:5px 10px; border-radius:5px; cursor:pointer; margin-left:5px;">
-                        <i class="fas fa-language"></i> ไมค์: ไทย (th-TH)
-                    </div>
                     <div class="control-item" id="btn-handsfree-toggle"
                         style="background:#28a745; color:white; padding:5px 10px; border-radius:5px; cursor:pointer; margin-left:5px;">
                         <i class="fas fa-volume-up"></i> เสียงตอบรับ (Hands-Free): ON
+                    </div>
+                    <div id="handsfree-status-badge"
+                        style="display: flex; align-items: center; gap: 8px; background: #2c3e50; color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 13px; margin-left: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+                        <span id="mic-pulse-ring" style="width: 14px; height: 14px; border-radius: 50%; background: #95a5a6; display: inline-block; transition: all 0.3s ease;"></span>
+                        <span id="mic-status-text">Hands-Free Ready</span>
                     </div>
                 </div>
             </div>
@@ -101,14 +102,16 @@
                 <input type="hidden" name="audio_filename" value="{{ audio_filename if audio_filename else '' }}">
 
                 <!-- Clinical Safety Warning Box -->
-                <div id="clinical-warning-box" style="display: none; background-color: #fdf2e9; border: 1px dashed #e67e22; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; color: #d35400; font-size: 14px; font-weight: 500; text-align: left; line-height: 1.5;">
-                    <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
-                    <span id="clinical-warning-text"></span>
+                <div id="clinical-warning-box" style="{% if flags and flags.get('s0_surgical_no') %}display: block;{% else %}display: none;{% endif %} background-color: #fdf2e9; border: 1.5px solid #e67e22; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; color: #d35400; font-size: 14px; font-weight: 500; text-align: left; line-height: 1.5; box-shadow: 0 2px 8px rgba(230,126,34,0.15);">
+                    <i class="fas fa-exclamation-triangle" style="margin-right: 8px; font-size: 16px;"></i>
+                    <span id="clinical-warning-text">{% if flags and flags.get('s0_surgical_no') %}⚠️ <strong>แจ้งเตือนความปลอดภัย (Missing Surgical Number):</strong> ไม่พบรหัสสิ่งส่งตรวจในข้อความบรรยาย กรุณาระบุรหัสเคส (เช่น S-24-XXXX) เพื่อความถูกต้องของเวชระเบียน{% endif %}</span>
                 </div>
 
                 <div class="form-header">
                     Surgical Number S
-                    <input type="text" name="s0_surgical_no" class="inline-input" style="width: 150px;"
+                    <input type="text" name="s0_surgical_no" class="inline-input" 
+                        style="width: 150px; {% if flags and flags.get('s0_surgical_no') %}border: 2px solid #e67e22; background-color: #fef9e7; box-shadow: 0 0 8px rgba(230, 126, 34, 0.4);{% endif %}"
+                        placeholder="ระบุรหัสเคส เช่น 24-1001"
                         value="{{ data.get('s0_surgical_no', '') if data else '' }}">
                 </div>
 
@@ -377,7 +380,7 @@
                     {% endfor %}
                     ) quadrant .
                     <label style="margin-left: 20px;">
-                        <input type="checkbox" name="s10_5_other_check" value="true">
+                        <input type="checkbox" name="s10_5_other_check" value="true" {% if data and (data.get('s10_5_other_check') or data.get('s10_5_other')) %}checked{% endif %}>
                         <span class="checkbox-visual"></span>
                         <input type="text" name="s10_5_other" class="inline-input"
                             style="width: 200px; border-bottom: 1px dotted #000;"
@@ -558,13 +561,82 @@
                     Approved in conference 2/10/2014
                 </div>
 
-                <div class="form-row" style="justify-content: center; margin-top: 30px;">
-                    <button type="submit" class="btn-generate" id="btn-save-submit">สร้าง PDF (Generate PDF)</button>
-                    {% if pdf_filename %}
-                    <a href="{{ url_for('download_file', filename=pdf_filename) }}" class="btn-generate"
-                        id="btn-download-pdf" download
-                        style="background:#2ecc71; text-align:center; text-decoration:none; margin-left:10px;">ดาวน์โหลดไฟล์
-                        PDF (Download)</a>
+                <style>
+                    .action-button-row {
+                        display: flex !important;
+                        flex-direction: row !important;
+                        flex-wrap: wrap !important;
+                        justify-content: center !important;
+                        align-items: center !important;
+                        gap: 12px !important;
+                        margin-top: 30px !important;
+                    }
+                    .action-button-row button,
+                    .action-button-row a {
+                        display: inline-flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        width: auto !important;
+                        padding: 8px 18px !important;
+                        font-size: 0.95rem !important;
+                        font-weight: 500 !important;
+                        border-radius: 6px !important;
+                        cursor: pointer !important;
+                        text-decoration: none !important;
+                        border: none !important;
+                        margin: 0 !important;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+                        transition: all 0.2s ease !important;
+                    }
+                    .btn-primary-gen { background: #3b82f6 !important; color: #fff !important; }
+                    .btn-primary-gen:hover { background: #2563eb !important; }
+                    .btn-view-style { background: #0284c7 !important; color: #fff !important; }
+                    .btn-view-style:hover { background: #0369a1 !important; }
+                    .btn-down-style { background: #10b981 !important; color: #fff !important; }
+                    .btn-down-style:hover { background: #059669 !important; }
+                    .btn-word-style { background: #8b5cf6 !important; color: #fff !important; }
+                    .btn-word-style:hover { background: #7c3aed !important; }
+                    .btn-regen-style { background: #64748b !important; color: #fff !important; }
+                    .btn-regen-style:hover { background: #475569 !important; }
+                </style>
+
+                <script>
+                    function downloadFileSafely(url, filename) {
+                        fetch(url, { cache: 'no-store' })
+                            .then(response => {
+                                if (!response.ok) throw new Error('Network response was not ok');
+                                return response.blob();
+                            })
+                            .then(blob => {
+                                const blobUrl = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.style.display = 'none';
+                                a.href = blobUrl;
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                setTimeout(() => {
+                                    window.URL.revokeObjectURL(blobUrl);
+                                    document.body.removeChild(a);
+                                }, 2000);
+                            })
+                            .catch(err => {
+                                console.warn('Direct blob download error, falling back to window.open:', err);
+                                window.open(url, '_blank');
+                            });
+                    }
+                </script>
+
+                <div class="form-row action-button-row">
+                    {% if not pdf_filename %}
+                    <button type="submit" class="btn-primary-gen" id="btn-save-submit">สร้าง PDF (Generate PDF)</button>
+                    {% else %}
+                    <a href="{{ url_for('view_pdf_file', filename=pdf_filename) }}" target="_blank" class="btn-view-style"
+                        id="btn-view-pdf">เปิดดู PDF (View PDF)</a>
+                    <a href="{{ url_for('download_file', filename=pdf_filename) }}" class="btn-down-style"
+                        id="btn-download-pdf" 
+                        onclick="downloadFileSafely('{{ url_for('download_file', filename=pdf_filename) }}', '{{ pdf_filename }}'); return false;">ดาวน์โหลด PDF (Download)</a>
+                    <button type="submit" class="btn-regen-style" id="btn-save-submit">สร้างใหม่ (Update PDF)</button>
                     {% endif %}
                 </div>
 
@@ -575,8 +647,8 @@
         <div class="side-pane">
 
             <div class="camera-feed">
-                <video class="input_video" style="display:none"></video>
-                <canvas class="output_canvas" width="480px" height="360px"></canvas>
+                <video class="input_video" autoplay playsinline muted style="display:none"></video>
+                <canvas class="output_canvas" width="480" height="360"></canvas>
                 <div class="camera-scanner-overlay">
                     <div class="reticle-corner top-left"></div>
                     <div class="reticle-corner top-right"></div>
@@ -624,7 +696,7 @@
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=1.7"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v={{ range(10000, 99999) | random }}"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

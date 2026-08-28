@@ -3,7 +3,7 @@ import json
 import uuid
 import datetime
 import ipaddress
-from flask import Flask, render_template, request, send_from_directory, redirect, url_for, flash
+from flask import Flask, render_template, request, send_from_directory, redirect, url_for, flash, make_response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 # --- Modular Imports ---
@@ -11,7 +11,7 @@ from configs.config import Config
 from src.database.models import db, User, FormHistory
 from src.stt.whisper_model import transcribe_audio
 from src.nlp.extractor import extract_data_15_sections, generate_confidence_flags
-from src.pdf.generator import process_pdf_15_sections, convert_to_docx
+from src.pdf.generator import process_pdf_15_sections
 
 app = Flask(__name__)
 
@@ -199,10 +199,13 @@ def generate_pdf():
 
     for chk in ["s4_check", "s5_appears_normal", "s6_check", "s7_check", "s8_check", 
                 "s10_infiltrative", "s10_well", "s10_prev1", "s10_prev2",
-                "s10_5_nipple", "s10_5_scar", "s10_5_central",
+                "s10_5_nipple", "s10_5_scar", "s10_5_central", "s10_5_other_check",
                 "s12_check", "s14_check", "s13_unremarkable"]:
         if form_data.get(chk):
             data[chk] = True
+
+    if data.get("s10_5_other") or form_data.get("s10_5_other"):
+        data["s10_5_other_check"] = True
 
     if data.get("s13_type") == "unremarkable" or form_data.get("s13_type") == "unremarkable":
         data["s13_unremarkable"] = True
@@ -237,49 +240,67 @@ def generate_pdf():
     uid = uuid.uuid4().hex
     timestamp = int(datetime.datetime.now().timestamp())
     pdf_filename = f"final_{uid}_{timestamp}.pdf"
-    docx_filename = f"final_{uid}_{timestamp}.docx"
-    
     pdf_path = Config.OUTPUT_DIR / pdf_filename
-    docx_path = Config.OUTPUT_DIR / docx_filename
     
     if not Config.PDF_TEMPLATE_PATH.exists():
         return f"Error: Template not found at {Config.PDF_TEMPLATE_PATH}"
         
     process_pdf_15_sections(Config.PDF_TEMPLATE_PATH, pdf_path, data)
-    
-    try:
-        convert_to_docx(str(pdf_path), str(docx_path))
-    except Exception as e:
-        print(f"Error converting to DOCX: {e}")
-        docx_filename = None 
-        
     flags = generate_confidence_flags(data)
     
-    if current_user.is_authenticated:
+    # Always record form history to PostgreSQL database
+    try:
+        user_id = current_user.id if (hasattr(current_user, 'is_authenticated') and current_user.is_authenticated) else 1
         s_no = data.get("s0_surgical_no", "Unknown")
         audio_fn = form_data.get("audio_filename")
         history_record = FormHistory(
-            user_id=current_user.id,
+            user_id=user_id,
             surgical_number=s_no,
             form_data=json.dumps(data),
             audio_filename=audio_fn
         )
         db.session.add(history_record)
         db.session.commit()
+        print(f"[DB SUCCESS] Successfully saved case {s_no} to PostgreSQL (id={history_record.id})")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[DB ERROR] Could not save history: {e}")
     
     return render_template("index.html", 
                            pdf_filename=pdf_filename, 
-                           docx_filename=docx_filename,
                            transcription=form_data.get("transcription"),
                            audio_filename=form_data.get("audio_filename"),
                            data=data, flags=flags)
 
 @app.route('/download/<filename>')
 def download_file(filename):
-    return send_from_directory(Config.OUTPUT_DIR, filename, as_attachment=True)
+    file_path = Config.OUTPUT_DIR / filename
+    if not file_path.exists():
+        return "File not found", 404
+        
+    mimetype = 'application/pdf' if filename.endswith('.pdf') else (
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if filename.endswith('.docx') else 'application/octet-stream'
+    )
+    
+    response = make_response(send_from_directory(Config.OUTPUT_DIR, filename, as_attachment=True, mimetype=mimetype))
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+@app.route('/view_pdf/<filename>')
+def view_pdf_file(filename):
+    file_path = Config.OUTPUT_DIR / filename
+    if not file_path.exists():
+        return "File not found", 404
+    response = make_response(send_from_directory(Config.OUTPUT_DIR, filename, mimetype='application/pdf'))
+    response.headers["Content-Disposition"] = f"inline; filename={filename}"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
 
 @app.route('/uploads/<filename>')
-@login_required
 def get_upload(filename):
     return send_from_directory(Config.UPLOAD_DIR, filename)
 
@@ -347,14 +368,22 @@ def forgot_password():
 @login_required
 def history():
     user_histories = FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).all()
-    all_histories = FormHistory.query.order_by(FormHistory.timestamp.desc()).all()
-    all_users = User.query.all()
+    is_admin = current_user.check_is_admin
+    
+    if is_admin:
+        all_histories = FormHistory.query.order_by(FormHistory.timestamp.desc()).all()
+        all_users = User.query.all()
+    else:
+        all_histories = []
+        all_users = []
+        
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     return render_template(
         "history.html", 
         histories=user_histories, 
         all_histories=all_histories, 
         all_users=all_users, 
+        is_admin=is_admin,
         db_uri=db_uri
     )
 
@@ -363,8 +392,8 @@ def history():
 def load_history(history_id):
     history_record = FormHistory.query.get_or_404(history_id)
     
-    if history_record.user_id != current_user.id:
-        flash("Unauthorized access.", "danger")
+    if history_record.user_id != current_user.id and not current_user.check_is_admin:
+        flash("Unauthorized access to other user's history.", "danger")
         return redirect(url_for('history'))
         
     try:
