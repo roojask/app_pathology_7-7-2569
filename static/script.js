@@ -270,8 +270,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 txtTranscription.value = totalText;
             }
 
-            // Real-time local extraction!
+            // --- Smart Direct Focused Field Input (Non-Destructive) ---
+            let activeEl = document.activeElement;
+            const gestureFocusedEl = document.querySelector('.gesture-focus');
+            if (gestureFocusedEl) {
+                if (gestureFocusedEl.tagName === 'INPUT' || gestureFocusedEl.tagName === 'TEXTAREA') {
+                    activeEl = gestureFocusedEl;
+                } else if (gestureFocusedEl.previousElementSibling && (gestureFocusedEl.previousElementSibling.tagName === 'INPUT')) {
+                    activeEl = gestureFocusedEl.previousElementSibling;
+                } else if (gestureFocusedEl.closest('.form-row, .form-group, label')?.querySelector('input:focus, input')) {
+                    activeEl = document.activeElement;
+                }
+            }
+
             const normText = normalizeText(totalText);
+            const latestSpokenChunk = normalizeText(interimTranscript || finalTranscript);
+
+            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl !== txtTranscription) {
+                const targetText = latestSpokenChunk.trim() || normText.trim();
+                const numMatch = targetText.match(/\b\d+(?:\.\d+)?\b/);
+                // Check if spoken phrase is a direct number/value intended for the focused input
+                if (numMatch && targetText.split(/\s+/).length <= 4) {
+                    activeEl.value = numMatch[0];
+                    activeEl.setAttribute('data-manual', 'true');
+                    activeEl.style.border = "2.5px solid #27ae60";
+                    activeEl.style.backgroundColor = "#e8f8f5";
+                    setTimeout(() => {
+                        activeEl.style.border = "1.5px dashed #e67e22";
+                        activeEl.style.backgroundColor = "";
+                    }, 1200);
+                    activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    activeEl.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // If text hasn't changed, don't re-extract
+            if (normText === lastExtractedText) return;
+            lastExtractedText = normText;
             const extracted = parseTextLocally(normText);
             applyLocalDataToForm(extracted);
 
