@@ -1,7 +1,13 @@
 import datetime
+from datetime import timezone, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+
+THAILAND_TZ = timezone(timedelta(hours=7))
+
+def get_thai_time():
+    return datetime.datetime.now(THAILAND_TZ).replace(tzinfo=None)
 
 db = SQLAlchemy()
 
@@ -36,7 +42,7 @@ class FormHistory(db.Model):
     surgical_number = db.Column(db.String(100), nullable=True)
     form_data = db.Column(db.Text, nullable=False) # Store JSON string of data dict
     audio_filename = db.Column(db.String(200), nullable=True) # Unique audio filename
-    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_thai_time)
 
 
 class AudioTask(db.Model):
@@ -46,6 +52,7 @@ class AudioTask(db.Model):
     file_path = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(20), default="pending")  # pending, processing, completed, failed
     result_text = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_thai_time)
+    updated_at = db.Column(db.DateTime, default=get_thai_time, onupdate=get_thai_time)
+
 

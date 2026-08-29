@@ -8,7 +8,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 
 # --- Modular Imports ---
 from configs.config import Config
-from src.database.models import db, User, FormHistory
+from src.database.models import db, User, FormHistory, get_thai_time
 from src.stt.whisper_model import transcribe_audio
 from src.nlp.extractor import extract_data_15_sections, generate_confidence_flags
 from src.pdf.generator import process_pdf_15_sections
@@ -257,7 +257,8 @@ def generate_pdf():
             user_id=user_id,
             surgical_number=s_no,
             form_data=json.dumps(data),
-            audio_filename=audio_fn
+            audio_filename=audio_fn,
+            timestamp=get_thai_time()
         )
         db.session.add(history_record)
         db.session.commit()
