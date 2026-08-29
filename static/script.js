@@ -466,6 +466,12 @@ document.addEventListener('DOMContentLoaded', function () {
             case 'NEXT':
                 moveFocus(1);
                 break;
+            case 'PREV_ROW':
+                moveFocusRow(-1);
+                break;
+            case 'NEXT_ROW':
+                moveFocusRow(1);
+                break;
             case 'SELECT':
                 const active = document.activeElement;
                 if (active && (active.type === 'checkbox' || active.type === 'radio')) {
@@ -498,6 +504,65 @@ document.addEventListener('DOMContentLoaded', function () {
                     else saveBtn.click();
                 }
                 break;
+        }
+    }
+
+    function moveFocusRow(direction) {
+        const inputs = Array.from(document.querySelectorAll('input[type="text"], textarea, input[type="checkbox"], input[type="radio"]'));
+        const current = document.activeElement;
+        const currentIndex = inputs.indexOf(current);
+
+        if (current) {
+            const currentVisual = getVisual(current);
+            if (currentVisual) currentVisual.classList.remove('gesture-focus');
+        }
+
+        if (currentIndex === -1) {
+            const target = direction > 0 ? inputs[0] : inputs[inputs.length - 1];
+            if (target) {
+                target.focus();
+                const visual = getVisual(target);
+                if (visual) {
+                    visual.classList.add('gesture-focus');
+                    visual.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            return;
+        }
+
+        const currentRect = current.getBoundingClientRect();
+        const currentY = currentRect.top + currentRect.height / 2;
+
+        let target = null;
+        if (direction > 0) {
+            for (let i = currentIndex + 1; i < inputs.length; i++) {
+                const rect = inputs[i].getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                if (midY - currentY > 18) {
+                    target = inputs[i];
+                    break;
+                }
+            }
+            if (!target && inputs.length > 0) target = inputs[0];
+        } else {
+            for (let i = currentIndex - 1; i >= 0; i--) {
+                const rect = inputs[i].getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                if (currentY - midY > 18) {
+                    target = inputs[i];
+                    break;
+                }
+            }
+            if (!target && inputs.length > 0) target = inputs[inputs.length - 1];
+        }
+
+        if (target) {
+            target.focus();
+            const targetVisual = getVisual(target);
+            if (targetVisual) {
+                targetVisual.classList.add('gesture-focus');
+                targetVisual.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
     }
 

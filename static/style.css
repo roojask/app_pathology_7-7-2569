@@ -196,8 +196,8 @@ input[type="radio"] {
 
 .camera-feed {
     background-color: #000;
-    height: 360px;
-    /* Increased height for 4:3 aspect ratio */
+    height: 420px;
+    /* Expanded height for 5-row gesture HUD */
     border-radius: 8px;
     position: relative;
     overflow: hidden;
@@ -253,8 +253,8 @@ input[type="radio"] {
 .gesture-controls {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(4, 1fr);
-    /* 4 Rows */
+    grid-template-rows: repeat(5, 1fr);
+    /* 5 Rows for PREV_ROW & NEXT_ROW */
     width: 100%;
     height: 100%;
     padding: 0;
