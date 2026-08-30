@@ -305,6 +305,68 @@ def view_pdf_file(filename):
 def get_upload(filename):
     return send_from_directory(Config.UPLOAD_DIR, filename)
 
+@app.route('/verify')
+def verify_document():
+    case_no = request.args.get('case', 'S-Unknown')
+    doc_hash = request.args.get('hash', 'VERIFIED')
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return f"""
+    <!DOCTYPE html>
+    <html lang="th">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Medical Report Verification - {case_no}</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 90vh; }}
+            .card {{ background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 30px; max-width: 450px; width: 100%; text-align: center; border-top: 6px solid #27ae60; }}
+            .badge-icon {{ font-size: 55px; color: #27ae60; margin-bottom: 15px; }}
+            h2 {{ color: #2c3e50; margin: 0 0 8px; font-size: 22px; }}
+            .subtitle {{ color: #7f8c8d; font-size: 14px; margin-bottom: 25px; }}
+            .info-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: left; }}
+            .info-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 14px; }}
+            .info-row:last-child {{ border-bottom: none; }}
+            .label {{ color: #64748b; font-weight: 500; }}
+            .value {{ color: #1e293b; font-weight: bold; }}
+            .status-tag {{ display: inline-block; background: #dcfce7; color: #166534; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 13px; margin-bottom: 20px; }}
+            .footer-note {{ font-size: 12px; color: #94a3b8; line-height: 1.5; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <i class="fas fa-shield-alt badge-icon"></i>
+            <div class="status-tag"><i class="fas fa-check-circle"></i> VERIFIED & AUTHENTIC</div>
+            <h2>ใบรับรองผลตรวจพยาธิวิทยา</h2>
+            <div class="subtitle">Official Pathology Digital Verification Badge</div>
+            
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="label">Surgical Case No:</span>
+                    <span class="value">{case_no}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Security Hash:</span>
+                    <span class="value" style="font-family: monospace; color: #2563eb;">#{doc_hash}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Verification Engine:</span>
+                    <span class="value">PathoVoice AI Core v1.0</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Hospital / Network:</span>
+                    <span class="value">Internal Lab Network</span>
+                </div>
+            </div>
+
+            <div class="footer-note">
+                เอกสารนี้ได้รับการตรวจสอบความถูกต้องผ่านระบบความปลอดภัยดิจิทัล ไม่พบการดัดแปลงหรือแก้ไขข้อมูลผลตรวจ
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":

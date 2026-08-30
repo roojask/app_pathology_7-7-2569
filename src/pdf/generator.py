@@ -11,7 +11,7 @@ def generate_verification_qr_pixmap(surgical_no, timestamp_str):
     """สร้าง QR Code รับรองความถูกต้องของรายงานทางการแพทย์และป้องกันการปลอมแปลง"""
     payload = f"PATHOLOGY_VERIFIED|CASE:{surgical_no}|TIME:{timestamp_str}|SYS:PathoVoice_v1.0"
     doc_hash = hashlib.sha256(payload.encode('utf-8')).hexdigest()[:12].upper()
-    qr_data = f"https://pathology.lab/verify?case={surgical_no}&hash={doc_hash}&verified=1"
+    qr_data = f"https://10.198.200.79:7860/verify?case={surgical_no}&hash={doc_hash}"
     
     qr = qrcode.QRCode(
         version=1,
