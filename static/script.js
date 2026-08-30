@@ -412,6 +412,29 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    let smoothCursorX = null;
+    let smoothCursorY = null;
+    const EMA_ALPHA = 0.40; // Silky smooth jitter suppression filter
+
+    function playGestureChime() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.06, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.12);
+        } catch(e) {}
+    }
+
     function detectGesture(landmarks) {
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
@@ -421,20 +444,28 @@ document.addEventListener('DOMContentLoaded', function () {
             Math.pow(thumbTip.y - indexTip.y, 2)
         );
 
-        const cursorX_norm = 1 - ((thumbTip.x + indexTip.x) / 2);
-        const cursorY_norm = (thumbTip.y + indexTip.y) / 2;
+        const rawX = (thumbTip.x + indexTip.x) / 2;
+        const rawY = (thumbTip.y + indexTip.y) / 2;
+
+        if (smoothCursorX === null) {
+            smoothCursorX = rawX;
+            smoothCursorY = rawY;
+        } else {
+            smoothCursorX = smoothCursorX * (1 - EMA_ALPHA) + rawX * EMA_ALPHA;
+            smoothCursorY = smoothCursorY * (1 - EMA_ALPHA) + rawY * EMA_ALPHA;
+        }
+
+        const cursorX_norm = 1 - smoothCursorX;
+        const cursorY_norm = smoothCursorY;
 
         const rect = canvasElement.getBoundingClientRect();
         const clientX = rect.left + (cursorX_norm * rect.width);
         const clientY = rect.top + (cursorY_norm * rect.height);
 
-        const midX = (thumbTip.x + indexTip.x) / 2;
-        const midY = (thumbTip.y + indexTip.y) / 2;
-
         const PINCH_THRESHOLD = 0.06;
 
         canvasCtx.beginPath();
-        canvasCtx.arc(midX * canvasElement.width, midY * canvasElement.height, 6, 0, 2 * Math.PI);
+        canvasCtx.arc(smoothCursorX * canvasElement.width, smoothCursorY * canvasElement.height, 6, 0, 2 * Math.PI);
         canvasCtx.fillStyle = distance < PINCH_THRESHOLD ? "#00f0ff" : "rgba(255, 255, 255, 0.6)";
         canvasCtx.fill();
 
@@ -447,6 +478,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const now = Date.now();
                 if (now - lastActionTime > ACTION_COOLDOWN) {
+                    playGestureChime();
                     const action = element.getAttribute('data-action');
                     triggerAction(action);
                     lastActionTime = now;

@@ -450,6 +450,29 @@ def history():
         db_uri=db_uri
     )
 
+@app.route("/history/export_csv")
+@login_required
+def export_history_csv():
+    import csv
+    from io import StringIO
+    
+    is_admin = current_user.check_is_admin
+    records = FormHistory.query.order_by(FormHistory.timestamp.desc()).all() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).all()
+    
+    si = StringIO()
+    cw = csv.writer(si)
+    # Header
+    cw.writerow(['ID', 'Surgical Number', 'User ID', 'Date & Time (UTC+7)', 'Form Data JSON', 'Audio Filename'])
+    
+    for r in records:
+        ts_str = r.timestamp.strftime("%Y-%m-%d %H:%M:%S") if r.timestamp else ""
+        cw.writerow([r.id, r.surgical_number or "Unknown", r.user_id, ts_str, r.form_data or "{}", r.audio_filename or ""])
+        
+    output = make_response(si.getvalue().encode('utf-8-sig'))
+    output.headers["Content-Disposition"] = f"attachment; filename=pathology_cases_export_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    output.headers["Content-type"] = "text/csv; charset=utf-8"
+    return output
+
 @app.route("/history/load/<int:history_id>")
 @login_required
 def load_history(history_id):

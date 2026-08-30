@@ -140,7 +140,18 @@
             {% endif %}
         </div>
 
-        <hr style="border: 0; border-top: 2px solid #007bff; margin: 0 0 20px 0;">
+        <hr style="border: 0; border-top: 2px solid #007bff; margin: 0 0 15px 0;">
+
+        <!-- Search Bar & Export CSV Action Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px; flex-wrap: wrap;">
+            <div style="position: relative; flex: 1; min-width: 250px; max-width: 450px;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 11px; color: #888;"></i>
+                <input type="text" id="history-search-input" onkeyup="filterHistoryTable()" placeholder="ค้นหารหัสเคส (Surgical Number), วันที่..." style="width: 100%; padding: 8px 12px 8px 35px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            </div>
+            <a href="{{ url_for('export_history_csv') }}" style="background-color: #107c41; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <i class="fas fa-file-excel"></i> Export CSV (Excel)
+            </a>
+        </div>
 
         <!-- Tab 1: My History -->
         <div id="my-history" class="tab-content active">
@@ -263,6 +274,18 @@
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             btn.classList.add('active');
+        }
+
+        function filterHistoryTable() {
+            const input = document.getElementById('history-search-input');
+            const filter = input.value.toLowerCase().trim();
+            const activeTab = document.querySelector('.tab-content.active');
+            if (!activeTab) return;
+            const rows = activeTab.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
         }
     </script>
 
