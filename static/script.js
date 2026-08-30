@@ -633,6 +633,69 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // --- Real-time Web Audio API Waveform & VU Meter Engine ---
+    let audioVisualizerCtx = null;
+    let audioVisualizerAnimId = null;
+
+    function startAudioWaveformVisualizer(mediaStream) {
+        const canvas = document.getElementById('audio-waveform-canvas');
+        const container = document.getElementById('live-waveform-container');
+        const vuBar = document.getElementById('audio-vu-bar');
+        if (!canvas || !mediaStream) return;
+
+        if (container) container.style.display = 'flex';
+        const ctx = canvas.getContext('2d');
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        try {
+            audioVisualizerCtx = new AudioCtx();
+            const source = audioVisualizerCtx.createMediaStreamSource(mediaStream);
+            const analyser = audioVisualizerCtx.createAnalyser();
+            analyser.fftSize = 64;
+            source.connect(analyser);
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function drawWaveform() {
+                audioVisualizerAnimId = requestAnimationFrame(drawWaveform);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const barWidth = (canvas.width / bufferLength) * 1.5;
+                let x = 0;
+                let totalVolume = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    totalVolume += dataArray[i];
+
+                    ctx.fillStyle = `rgb(46, ${Math.min(255, 180 + dataArray[i])}, 235)`;
+                    ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+                    x += barWidth + 1;
+                }
+
+                if (vuBar) {
+                    const avgVol = Math.min(100, Math.round((totalVolume / (bufferLength * 160)) * 100));
+                    vuBar.style.width = `${avgVol}%`;
+                }
+            }
+            drawWaveform();
+        } catch(e) {
+            console.warn("Visualizer note:", e);
+        }
+    }
+
+    function stopAudioWaveformVisualizer() {
+        if (audioVisualizerAnimId) cancelAnimationFrame(audioVisualizerAnimId);
+        if (audioVisualizerCtx && audioVisualizerCtx.state !== 'closed') {
+            try { audioVisualizerCtx.close(); } catch(e) {}
+        }
+        const container = document.getElementById('live-waveform-container');
+        if (container) container.style.display = 'none';
+        const vuBar = document.getElementById('audio-vu-bar');
+        if (vuBar) vuBar.style.width = '0%';
+    }
+
     // --- Audio Recording MediaRecorder Implementation ---
     if (btnRecordAudio) {
         btnRecordAudio.addEventListener('click', async function() {
@@ -659,6 +722,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
 
                 mediaRecorder.onstop = function() {
+                    stopAudioWaveformVisualizer();
                     stream.getTracks().forEach(track => track.stop());
 
                     const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
@@ -679,16 +743,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
 
                 mediaRecorder.start();
+                startAudioWaveformVisualizer(stream);
                 
                 btnRecordAudio.style.display = 'none';
                 btnStopAudio.style.display = 'inline-block';
                 if (recordingTimer) {
                     recordingTimer.style.display = 'inline-block';
                     recordingTimer.innerText = '00:00';
-                }
-                const waveformAnim = document.getElementById('waveform-animation');
-                if (waveformAnim) {
-                    waveformAnim.style.display = 'flex';
                 }
 
                 recordingStartTime = Date.now();
@@ -709,15 +770,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
             }
+            stopAudioWaveformVisualizer();
             clearInterval(recordingTimerInterval);
             btnStopAudio.style.display = 'none';
             btnRecordAudio.style.display = 'inline-block';
             if (recordingTimer) {
                 recordingTimer.style.display = 'none';
-            }
-            const waveformAnim = document.getElementById('waveform-animation');
-            if (waveformAnim) {
-                waveformAnim.style.display = 'none';
             }
             // Apply shimmer loading to all pathology form input visuals
             document.querySelectorAll('.patho-form input[type="text"], .patho-form textarea, .patho-form .checkbox-visual, .patho-form .circle-option').forEach(el => {

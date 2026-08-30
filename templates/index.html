@@ -76,12 +76,12 @@
                                 <i class="fas fa-stop"></i> หยุดอัดและส่ง
                             </button>
                             <span id="recording-timer" style="margin-left: 10px; font-weight: bold; color: red; display: none; align-self: center;">00:00</span>
-                            <div id="waveform-animation" class="waveform" style="display: none; align-self: center; margin-left: 15px;">
-                                <span class="bar"></span>
-                                <span class="bar"></span>
-                                <span class="bar"></span>
-                                <span class="bar"></span>
-                                <span class="bar"></span>
+                            <div id="live-waveform-container" style="display: none; align-items: center; gap: 8px; margin-left: 15px; background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid #ddd;">
+                                <span style="font-size: 11px; font-weight: bold; color: #27ae60;"><i class="fas fa-wave-square"></i> LIVE AUDIO</span>
+                                <canvas id="audio-waveform-canvas" width="130" height="24" style="border-radius: 4px;"></canvas>
+                                <div id="audio-vu-meter" style="width: 35px; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
+                                    <div id="audio-vu-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #2ecc71, #f39c12, #e74c3c); transition: width 0.05s ease;"></div>
+                                </div>
                             </div>
                         </div>
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
