@@ -394,11 +394,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let lastActionTime = 0;
     const ACTION_COOLDOWN = 800;
+    let lastHandDetectedTime = Date.now();
+    let videoFrameCounter = 0;
 
     function onResults(results) {
         if (!canvasCtx || !canvasElement) return;
 
-        if (results.multiHandLandmarks) {
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            lastHandDetectedTime = Date.now();
             canvasCtx.save();
             canvasCtx.translate(canvasElement.width, 0);
             canvasCtx.scale(-1, 1);
@@ -886,6 +889,9 @@ document.addEventListener('DOMContentLoaded', function () {
             async function processVideoFrame() {
                 if (!isCameraRunning) return;
                 
+                videoFrameCounter++;
+                const isIdle = (Date.now() - lastHandDetectedTime) > 6000;
+                
                 // Mirror and draw webcam video onto canvas every frame
                 if (canvasCtx && canvasElement && videoElement && videoElement.readyState >= 2) {
                     canvasCtx.save();
@@ -893,6 +899,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     canvasCtx.scale(-1, 1);
                     canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
                     canvasCtx.restore();
+                }
+
+                // If no hands detected for 6s, throttle MediaPipe to 15 FPS to conserve 30% CPU
+                if (isIdle && (videoFrameCounter % 2 !== 0)) {
+                    animFrameId = requestAnimationFrame(processVideoFrame);
+                    return;
                 }
 
                 if (handsInstance && videoElement && videoElement.readyState >= 2) {
@@ -1662,9 +1674,86 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (micStatusContainer) {
                     micStatusContainer.innerHTML = '<span style="color:#e67e22; font-weight:bold;"><i class="fas fa-bolt"></i> สกัดคำในบราวเซอร์สำเร็จแล้ว! (Client-Side Local Extraction completed)</span>';
                 }
+                autoSaveDraft();
             }, 300);
         });
     }
+
+    // --- Enterprise Local Draft Auto-Save & Crash Recovery Engine ---
+    const DRAFT_STORAGE_KEY = 'patho_form_draft_v1';
+    let draftSaveTimeout = null;
+
+    function autoSaveDraft() {
+        if (draftSaveTimeout) clearTimeout(draftSaveTimeout);
+        draftSaveTimeout = setTimeout(() => {
+            try {
+                const formData = {};
+                document.querySelectorAll('.patho-form input, .patho-form select, .patho-form textarea').forEach(el => {
+                    if (!el.name || el.name === 'audio_file') return;
+                    if (el.type === 'radio' || el.type === 'checkbox') {
+                        if (el.checked) formData[el.name] = el.value;
+                    } else {
+                        if (el.value) formData[el.name] = el.value;
+                    }
+                });
+                if (Object.keys(formData).length > 0) {
+                    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+                        data: formData,
+                        savedAt: new Date().toISOString()
+                    }));
+                }
+            } catch(e) {}
+        }, 500);
+    }
+
+    function restoreDraftIfAvailable() {
+        try {
+            const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+            if (!saved) return;
+            const parsed = JSON.parse(saved);
+            if (!parsed || !parsed.data) return;
+
+            const currentSurgNo = document.querySelector('[name="s0_surgical_no"]')?.value;
+            // Only restore if form is empty
+            if (!currentSurgNo || currentSurgNo.trim() === '') {
+                Object.entries(parsed.data).forEach(([name, val]) => {
+                    const inputs = document.querySelectorAll(`[name="${name}"]`);
+                    if (inputs.length > 0 && (inputs[0].type === 'radio' || inputs[0].type === 'checkbox')) {
+                        inputs.forEach(r => {
+                            if (r.value === val) r.checked = true;
+                        });
+                    } else if (inputs.length > 0) {
+                        inputs[0].value = val;
+                    }
+                });
+                validateFormData();
+                if (micStatusContainer) {
+                    micStatusContainer.innerHTML = '<span style="color:#2980b9;"><i class="fas fa-history"></i> กู้คืนข้อมูลร่างล่าสุดอัตโนมัติ (Draft Auto-Restored)</span>';
+                }
+            }
+        } catch(e) {}
+    }
+
+    function clearLocalDraft() {
+        try {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch(e) {}
+    }
+
+    // Auto-save on every input change
+    document.querySelectorAll('.patho-form input, .patho-form select, .patho-form textarea').forEach(el => {
+        el.addEventListener('input', autoSaveDraft);
+        el.addEventListener('change', autoSaveDraft);
+    });
+
+    // Clear draft when successfully submitting PDF
+    const formElement = document.querySelector('.patho-form');
+    if (formElement) {
+        formElement.addEventListener('submit', () => clearLocalDraft());
+    }
+
+    // Restore draft on load
+    restoreDraftIfAvailable();
 }
 });
 
