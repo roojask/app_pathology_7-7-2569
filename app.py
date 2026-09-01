@@ -115,7 +115,7 @@ def set_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Permissions-Policy'] = 'camera=(self), microphone=(self), geolocation=()'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob:; media-src 'self' blob: data:; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' blob:;"
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com blob:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob:; media-src 'self' blob: data:; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' blob: data: https://cdn.jsdelivr.net; worker-src 'self' blob:;"
     return response
 
 @login_manager.user_loader
