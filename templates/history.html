@@ -184,9 +184,12 @@
                             <span style="color:#aaa; font-style:italic; font-size:12px;">No Audio</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <a href="{{ url_for('load_history', history_id=h.id) }}" class="btn-load">
-                                <i class="fas fa-folder-open"></i> Load Form
+                        <td style="white-space: nowrap;">
+                            <a href="{{ url_for('load_history', history_id=h.id) }}" class="btn-load" style="margin-right: 5px;">
+                                <i class="fas fa-folder-open"></i> Load
+                            </a>
+                            <a href="{{ url_for('export_fhir_record', history_id=h.id) }}" class="btn-load" style="background-color: #0d6efd;" title="Download HL7 FHIR R4 JSON">
+                                <i class="fas fa-file-code"></i> FHIR
                             </a>
                         </td>
                     </tr>

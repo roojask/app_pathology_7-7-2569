@@ -1492,7 +1492,96 @@ document.addEventListener('DOMContentLoaded', function () {
         if (micStatus && filledCount > 0) {
             micStatus.innerHTML = `<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-magic"></i> สกัดข้อมูลเรียลไทม์สำเร็จแล้ว (${filledCount} / 15 หัวข้อ)</span>`;
         }
+
+        // Update Interactive Specimen Visual Map
+        updateSpecimenVisualMap(data);
     }
+
+    // --- Interactive Breast Specimen Visual Map Engine ---
+    function updateSpecimenVisualMap(data) {
+        data = data || {};
+        const sideEl = document.getElementById('map-side-indicator');
+        if (sideEl) {
+            const sideVal = data.s1_side || document.querySelector('[name="s1_side"]:checked')?.value || 'right';
+            sideEl.innerText = sideVal.toUpperCase() + ' BREAST';
+            sideEl.style.backgroundColor = sideVal === 'left' ? '#fef3c7' : '#e0f2fe';
+            sideEl.style.color = sideVal === 'left' ? '#92400e' : '#0369a1';
+        }
+
+        const quadUoq = document.getElementById('quad-uoq');
+        const quadUiq = document.getElementById('quad-uiq');
+        const quadLoq = document.getElementById('quad-loq');
+        const quadLiq = document.getElementById('quad-liq');
+        const quadAreola = document.getElementById('quad-areola');
+
+        [quadUoq, quadUiq, quadLoq, quadLiq, quadAreola].forEach(q => {
+            if (q) {
+                q.setAttribute('fill', '#e2e8f0');
+                q.setAttribute('stroke', '#cbd5e1');
+            }
+        });
+
+        const selectedQuad = document.querySelector('[name="s7_quadrant"]:checked')?.value || (data.s7_quadrant || '');
+        if (selectedQuad === 'uoq' || selectedQuad === 'upper_outer' || selectedQuad === 'upper') {
+            if (quadUoq) { quadUoq.setAttribute('fill', '#fee2e2'); quadUoq.setAttribute('stroke', '#ef4444'); }
+        } else if (selectedQuad === 'uiq' || selectedQuad === 'upper_inner') {
+            if (quadUiq) { quadUiq.setAttribute('fill', '#fee2e2'); quadUiq.setAttribute('stroke', '#ef4444'); }
+        } else if (selectedQuad === 'loq' || selectedQuad === 'lower_outer' || selectedQuad === 'lower') {
+            if (quadLoq) { quadLoq.setAttribute('fill', '#fee2e2'); quadLoq.setAttribute('stroke', '#ef4444'); }
+        } else if (selectedQuad === 'liq' || selectedQuad === 'lower_inner') {
+            if (quadLiq) { quadLiq.setAttribute('fill', '#fee2e2'); quadLiq.setAttribute('stroke', '#ef4444'); }
+        } else if (selectedQuad === 'areola') {
+            if (quadAreola) { quadAreola.setAttribute('fill', '#fee2e2'); quadAreola.setAttribute('stroke', '#ef4444'); }
+        }
+
+        // Highlight Active Margins
+        const margins = [
+            { id: 'margin-sup', name: 's11_superior' },
+            { id: 'margin-inf', name: 's11_inferior' },
+            { id: 'margin-med', name: 's11_medial' },
+            { id: 'margin-lat', name: 's11_lateral' }
+        ];
+        margins.forEach(m => {
+            const pin = document.getElementById(m.id);
+            const val = data[m.name] || document.querySelector(`[name="${m.name}"]`)?.value;
+            if (pin) {
+                if (val && parseFloat(val) > 0) {
+                    pin.setAttribute('fill', '#22c55e');
+                    pin.setAttribute('r', '7');
+                } else {
+                    pin.setAttribute('fill', '#94a3b8');
+                    pin.setAttribute('r', '5');
+                }
+            }
+        });
+    }
+
+    // Attach click handlers on SVG map quadrants
+    const quadMap = {
+        'quad-uoq': 'upper_outer',
+        'quad-uiq': 'upper_inner',
+        'quad-loq': 'lower_outer',
+        'quad-liq': 'lower_inner',
+        'quad-areola': 'areola'
+    };
+    Object.entries(quadMap).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('click', () => {
+                const radio = document.querySelector(`[name="s7_quadrant"][value="${val}"]`) || document.querySelector(`[name="s7_quadrant"][value="${val.split('_')[0]}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    radio.dispatchEvent(new Event('change', { bubbles: true }));
+                    updateSpecimenVisualMap({});
+                }
+            });
+        }
+    });
+
+    // Form inputs change listener to sync visual map
+    document.querySelectorAll('.patho-form input, .patho-form select').forEach(input => {
+        input.addEventListener('change', () => updateSpecimenVisualMap({}));
+    });
 
     // --- Live Textarea Sync (Keyboard edits update form real-time) ---
     if (txtTranscription) {

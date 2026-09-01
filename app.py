@@ -473,6 +473,29 @@ def export_history_csv():
     output.headers["Content-type"] = "text/csv; charset=utf-8"
     return output
 
+@app.route("/export_fhir/<int:history_id>")
+@login_required
+def export_fhir_record(history_id):
+    from src.export.fhir_exporter import convert_to_hl7_fhir_r4
+    history_record = FormHistory.query.get_or_404(history_id)
+    if history_record.user_id != current_user.id and not current_user.check_is_admin:
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for('history'))
+        
+    try:
+        data = json.loads(history_record.form_data)
+    except:
+        data = {}
+        
+    s_no = history_record.surgical_number or "S-Unknown"
+    ts_str = history_record.timestamp.isoformat() if history_record.timestamp else None
+    fhir_data = convert_to_hl7_fhir_r4(data, s_no, ts_str)
+    
+    response = make_response(json.dumps(fhir_data, indent=2, ensure_ascii=False))
+    response.headers["Content-Disposition"] = f"attachment; filename=fhir_diagnostic_report_{s_no}.json"
+    response.headers["Content-type"] = "application/json; charset=utf-8"
+    return response
+
 @app.route("/history/load/<int:history_id>")
 @login_required
 def load_history(history_id):
