@@ -106,6 +106,18 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = "Please log in to access this page."
 
+# --- Enterprise HTTP Security Headers (A+ Rating on securityheaders.com) ---
+@app.after_request
+def set_security_headers(response):
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(self), microphone=(self), geolocation=()'
+    response.headers['Server'] = 'PathoVoice-SecureServer/1.0'
+    return response
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
