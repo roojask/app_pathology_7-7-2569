@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let lastActionTime = 0;
     const ACTION_COOLDOWN = 800;
-    let lastHandDetectedTime = Date.now();
+    let lastHandDetectedTime = 0;
     let videoFrameCounter = 0;
 
     function onResults(results) {
@@ -411,9 +411,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+        const gestureOverlay = document.querySelector('.gesture-controls');
+        const btnCameraGrid = document.getElementById('btn-camera-grid');
+
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             lastHandDetectedTime = Date.now();
             updateGestureBadge('Gesture: Active', '#22c55e');
+            if (gestureOverlay) {
+                gestureOverlay.classList.add('visible');
+            }
+            if (btnCameraGrid) {
+                btnCameraGrid.classList.add('active');
+            }
             canvasCtx.save();
             canvasCtx.translate(canvasElement.width, 0);
             canvasCtx.scale(-1, 1);
@@ -425,8 +434,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             canvasCtx.restore();
         } else {
-            if (Date.now() - lastHandDetectedTime > 1500) {
+            if (Date.now() - lastHandDetectedTime > 1200) {
                 updateGestureBadge('Gesture: No Hand', '#9ca3af');
+                if (gestureOverlay && !gestureOverlay.hasAttribute('data-manual-keep')) {
+                    gestureOverlay.classList.remove('visible');
+                    if (btnCameraGrid) {
+                        btnCameraGrid.classList.remove('active');
+                    }
+                }
             }
         }
     }
@@ -861,7 +876,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Robust Camera Stream Engine (Direct WebRTC + MediaPipe Support) ---
-    const cameraFeedEl = document.querySelector('.camera-feed');
+    const cameraFeedEl = document.querySelector('.camera-feed-box');
     let localVideoStream = null;
     let handsInstance = null;
     let animFrameId = null;
@@ -919,7 +934,10 @@ document.addEventListener('DOMContentLoaded', function () {
             isCameraRunning = true;
             const camPlaceholder = document.getElementById('camera-placeholder');
             if (camPlaceholder) camPlaceholder.style.display = 'none';
-            if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
+            const gestureOverlay = document.querySelector('.gesture-controls');
+            if (gestureOverlay && !gestureOverlay.hasAttribute('data-manual-keep')) {
+                gestureOverlay.classList.remove('visible');
+            }
             if (btnCameraToggle) {
                 btnCameraToggle.innerHTML = '<i class="fa-solid fa-camera"></i> Photo';
                 btnCameraToggle.classList.add('active');
@@ -986,6 +1004,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (videoElement) {
             videoElement.srcObject = null;
         }
+        const gestureOverlay = document.querySelector('.gesture-controls');
+        if (gestureOverlay) {
+            gestureOverlay.classList.remove('visible');
+            gestureOverlay.removeAttribute('data-manual-keep');
+        }
+        const btnCameraGrid = document.getElementById('btn-camera-grid');
+        if (btnCameraGrid) btnCameraGrid.classList.remove('active');
+
         const camPlaceholder = document.getElementById('camera-placeholder');
         if (camPlaceholder) {
             camPlaceholder.style.display = 'flex';
@@ -994,7 +1020,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="cam-prompt-text">คลิกเปิดกล้อง (Start Camera)</span>
             `;
         }
-        if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
         if (btnCameraToggle) {
             btnCameraToggle.innerHTML = '<i class="fa-solid fa-camera"></i> Photo';
             btnCameraToggle.classList.remove('active');
@@ -1002,6 +1027,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (canvasCtx && canvasElement) {
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         }
+        updateGestureBadge('Gesture: Off', '#9ca3af');
     }
 
     if (btnCameraToggle) {
@@ -1022,6 +1048,26 @@ document.addEventListener('DOMContentLoaded', function () {
             if (isCameraRunning) {
                 stopCameraDirectly();
                 setTimeout(() => startCameraDirectly(), 250);
+            }
+        });
+    }
+
+    const btnCameraGrid = document.getElementById('btn-camera-grid');
+    if (btnCameraGrid) {
+        btnCameraGrid.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const gestureOverlay = document.querySelector('.gesture-controls');
+            if (gestureOverlay) {
+                const isCurrentlyVisible = gestureOverlay.classList.contains('visible');
+                if (isCurrentlyVisible) {
+                    gestureOverlay.classList.remove('visible');
+                    gestureOverlay.removeAttribute('data-manual-keep');
+                    btnCameraGrid.classList.remove('active');
+                } else {
+                    gestureOverlay.classList.add('visible');
+                    gestureOverlay.setAttribute('data-manual-keep', 'true');
+                    btnCameraGrid.classList.add('active');
+                }
             }
         });
     }

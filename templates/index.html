@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patho Voice Assistant - Document View</title>
-    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}?v={{ range(10000, 99999) | random }}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
@@ -658,7 +658,10 @@
                     <!-- Top-Left Badge: FRONT CAMERA -->
                     <div class="camera-badge-left">FRONT CAMERA</div>
 
-                    <!-- Top-Right Flip/Rotate Button -->
+                    <!-- Top-Right Flip/Rotate and Toggle Grid Buttons -->
+                    <button type="button" class="camera-btn-grid" id="btn-camera-grid" title="แสดง/ซ่อน ตารางการสั่งงาน (Toggle Gesture Grid)">
+                        <i class="fa-solid fa-table-cells"></i>
+                    </button>
                     <button type="button" class="camera-btn-flip" id="btn-camera-flip" title="Switch Camera">
                         <i class="fa-solid fa-camera-rotate"></i>
                     </button>
