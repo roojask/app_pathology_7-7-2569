@@ -413,11 +413,26 @@ def login():
         
         if user and user.check_password(password):
             login_user(user)
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         else:
             flash("Invalid username or password.", "danger")
             
     return render_template("login.html")
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    is_admin = current_user.check_is_admin
+    recent_cases = FormHistory.query.order_by(FormHistory.timestamp.desc()).limit(6).all() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).limit(6).all()
+    total_count = FormHistory.query.count() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).count()
+    
+    return render_template(
+        "dashboard.html",
+        recent_cases=recent_cases,
+        total_count=total_count,
+        user=current_user,
+        active_tab="dashboard"
+    )
 
 @app.route("/logout")
 @login_required

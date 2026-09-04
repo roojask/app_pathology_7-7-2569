@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gross Reporting - Pathology Assistant</title>
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Unified Top Navigation Bar -->
+    <header class="top-navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('dashboard') }}" class="brand-logo">
+                <span class="brand-dot"></span>
+                Gross reporting
+            </a>
+            <nav class="nav-pills">
+                <a href="{{ url_for('dashboard') }}" class="nav-pill active">Dashboard</a>
+                <a href="{{ url_for('index') }}" class="nav-pill">Form</a>
+                <a href="{{ url_for('history') }}" class="nav-pill">History</a>
+            </nav>
+        </div>
+
+        <div class="nav-right">
+            <div class="user-profile">
+                <span class="user-name">{{ current_user.name or current_user.username }}</span>
+                <span class="user-role">{{ "Administrator" if current_user.check_is_admin else "Doctor" }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn-switch" title="Sign out / Switch user">
+                <i class="fas fa-arrow-right-from-bracket"></i> Switch
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Container -->
+    <main class="dashboard-container">
+        
+        <!-- Greeting Header -->
+        <div class="greeting-header">
+            <h1 class="greeting-title">Good day, {{ current_user.name or "doctor" }}</h1>
+            <p class="greeting-subtitle">Start a new case, or pick up where you left off.</p>
+        </div>
+
+        <!-- Section 1: Start a Case -->
+        <div class="section-label">START A CASE</div>
+        <div class="templates-grid">
+            <a href="{{ url_for('index') }}" class="template-card">
+                <div>
+                    <h3 class="template-title">Breast gross</h3>
+                    <p class="template-desc">Mastectomy specimen: laterality, dimensions, skin, nipple, mass, margins and representative sections.</p>
+                </div>
+                <div class="template-action">
+                    New case &rarr;
+                </div>
+            </a>
+
+            <div class="template-card dashed">
+                <div>
+                    <h3 class="template-title">More templates</h3>
+                    <p class="template-desc">An admin can upload a CAP/Word template to add another organ form (Thyroid, Colon, Appendix).</p>
+                </div>
+                <div class="template-action" style="color: var(--text-muted);">
+                    Coming soon
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Start from a Recording -->
+        <div class="section-label">START FROM A RECORDING</div>
+        <div class="upload-dropzone-card">
+            <form action="{{ url_for('index') }}" method="post" enctype="multipart/form-data" id="dashboard-upload-form">
+                <div class="dropzone-inner" onclick="document.getElementById('dash-file-input').click()">
+                    <i class="fas fa-cloud-arrow-up" style="font-size: 28px; color: var(--text-muted); margin-bottom: 10px;"></i>
+                    <h4 class="dropzone-title">Choose a recording or drop one here</h4>
+                    <p class="dropzone-subtitle">Dictated on a handheld recorder or a phone — mp3, m4a, wav, ogg or webm.</p>
+                    
+                    <input type="file" id="dash-file-input" name="audio_file" style="display: none;" onchange="document.getElementById('dashboard-upload-form').submit()">
+                    
+                    <button type="button" class="btn-upload-dark" onclick="document.getElementById('dash-file-input').click()">
+                        <i class="fas fa-file-audio"></i> Upload and open the case
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Section 3: Recent Work -->
+        <div class="section-label">RECENT WORK</div>
+        <div class="recent-work-card">
+            {% if recent_cases %}
+            <table class="recent-table">
+                <tbody>
+                    {% for case in recent_cases %}
+                    <tr>
+                        <td style="width: 35%;">
+                            <span class="case-id-badge">{{ case.surgical_number or "Untitled case" }}</span>
+                        </td>
+                        <td style="width: 25%; color: var(--text-muted);">
+                            <i class="fas fa-user-doctor" style="font-size: 11px; margin-right: 4px;"></i> {{ current_user.username }}
+                        </td>
+                        <td style="width: 25%; color: var(--text-muted);">
+                            {{ case.timestamp.strftime('%Y-%m-%d %H:%M') if case.timestamp else "Recently" }}
+                        </td>
+                        <td style="width: 15%; text-align: right;">
+                            <a href="{{ url_for('load_history', history_id=case.id) }}" style="color: var(--text-main); font-weight: 600; text-decoration: none; font-size: 12px;">
+                                Open &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="padding: 30px; text-align: center; color: var(--text-muted); font-size: 14px;">
+                No recent cases found. Click "New case" above to start your first report.
+            </div>
+            {% endif %}
+        </div>
+
+        <div>
+            <a href="{{ url_for('history') }}" class="btn-view-all">
+                All cases &rarr;
+            </a>
+        </div>
+
+    </main>
+
+</body>
+</html>
