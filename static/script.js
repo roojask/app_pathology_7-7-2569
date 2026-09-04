@@ -1679,6 +1679,53 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Connect Sidebar 'Fill again' button and real-time syncing
+    const btnReextractSide = document.getElementById('btn-reextract-side');
+    const sidebarTranscriptionBox = document.getElementById('sidebar-transcription-box');
+
+    if (btnReextractSide) {
+        btnReextractSide.addEventListener('click', function() {
+            const rawText = sidebarTranscriptionBox ? sidebarTranscriptionBox.value : (txtTranscription ? txtTranscription.value : '');
+            if (!rawText || rawText.trim() === "") {
+                alert("ไม่มีข้อความเสียงสำหรับการสกัดคำ (No transcript text to extract)");
+                return;
+            }
+
+            if (txtTranscription) txtTranscription.value = rawText;
+
+            // Flash effect
+            document.querySelectorAll('.patho-form input[type="text"], .patho-form textarea, .patho-form .checkbox-visual, .patho-form .circle-option').forEach(el => {
+                el.classList.add('shimmer-loading');
+            });
+
+            setTimeout(() => {
+                const normText = normalizeText(rawText);
+                const extracted = parseTextLocally(normText);
+                applyLocalDataToForm(extracted);
+                validateFormData();
+
+                document.querySelectorAll('.patho-form input[type="text"], .patho-form textarea, .patho-form .checkbox-visual, .patho-form .circle-option').forEach(el => {
+                    el.classList.remove('shimmer-loading');
+                });
+
+                if (micStatusContainer) {
+                    micStatusContainer.innerHTML = '<span style="color:#10b981; font-weight:bold;"><i class="fas fa-check-circle"></i> สกัดคำและเติมลงฟอร์มเรียบร้อยแล้ว!</span>';
+                }
+                autoSaveDraft();
+            }, 250);
+        });
+    }
+
+    if (sidebarTranscriptionBox && txtTranscription) {
+        sidebarTranscriptionBox.addEventListener('input', function() {
+            txtTranscription.value = sidebarTranscriptionBox.value;
+            autoSaveDraft();
+        });
+        txtTranscription.addEventListener('input', function() {
+            sidebarTranscriptionBox.value = txtTranscription.value;
+        });
+    }
+
     // --- Enterprise Local Draft Auto-Save & Crash Recovery Engine ---
     const DRAFT_STORAGE_KEY = 'patho_form_draft_v1';
     let draftSaveTimeout = null;

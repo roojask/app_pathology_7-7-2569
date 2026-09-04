@@ -265,6 +265,9 @@ def generate_pdf():
         user_id = current_user.id if (hasattr(current_user, 'is_authenticated') and current_user.is_authenticated) else 1
         s_no = data.get("s0_surgical_no", "Unknown")
         audio_fn = form_data.get("audio_filename")
+        # Save transcription text inside data JSON for permanent recall
+        data["transcription"] = form_data.get("transcription") or form_data.get("transcription_text") or ""
+        data["audio_filename"] = audio_fn
         history_record = FormHistory(
             user_id=user_id,
             surgical_number=s_no,
@@ -540,8 +543,17 @@ def load_history(history_id):
         return redirect(url_for('history'))
         
     flags = generate_confidence_flags(data)
+    transcription = data.get("transcription") or data.get("transcription_text") or ""
+    audio_fn = history_record.audio_filename or data.get("audio_filename") or ""
+    
     flash("History loaded successfully.", "success")
-    return render_template("index.html", data=data, flags=flags, transcription="[Loaded from History]")
+    return render_template(
+        "index.html",
+        data=data,
+        flags=flags,
+        transcription=transcription,
+        audio_filename=audio_fn
+    )
 
 if __name__ == "__main__":
     if Config.USE_HTTPS and Config.SSL_CERT_PATH.exists() and Config.SSL_KEY_PATH.exists():
