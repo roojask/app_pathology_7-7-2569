@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -137,6 +137,9 @@
                         <td style="text-align: right; white-space: nowrap;">
                             <a href="{{ url_for('load_history', history_id=h.id) }}" class="btn-action-load">
                                 <i class="fas fa-arrow-up"></i> Load & Edit
+                            </a>
+                            <a href="{{ url_for('export_docx_report', history_id=h.id) }}" class="btn-action-fhir" style="background-color: #2563eb; color: #ffffff;" title="Export Word Document (.docx)">
+                                <i class="fa-solid fa-file-word"></i> DOCX
                             </a>
                             <a href="{{ url_for('export_fhir_record', history_id=h.id) }}" class="btn-action-fhir" title="Export HL7 FHIR JSON">
                                 FHIR
