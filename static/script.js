@@ -402,6 +402,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function onResults(results) {
         if (!canvasCtx || !canvasElement) return;
 
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             lastHandDetectedTime = Date.now();
             canvasCtx.save();
@@ -879,14 +881,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (videoElement) {
                 videoElement.srcObject = localVideoStream;
-                await videoElement.play();
+                videoElement.muted = true;
+                videoElement.playsInline = true;
+                try {
+                    await videoElement.play();
+                } catch (playErr) {
+                    console.warn("video.play note:", playErr);
+                }
             }
 
             isCameraRunning = true;
+            const camPlaceholder = document.getElementById('camera-placeholder');
+            if (camPlaceholder) camPlaceholder.style.display = 'none';
             if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
             if (btnCameraToggle) {
-                btnCameraToggle.innerHTML = '<i class="fas fa-video-slash"></i> ปิดกล้อง (Stop)';
-                btnCameraToggle.style.backgroundColor = '#ffcccc';
+                btnCameraToggle.innerHTML = '<i class="fas fa-video-slash" style="color: #ef4444;"></i> Stop Camera';
+                btnCameraToggle.classList.add('active');
             }
 
             // Start Hands processing loop
@@ -896,13 +906,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 videoFrameCounter++;
                 const isIdle = (Date.now() - lastHandDetectedTime) > 6000;
                 
-                // Mirror and draw webcam video onto canvas every frame
-                if (canvasCtx && canvasElement && videoElement && videoElement.readyState >= 2) {
-                    canvasCtx.save();
-                    canvasCtx.translate(canvasElement.width, 0);
-                    canvasCtx.scale(-1, 1);
-                    canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-                    canvasCtx.restore();
+                // Clear transparent overlay canvas
+                if (canvasCtx && canvasElement) {
+                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
                 }
 
                 // If no hands detected for 6s, throttle MediaPipe to 15 FPS to conserve 30% CPU
@@ -924,11 +930,22 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (err) {
             console.error("Camera direct start error:", err);
             isCameraRunning = false;
-            if (btnCameraToggle) {
-                btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
-                btnCameraToggle.style.backgroundColor = '#ddd';
+            const camPlaceholder = document.getElementById('camera-placeholder');
+            if (camPlaceholder) {
+                camPlaceholder.style.display = 'flex';
+                camPlaceholder.innerHTML = `
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 20px; color: #ef4444;"></i>
+                    </div>
+                    <span style="font-size: 13px; font-weight: 700; color: #f87171;">ไม่สามารถเปิดกล้องได้</span>
+                    <span style="font-size: 11px; color: #94a3b8; margin-top: 4px; text-align: center; max-width: 250px;">กรุณากด 'Allow' สิทธิ์กล้องในเบราว์เซอร์ แล้วคลิกที่นี่อีกครั้ง</span>
+                `;
             }
-            showError("ไม่สามารถเปิดกล้องได้ (" + (err.name || err.message) + "). กรุณาตรวจสอบว่าได้กด 'Allow' กล้องแล้ว");
+            if (btnCameraToggle) {
+                btnCameraToggle.innerHTML = '<i class="fas fa-camera" style="color: #2563eb;"></i> Camera';
+                btnCameraToggle.classList.remove('active');
+            }
+            showError("ไม่สามารถเปิดกล้องได้ (" + (err.name || err.message) + "). กรุณาตรวจสอบว่าได้กด 'Allow' สิทธิ์กล้องในเบราว์เซอร์แล้ว");
             return false;
         }
     }
@@ -943,10 +960,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (videoElement) {
             videoElement.srcObject = null;
         }
+        const camPlaceholder = document.getElementById('camera-placeholder');
+        if (camPlaceholder) {
+            camPlaceholder.style.display = 'flex';
+            camPlaceholder.innerHTML = `
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(37, 99, 235, 0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; border: 1px solid rgba(37, 99, 235, 0.4);">
+                    <i class="fas fa-video" style="font-size: 20px; color: #3b82f6;"></i>
+                </div>
+                <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">คลิกเปิดกล้อง (Start Camera)</span>
+                <span style="font-size: 11px; color: #94a3b8; margin-top: 2px;">ควบคุมด้วยท่าทางมือ (10 Gestures)</span>
+            `;
+        }
         if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
         if (btnCameraToggle) {
-            btnCameraToggle.innerHTML = '<i class="fas fa-video"></i> เปิดกล้อง (Camera)';
-            btnCameraToggle.style.backgroundColor = '#ddd';
+            btnCameraToggle.innerHTML = '<i class="fas fa-camera" style="color: #2563eb;"></i> Camera';
+            btnCameraToggle.classList.remove('active');
         }
         if (canvasCtx && canvasElement) {
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -1447,6 +1475,7 @@ document.addEventListener('DOMContentLoaded', function () {
             data.s10_5_quadrant_vals.forEach(q => {
                 setCheck(`[name="s10_5_quadrant_vals"][value="${q}"]`, true);
             });
+        }
         if (data.s10_5_other || data.s10_5_other_check) {
             setCheck('[name="s10_5_other_check"]', true);
             if (data.s10_5_other) setVal('[name="s10_5_other"]', data.s10_5_other);
@@ -1806,10 +1835,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Interactive Paper Zoom Controller (- 100% +) ---
     let currentDocZoom = 1.0;
 
-    window.changePaperZoom = function(delta) {
-        window.setPaperZoom(currentDocZoom + delta);
-    };
-
     window.setPaperZoom = function(newZoom) {
         currentDocZoom = Math.min(Math.max(newZoom, 0.5), 1.6);
         currentDocZoom = Math.round(currentDocZoom * 10) / 10;
@@ -1819,16 +1844,23 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (paper) {
             paper.style.zoom = currentDocZoom;
-            paper.style.transform = `scale(${currentDocZoom})`;
-            paper.style.transformOrigin = 'top center';
+            if (!('zoom' in paper.style)) {
+                paper.style.transform = `scale(${currentDocZoom})`;
+                paper.style.transformOrigin = 'top center';
+            }
         }
         if (zoomText) {
             zoomText.textContent = `${Math.round(currentDocZoom * 100)}%`;
         }
     };
 
+    window.changePaperZoom = function(delta) {
+        window.setPaperZoom(currentDocZoom + delta);
+    };
+
     const btnZoomIn = document.getElementById('btn-zoom-in');
     const btnZoomOut = document.getElementById('btn-zoom-out');
+    const zoomTextBtn = document.getElementById('zoom-level-text');
 
     if (btnZoomIn) {
         btnZoomIn.addEventListener('click', (e) => {
@@ -1844,8 +1876,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    if (zoomTextBtn) {
+        zoomTextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.setPaperZoom(1.0);
+        });
+    }
+
     // Restore draft on load
     restoreDraftIfAvailable();
-}
 });
 

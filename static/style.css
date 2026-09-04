@@ -451,15 +451,15 @@ body {
 .zoom-floating-control {
     position: fixed;
     bottom: 24px;
-    right: 470px;
+    left: 32px;
     background: #ffffff;
     border: 1px solid var(--border-color);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     border-radius: var(--radius-pill);
     padding: 4px 8px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     z-index: 9999;
     user-select: none;
     pointer-events: auto;
@@ -495,6 +495,16 @@ body {
     color: var(--text-main);
     min-width: 44px;
     text-align: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.zoom-text:hover {
+    background: #f1f5f9;
 }
 
 .doc-header-top {
@@ -734,23 +744,24 @@ body {
 }
 
 .gesture-box {
-    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     display: flex;
     justify-content: center;
     align-items: center;
-    color: white;
-    font-weight: bold;
-    font-size: 12px;
-    background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(2px);
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 700;
+    font-size: 11px;
+    background: rgba(0, 0, 0, 0.12);
     transition: all 0.2s;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
 .gesture-box.active {
-    background: rgba(0, 240, 255, 0.4);
+    background: rgba(0, 240, 255, 0.45);
     border-color: #00f0ff;
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
-    transform: scale(0.98);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.9);
+    color: #ffffff;
+    transform: scale(0.96);
 }
 
 .camera-tag {

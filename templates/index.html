@@ -607,11 +607,11 @@
 
             <!-- Floating Paper Zoom Control Widget (- 100% +) -->
             <div class="zoom-floating-control" id="zoom-control-widget">
-                <button type="button" class="zoom-btn" id="btn-zoom-out" onclick="changePaperZoom(-0.1); return false;" title="Zoom Out">
+                <button type="button" class="zoom-btn" id="btn-zoom-out" onclick="window.changePaperZoom(-0.1); return false;" title="Zoom Out (ย่อฟอร์ม)">
                     <i class="fas fa-minus"></i>
                 </button>
-                <span class="zoom-text" id="zoom-level-text">100%</span>
-                <button type="button" class="zoom-btn" id="btn-zoom-in" onclick="changePaperZoom(0.1); return false;" title="Zoom In">
+                <button type="button" class="zoom-text" id="zoom-level-text" onclick="window.setPaperZoom(1.0); return false;" title="Click to Reset (รีเซ็ตขนาด 100%)">100%</button>
+                <button type="button" class="zoom-btn" id="btn-zoom-in" onclick="window.changePaperZoom(0.1); return false;" title="Zoom In (ขยายฟอร์ม)">
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
@@ -636,22 +636,8 @@
                     Say a measurement, use gesture controls, or tap any field.
                 </div>
 
-                <!-- Live Waveform & VU Meter -->
-                <div style="background: #0f172a; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 10px; font-weight: bold; color: #94a3b8; text-transform: uppercase;">
-                            <i class="fas fa-wave-square" style="color: #00f0ff;"></i> Live Waveform
-                        </span>
-                        <span id="audio-db-text" style="font-size: 10px; font-weight: bold; color: #00f0ff;">0 dB</span>
-                    </div>
-                    <canvas id="audio-waveform-canvas" width="360" height="40" style="width: 100%; height: 40px; display: block;"></canvas>
-                    <div style="width: 100%; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; margin-top: 6px;">
-                        <div id="audio-vu-meter" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981 60%, #f59e0b 85%, #ef4444 100%); transition: width 0.05s ease-out;"></div>
-                    </div>
-                </div>
-
                 <!-- Audio Controls -->
-                <div class="audio-control-grid">
+                <div class="audio-control-grid" style="margin-bottom: 0;">
                     <button type="button" class="btn-record-toggle" id="btn-mic-toggle">
                         <i class="fas fa-circle" style="color: #ef4444; font-size: 10px;"></i> Record
                     </button>
@@ -659,55 +645,40 @@
                         <i class="fas fa-camera" style="color: #2563eb;"></i> Camera
                     </button>
                 </div>
-
-                <!-- Recorded Audio Player Widget -->
-                <div id="sidebar-audio-playback-container" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); {% if not audio_filename %}display:none;{% endif %}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                            <i class="fas fa-play-circle" style="color: var(--accent-green);"></i> Recorded Audio
-                        </span>
-                    </div>
-                    <audio controls style="width: 100%; height: 36px; border-radius: 6px; outline: none;" id="sidebar-audio-player">
-                        {% if audio_filename %}
-                            {% if audio_filename.startswith('http://') or audio_filename.startswith('https://') %}
-                            <source src="{{ audio_filename }}" type="audio/wav">
-                            {% else %}
-                            <source src="{{ url_for('get_upload', filename=audio_filename) }}" type="audio/wav">
-                            {% endif %}
-                        {% endif %}
-                    </audio>
-                </div>
-
-                <!-- Live / Loaded Transcription Textarea & Fill Again Button -->
-                <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                            <i class="fas fa-align-left"></i> Dictation Transcript
-                        </span>
-                        <button type="button" id="btn-reextract-side" style="background: #f1f5f9; border: 1px solid var(--border-color); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;">
-                            <i class="fas fa-rotate" style="font-size: 11px;"></i> Fill again
-                        </button>
-                    </div>
-                    <textarea id="sidebar-transcription-box" rows="4" style="width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; font-size: 13px; line-height: 1.5; color: var(--text-main); font-family: inherit; resize: vertical;" placeholder="Speech dictation text or loaded case notes...">{{ transcription if transcription else "" }}</textarea>
-                </div>
             </div>
 
-            <!-- 2. Camera HUD Card -->
+            <!-- 2. Camera HUD Card (Right in the middle, prominent and immediately visible!) -->
             <div class="camera-card">
                 <div class="camera-tag">
                     <i class="fas fa-video"></i> FRONT CAMERA &bull; 10 GESTURES
                 </div>
-                <div class="camera-feed">
-                    <video class="input_video" autoplay playsinline muted style="display:none"></video>
-                    <canvas class="output_canvas" width="480" height="420"></canvas>
-                    <div class="camera-scanner-overlay">
+                <div class="camera-feed" style="height: 280px; position: relative; background: #0b0f19; overflow: hidden;">
+                    <!-- Native Live Video Stream (GPU accelerated, zero latency, mirrored) -->
+                    <video class="input_video" autoplay playsinline muted style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); z-index: 1;"></video>
+                    
+                    <!-- Transparent canvas for neon hand landmarks & gesture tracking -->
+                    <canvas class="output_canvas" width="480" height="420" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; pointer-events: none;"></canvas>
+                    
+                    <!-- Camera Start / Status Placeholder -->
+                    <div id="camera-placeholder" onclick="document.getElementById('btn-camera-toggle').click();" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.94); color: #94a3b8; z-index: 3; cursor: pointer; transition: all 0.2s;">
+                        <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(37, 99, 235, 0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; border: 1px solid rgba(37, 99, 235, 0.4);">
+                            <i class="fas fa-video" style="font-size: 20px; color: #3b82f6;"></i>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">คลิกเปิดกล้อง (Start Camera)</span>
+                        <span style="font-size: 11px; color: #64748b; margin-top: 2px;">ควบคุมด้วยท่าทางมือ (10 Gestures)</span>
+                    </div>
+
+                    <!-- Scanner Line & Corner Reticles -->
+                    <div class="camera-scanner-overlay" style="z-index: 4;">
                         <div class="reticle-corner top-left"></div>
                         <div class="reticle-corner top-right"></div>
                         <div class="reticle-corner bottom-left"></div>
                         <div class="reticle-corner bottom-right"></div>
                         <div class="scanner-line"></div>
                     </div>
-                    <div class="gesture-controls">
+
+                    <!-- Gesture Action Overlay -->
+                    <div class="gesture-controls" style="z-index: 5;">
                         <div class="gesture-box" id="box-clear" data-action="CLEAR">CLEAR</div>
                         <div class="gesture-box" id="box-scroll-up" data-action="SCROLL_UP">SCROLL UP</div>
                         <div class="gesture-box" id="box-prev-row" data-action="PREV_ROW">PREV ROW</div>
@@ -722,7 +693,7 @@
                 </div>
             </div>
 
-            <!-- 3. Actions Card -->
+            <!-- 3. Actions Card (Directly under camera) -->
             <div class="sidebar-card sidebar-actions">
                 <button type="button" class="btn-primary-dark" onclick="document.getElementById('btn-save-submit').click()">
                     <i class="fas fa-check"></i> Save & Generate PDF
@@ -737,21 +708,95 @@
                 </div>
             </div>
 
-            <!-- 4. Dictation Result / File Upload -->
-            <div class="sidebar-card" style="font-size: 13px;">
-                <h4 style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">
-                    <i class="fas fa-file-audio"></i> Dictation Audio Upload
+            <!-- 4. Dictation Details & Live Waveform -->
+            <div class="sidebar-card">
+                <!-- Live Waveform & VU Meter -->
+                <div style="background: #0f172a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 10px; font-weight: bold; color: #94a3b8; text-transform: uppercase;">
+                            <i class="fas fa-wave-square" style="color: #00f0ff;"></i> Live Waveform
+                        </span>
+                        <span id="audio-db-text" style="font-size: 10px; font-weight: bold; color: #00f0ff;">0 dB</span>
+                    </div>
+                    <canvas id="audio-waveform-canvas" width="360" height="30" style="width: 100%; height: 30px; display: block;"></canvas>
+                    <div style="width: 100%; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; margin-top: 4px;">
+                        <div id="audio-vu-meter" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981 60%, #f59e0b 85%, #ef4444 100%); transition: width 0.05s ease-out;"></div>
+                    </div>
+                </div>
+
+                <!-- Recorded Audio Player Widget -->
+                <div id="sidebar-audio-playback-container" style="margin-bottom: 10px; {% if not audio_filename %}display:none;{% endif %}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                            <i class="fas fa-play-circle" style="color: var(--accent-green);"></i> Recorded Audio
+                        </span>
+                    </div>
+                    <audio controls style="width: 100%; height: 32px; border-radius: 6px; outline: none;" id="sidebar-audio-player">
+                        {% if audio_filename %}
+                            {% if audio_filename.startswith('http://') or audio_filename.startswith('https://') %}
+                            <source src="{{ audio_filename }}" type="audio/wav">
+                            {% else %}
+                            <source src="{{ url_for('get_upload', filename=audio_filename) }}" type="audio/wav">
+                            {% endif %}
+                        {% endif %}
+                    </audio>
+                </div>
+
+                <!-- Live / Loaded Transcription Textarea & Fill Again Button -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                            <i class="fas fa-align-left"></i> Dictation Transcript
+                        </span>
+                        <button type="button" id="btn-reextract-side" style="background: #f1f5f9; border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;">
+                            <i class="fas fa-rotate" style="font-size: 10px;"></i> Fill again
+                        </button>
+                    </div>
+                    <textarea id="sidebar-transcription-box" rows="3" style="width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px; font-size: 12.5px; line-height: 1.4; color: var(--text-main); font-family: inherit; resize: vertical;" placeholder="Speech dictation text or loaded case notes...">{{ transcription if transcription else "" }}</textarea>
+                </div>
+            </div>
+
+            <!-- 5. Dictation File Upload -->
+            <div class="sidebar-card" style="font-size: 12px;">
+                <h4 style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
+                    <i class="fas fa-file-audio"></i> Upload Audio File
                 </h4>
                 <form action="/" method="post" enctype="multipart/form-data" id="audio-upload-form">
-                    <input id="file-upload" type="file" name="audio_file" style="font-size: 12px; width: 100%; margin-bottom: 8px;">
-                    <button type="submit" class="btn-secondary-outline" style="width: 100%;">
-                        <i class="fas fa-arrow-up-from-bracket"></i> Process Uploaded Audio
+                    <input id="file-upload" type="file" name="audio_file" style="font-size: 11px; width: 100%; margin-bottom: 6px;">
+                    <button type="submit" class="btn-secondary-outline" style="width: 100%; font-size: 12px; padding: 6px;">
+                        <i class="fas fa-arrow-up-from-bracket"></i> Process Audio
                     </button>
                 </form>
             </div>
 
         </aside>
     </div>
+
+    <!-- Self-contained Paper Zoom Controller -->
+    <script>
+        (function() {
+            let currentDocZoom = 1.0;
+            window.setPaperZoom = function(newZoom) {
+                currentDocZoom = Math.min(Math.max(newZoom, 0.5), 1.6);
+                currentDocZoom = Math.round(currentDocZoom * 10) / 10;
+                const paper = document.querySelector('.paper-sheet');
+                const zoomText = document.getElementById('zoom-level-text');
+                if (paper) {
+                    paper.style.zoom = currentDocZoom;
+                    if (!('zoom' in paper.style)) {
+                        paper.style.transform = 'scale(' + currentDocZoom + ')';
+                        paper.style.transformOrigin = 'top center';
+                    }
+                }
+                if (zoomText) {
+                    zoomText.textContent = Math.round(currentDocZoom * 100) + '%';
+                }
+            };
+            window.changePaperZoom = function(delta) {
+                window.setPaperZoom(currentDocZoom + delta);
+            };
+        })();
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
