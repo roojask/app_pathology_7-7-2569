@@ -641,7 +641,7 @@
                 </button>
             </div>
 
-            <!-- 3. Clean Camera Card -->
+            <!-- 3. Clean Camera Card with Gesture Grid -->
             <div class="camera-card-clean">
                 <div class="camera-feed-box" id="camera-feed-container">
                     <!-- Native Mirrored Video Stream -->
@@ -655,13 +655,27 @@
                         <span class="cam-prompt-text">คลิกเปิดกล้อง (Start Camera)</span>
                     </div>
 
-                    <!-- Bottom-Left Badge: FRONT CAMERA -->
+                    <!-- Top-Left Badge: FRONT CAMERA -->
                     <div class="camera-badge-left">FRONT CAMERA</div>
 
-                    <!-- Bottom-Right Flip/Rotate Button -->
+                    <!-- Top-Right Flip/Rotate Button -->
                     <button type="button" class="camera-btn-flip" id="btn-camera-flip" title="Switch Camera">
                         <i class="fa-solid fa-camera-rotate"></i>
                     </button>
+
+                    <!-- Gesture Action Overlay Grid (10 Gestures for Hands-Free Interaction) -->
+                    <div class="gesture-controls">
+                        <div class="gesture-box" id="box-clear" data-action="CLEAR">CLEAR</div>
+                        <div class="gesture-box" id="box-scroll-up" data-action="SCROLL_UP">SCROLL UP</div>
+                        <div class="gesture-box" id="box-prev-row" data-action="PREV_ROW">PREV ROW</div>
+                        <div class="gesture-box" id="box-next-row" data-action="NEXT_ROW">NEXT ROW</div>
+                        <div class="gesture-box" id="box-prev" data-action="PREV">PREV BOX</div>
+                        <div class="gesture-box" id="box-next" data-action="NEXT">NEXT BOX</div>
+                        <div class="gesture-box" id="box-select" data-action="SELECT">SELECT</div>
+                        <div class="gesture-box" id="box-scroll-down" data-action="SCROLL_DOWN">SCROLL DOWN</div>
+                        <div class="gesture-box" id="box-save" data-action="SAVE">SAVE / PDF</div>
+                        <div class="gesture-box" id="box-mic" data-action="MIC_TOGGLE">MIC ON/OFF</div>
+                    </div>
                 </div>
             </div>
 

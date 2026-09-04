@@ -595,6 +595,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Allow clicking or tapping on gesture boxes directly
+    document.querySelectorAll('.gesture-box').forEach(box => {
+        box.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const action = this.getAttribute('data-action');
+            this.classList.add('active');
+            setTimeout(() => this.classList.remove('active'), 200);
+            playGestureChime();
+            triggerAction(action);
+        });
+    });
+
     function moveFocusRow(direction) {
         const inputs = Array.from(document.querySelectorAll('input[type="text"], textarea, input[type="checkbox"], input[type="radio"]'));
         const current = document.activeElement;
