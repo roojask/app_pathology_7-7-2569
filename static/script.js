@@ -1538,6 +1538,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (data.s6_check) {
             setCheck('[name="s6_check"]', true);
             if (data.s7_len) setVal('[name="s7_len"]', data.s7_len);
+            if (data.s7_locs && Array.isArray(data.s7_locs)) {
+                data.s7_locs.forEach(loc => setCheck(`[name="s7_locs"][value="${loc}"]`, true));
+            }
         }
         // Ulcer
         if (data.s8_check) {
@@ -1545,6 +1548,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.s8_dims) {
                 setVal('[name="s8_dims_0"]', data.s8_dims[0]);
                 setVal('[name="s8_dims_1"]', data.s8_dims[1]);
+            }
+            if (data.s8_locs && Array.isArray(data.s8_locs)) {
+                data.s8_locs.forEach(loc => setCheck(`[name="s8_locs"][value="${loc}"]`, true));
             }
         }
         // Nipple
