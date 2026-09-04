@@ -607,11 +607,11 @@
 
             <!-- Floating Paper Zoom Control Widget (- 100% +) -->
             <div class="zoom-floating-control" id="zoom-control-widget">
-                <button type="button" class="zoom-btn" id="btn-zoom-out" title="Zoom Out">
+                <button type="button" class="zoom-btn" id="btn-zoom-out" onclick="changePaperZoom(-0.1); return false;" title="Zoom Out">
                     <i class="fas fa-minus"></i>
                 </button>
                 <span class="zoom-text" id="zoom-level-text">100%</span>
-                <button type="button" class="zoom-btn" id="btn-zoom-in" title="Zoom In">
+                <button type="button" class="zoom-btn" id="btn-zoom-in" onclick="changePaperZoom(0.1); return false;" title="Zoom In">
                     <i class="fas fa-plus"></i>
                 </button>
             </div>

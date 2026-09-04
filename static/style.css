@@ -454,21 +454,22 @@ body {
     right: 470px;
     background: #ffffff;
     border: 1px solid var(--border-color);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
     border-radius: var(--radius-pill);
     padding: 4px 8px;
     display: flex;
     align-items: center;
     gap: 8px;
-    z-index: 99;
+    z-index: 9999;
     user-select: none;
+    pointer-events: auto;
 }
 
 .zoom-btn {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    border: none;
+    border: 1px solid transparent;
     background: transparent;
     color: var(--text-main);
     display: flex;
@@ -476,11 +477,16 @@ body {
     justify-content: center;
     cursor: pointer;
     font-size: 13px;
-    transition: background 0.15s;
+    transition: all 0.15s ease;
 }
 
 .zoom-btn:hover {
     background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.zoom-btn:active {
+    transform: scale(0.92);
 }
 
 .zoom-text {

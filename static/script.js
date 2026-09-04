@@ -1805,33 +1805,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Interactive Paper Zoom Controller (- 100% +) ---
     let currentDocZoom = 1.0;
-    const paperSheetElement = document.querySelector('.paper-sheet');
-    const zoomTextElement = document.getElementById('zoom-level-text');
+
+    window.changePaperZoom = function(delta) {
+        window.setPaperZoom(currentDocZoom + delta);
+    };
+
+    window.setPaperZoom = function(newZoom) {
+        currentDocZoom = Math.min(Math.max(newZoom, 0.5), 1.6);
+        currentDocZoom = Math.round(currentDocZoom * 10) / 10;
+        
+        const paper = document.querySelector('.paper-sheet');
+        const zoomText = document.getElementById('zoom-level-text');
+        
+        if (paper) {
+            paper.style.zoom = currentDocZoom;
+            paper.style.transform = `scale(${currentDocZoom})`;
+            paper.style.transformOrigin = 'top center';
+        }
+        if (zoomText) {
+            zoomText.textContent = `${Math.round(currentDocZoom * 100)}%`;
+        }
+    };
+
     const btnZoomIn = document.getElementById('btn-zoom-in');
     const btnZoomOut = document.getElementById('btn-zoom-out');
-
-    function setPaperZoom(newZoom) {
-        currentDocZoom = Math.min(Math.max(newZoom, 0.55), 1.5);
-        if (paperSheetElement) {
-            paperSheetElement.style.transform = `scale(${currentDocZoom})`;
-            paperSheetElement.style.transformOrigin = 'top center';
-        }
-        if (zoomTextElement) {
-            zoomTextElement.textContent = `${Math.round(currentDocZoom * 100)}%`;
-        }
-    }
 
     if (btnZoomIn) {
         btnZoomIn.addEventListener('click', (e) => {
             e.preventDefault();
-            setPaperZoom(currentDocZoom + 0.1);
+            window.changePaperZoom(0.1);
         });
     }
 
     if (btnZoomOut) {
         btnZoomOut.addEventListener('click', (e) => {
             e.preventDefault();
-            setPaperZoom(currentDocZoom - 0.1);
+            window.changePaperZoom(-0.1);
         });
     }
 
