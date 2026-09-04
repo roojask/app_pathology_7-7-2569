@@ -592,14 +592,21 @@
 
                 <div class="form-row action-button-row">
                     {% if not pdf_filename %}
-                    <button type="submit" class="btn-primary-gen" id="btn-save-submit">สร้าง PDF (Generate PDF)</button>
+                    <button type="submit" class="btn-primary-gen" id="btn-save-submit"><i class="fa-solid fa-file-export"></i> สร้างเอกสาร (Generate PDF / DOCX)</button>
                     {% else %}
                     <a href="{{ url_for('view_pdf_file', filename=pdf_filename) }}" target="_blank" class="btn-view-style"
-                        id="btn-view-pdf">เปิดดู PDF (View PDF)</a>
+                        id="btn-view-pdf"><i class="fa-solid fa-eye"></i> เปิดดู PDF (View PDF)</a>
                     <a href="{{ url_for('download_file', filename=pdf_filename) }}" class="btn-down-style"
                         id="btn-download-pdf" 
-                        onclick="downloadFileSafely('{{ url_for('download_file', filename=pdf_filename) }}', '{{ pdf_filename }}'); return false;">ดาวน์โหลด PDF (Download)</a>
-                    <button type="submit" class="btn-regen-style" id="btn-save-submit">สร้างใหม่ (Update PDF)</button>
+                        onclick="downloadFileSafely('{{ url_for('download_file', filename=pdf_filename) }}', '{{ pdf_filename }}'); return false;">
+                        <i class="fa-solid fa-file-pdf"></i> ดาวน์โหลด PDF</a>
+                    {% if docx_filename %}
+                    <a href="{{ url_for('download_file', filename=docx_filename) }}" class="btn-word-style"
+                        id="btn-download-docx" 
+                        onclick="downloadFileSafely('{{ url_for('download_file', filename=docx_filename) }}', '{{ docx_filename }}'); return false;">
+                        <i class="fa-solid fa-file-word"></i> ดาวน์โหลด Word (DOCX)</a>
+                    {% endif %}
+                    <button type="submit" class="btn-regen-style" id="btn-save-submit"><i class="fa-solid fa-rotate"></i> อัปเดตข้อมูล (Update)</button>
                     {% endif %}
                 </div>
 

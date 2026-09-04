@@ -253,11 +253,22 @@ def generate_pdf():
     timestamp = int(datetime.datetime.now().timestamp())
     pdf_filename = f"final_{uid}_{timestamp}.pdf"
     pdf_path = Config.OUTPUT_DIR / pdf_filename
+    docx_filename = f"final_{uid}_{timestamp}.docx"
+    docx_path = Config.OUTPUT_DIR / docx_filename
     
     if not Config.PDF_TEMPLATE_PATH.exists():
         return f"Error: Template not found at {Config.PDF_TEMPLATE_PATH}"
         
     process_pdf_15_sections(Config.PDF_TEMPLATE_PATH, pdf_path, data)
+
+    try:
+        from src.export.docx_exporter import generate_docx_document
+        docx_buf = generate_docx_document(data)
+        with open(docx_path, "wb") as f:
+            f.write(docx_buf.getvalue())
+    except Exception as docx_err:
+        print(f"[DOCX Generation Note] {docx_err}")
+
     flags = generate_confidence_flags(data)
     
     # Always record form history to PostgreSQL database
@@ -284,6 +295,7 @@ def generate_pdf():
     
     return render_template("index.html", 
                            pdf_filename=pdf_filename, 
+                           docx_filename=docx_filename,
                            transcription=form_data.get("transcription"),
                            audio_filename=form_data.get("audio_filename"),
                            data=data, flags=flags)
