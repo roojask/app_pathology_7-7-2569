@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const btnMicToggle = document.getElementById('btn-mic-toggle');
-    const txtTranscription = document.getElementById('transcription-text');
-    const micStatusContainer = document.getElementById('mic-status-container');
+    const txtTranscription = document.getElementById('sidebar-transcription-box') || document.getElementById('transcription-text');
+    const micStatusContainer = document.getElementById('sidebar-dictation-state') || document.getElementById('mic-status-container');
 
     let recognition;
     let isRecording = false;
@@ -268,6 +268,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (txtTranscription) {
                 txtTranscription.value = totalText;
+                const hiddenTrans = document.getElementById('hidden-transcription');
+                if (hiddenTrans) hiddenTrans.value = totalText;
             }
 
             // --- Smart Direct Focused Field Input (Non-Destructive) ---

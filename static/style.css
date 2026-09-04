@@ -35,7 +35,8 @@ body {
     background-color: var(--bg-main);
     font-family: var(--font-family);
     color: var(--text-main);
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     -webkit-font-smoothing: antialiased;
@@ -194,8 +195,10 @@ body {
 .dashboard-container {
     max-width: 1000px;
     width: 100%;
-    margin: 36px auto;
-    padding: 0 20px;
+    margin: 0 auto;
+    padding: 36px 20px 60px 20px;
+    overflow-y: auto;
+    height: calc(100vh - 60px);
 }
 
 .greeting-header {

@@ -57,49 +57,10 @@
         <div class="document-canvas">
             <div class="paper-sheet">
 
-            <div
-                style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ccc; border-radius: 5px;">
-                <form action="/" method="post" id="transcription-form">
-                    <label style="font-weight:bold;">ข้อความจากการพูด (Live Transcription):</label>
-                    <textarea name="transcription_text" id="transcription-text" rows="3"
-                        style="width: 100%; border: 1px solid #ccc; padding: 10px; font-family: inherit; font-size: 1rem;"
-                        placeholder="กดปุ่ม 'เริ่มบันทึกเสียง' แล้วพูด... (เช่น 'Surgical number S-24-1234 Received in formalin...')">{{ transcription if transcription else '' }}</textarea>
-
-                    <div id="mic-status-container"
-                        style="min-height: 20px; margin-top: 5px; font-style: italic; color: #666;"></div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                        <div id="audio-recorder-container" style="display: flex; gap: 10px;">
-                            <button type="button" id="btn-record-audio" class="btn-generate" style="width: auto; background-color: #e74c3c;">
-                                <i class="fas fa-circle"></i> อัดเสียงส่ง Whisper
-                            </button>
-                            <button type="button" id="btn-stop-audio" class="btn-generate" style="width: auto; background-color: #95a5a6; display: none;">
-                                <i class="fas fa-stop"></i> หยุดอัดและส่ง
-                            </button>
-                            <span id="recording-timer" style="margin-left: 10px; font-weight: bold; color: red; display: none; align-self: center;">00:00</span>
-                            <div id="live-waveform-container" style="display: none; align-items: center; gap: 8px; margin-left: 15px; background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid #ddd;">
-                                <span style="font-size: 11px; font-weight: bold; color: #27ae60;"><i class="fas fa-wave-square"></i> LIVE AUDIO</span>
-                                <canvas id="audio-waveform-canvas" width="130" height="24" style="border-radius: 4px;"></canvas>
-                                <div id="audio-vu-meter" style="width: 35px; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
-                                    <div id="audio-vu-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #2ecc71, #f39c12, #e74c3c); transition: width 0.05s ease;"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-top: 10px;">
-                            <button type="button" id="btn-local-extract" class="btn-generate" style="width: auto; background-color: #e67e22; margin-top: 0;">
-                                <i class="fas fa-bolt"></i> สกัดคำในบราวเซอร์ (Local Extract)
-                            </button>
-                            <button type="submit" class="btn-generate" style="width: auto; background-color: #27ae60; margin-top: 0;">
-                                <i class="fas fa-check"></i> ยืนยันและดึงข้อมูล (Server Extract)
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
             <form action="/generate" method="post" class="patho-form">
 
-                <input type="hidden" name="transcription" value="{{ transcription }}">
-                <input type="hidden" name="audio_filename" value="{{ audio_filename if audio_filename else '' }}">
+                <input type="hidden" name="transcription" id="hidden-transcription" value="{{ transcription }}">
+                <input type="hidden" name="audio_filename" id="hidden-audio-filename" value="{{ audio_filename if audio_filename else '' }}">
 
                 <!-- Clinical Safety Warning Box -->
                 <div id="clinical-warning-box" style="{% if flags and flags.get('s0_surgical_no') %}display: block;{% else %}display: none;{% endif %} background-color: #fdf2e9; border: 1.5px solid #e67e22; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; color: #d35400; font-size: 14px; font-weight: 500; text-align: left; line-height: 1.5; box-shadow: 0 2px 8px rgba(230,126,34,0.15);">
