@@ -1351,3 +1351,189 @@ body {
     border-top: 1px solid var(--border-color);
     opacity: 0.8;
 }
+
+/* ==========================================================================
+   Gesture Focus & Active Field Highlighting (Next Box / Prev Box / Select)
+   ========================================================================== */
+
+@keyframes gesturePulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7), 0 0 10px rgba(37, 99, 235, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25), 0 0 22px rgba(37, 99, 235, 0.6);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7), 0 0 10px rgba(37, 99, 235, 0.4);
+    }
+}
+
+@keyframes selectSuccess {
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.9), 0 0 14px rgba(34, 197, 94, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.4), 0 0 26px rgba(34, 197, 94, 0.85);
+        transform: scale(1.18);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+        transform: scale(1);
+    }
+}
+
+/* Active Row Highlight */
+.form-row.active-gesture-row {
+    background-color: rgba(239, 246, 255, 0.75) !important;
+    border-left: 3.5px solid #2563eb !important;
+    padding-left: 8px !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.08);
+    transition: background-color 0.2s ease, border-left 0.2s ease;
+}
+
+/* Text Inputs with Gesture Focus */
+.inline-input.gesture-focus,
+.surg-pill-box.gesture-focus {
+    outline: 2.5px solid #2563eb !important;
+    outline-offset: 2px !important;
+    background-color: #fef08a !important; /* Gentle bright yellow for unmistakable visibility */
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    border-radius: 4px !important;
+    animation: gesturePulse 1.5s infinite ease-in-out !important;
+}
+
+/* Standard Checkbox Square with Gesture Focus */
+.checkbox-visual.gesture-focus {
+    outline: 2.5px solid #2563eb !important;
+    outline-offset: 3px !important;
+    border-color: #2563eb !important;
+    transform: scale(1.35) !important;
+    animation: gesturePulse 1.5s infinite ease-in-out !important;
+}
+
+/* Circle Option Pill with Gesture Focus */
+.circle-option span.gesture-focus {
+    outline: 2.5px solid #2563eb !important;
+    outline-offset: 2px !important;
+    transform: scale(1.15) !important;
+    animation: gesturePulse 1.5s infinite ease-in-out !important;
+}
+
+/* Unselected circle option under focus */
+.circle-option input:not(:checked) + span.gesture-focus {
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+    font-weight: 700 !important;
+}
+
+/* Success trigger feedback */
+.select-success {
+    animation: selectSuccess 0.5s ease-out !important;
+}
+
+/* Floating Target Badge */
+.gesture-focus-badge {
+    position: absolute;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 4px 10px 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    display: none;
+    align-items: center;
+    gap: 6px;
+    transition: top 0.15s ease-out, left 0.15s ease-out;
+}
+
+.gesture-focus-badge.visible {
+    display: inline-flex;
+}
+
+.gesture-focus-badge .badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: #38bdf8;
+    box-shadow: 0 0 6px #38bdf8;
+}
+
+.gesture-focus-badge .badge-arrow {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #0f172a;
+}
+
+/* Sidebar Active Box HUD */
+.active-box-hud {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-left: 4px solid #94a3b8;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.active-box-hud.has-focus {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    border-left-color: #2563eb;
+}
+
+.hud-indicator-dot {
+    width: 10px;
+    height: 10px;
+    min-width: 10px;
+    border-radius: 50%;
+    background-color: #94a3b8;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.active-box-hud.has-focus .hud-indicator-dot {
+    background-color: #2563eb;
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.7);
+    animation: gesturePulse 1.2s infinite ease-in-out;
+}
+
+.hud-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.hud-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.hud-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+

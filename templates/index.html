@@ -681,6 +681,15 @@
                 <textarea id="sidebar-transcription-box" rows="5" class="sidebar-transcript-area" placeholder="Speech dictation text or loaded case notes...">{{ transcription if transcription else "" }}</textarea>
             </div>
 
+            <!-- Active Field HUD (Real-time display of selected input/box) -->
+            <div class="active-box-hud" id="active-box-hud">
+                <div class="hud-indicator-dot"></div>
+                <div class="hud-info">
+                    <span class="hud-label">CURRENT BOX / ช่องที่เลือก:</span>
+                    <span class="hud-title" id="hud-box-name">ยังไม่ได้เลือกช่อง (คลิกหรือ NEXT BOX)</span>
+                </div>
+            </div>
+
             <!-- 6. Live Camera Feed (Cleanly placed at bottom of sidebar, matching user reference) -->
             <div class="camera-card-clean" style="margin-top: 4px;">
                 <div class="camera-feed-box" id="camera-feed-container" style="height: 230px; min-height: 230px;">

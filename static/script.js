@@ -522,37 +522,248 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- อัปเดตฟังก์ชันเพื่อค้นหาช่องสี่เหลี่ยม/วงกลมโดยเฉพาะ ---
+    // ==========================================================================
+    // Gesture Focus Engine & Active Field Highlighting
+    // ==========================================================================
+    let currentFocusedInputIndex = -1;
+
+    function getFormInputs() {
+        const form = document.querySelector('.patho-form') || document.querySelector('.paper-sheet');
+        if (!form) {
+            return Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="file"]):not([disabled]), textarea:not([disabled])'));
+        }
+        return Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="file"]):not([disabled]), textarea:not([disabled])'));
+    }
+
     function getVisual(el) {
+        if (!el) return null;
         if (el.type === 'checkbox' || el.type === 'radio') {
-            // ดึง element ตัวถัดไป (ซึ่งเราเขียน span จำลองสี่เหลี่ยมไว้ใน HTML)
-            if (el.nextElementSibling) {
+            // If inside circle-option pill, target the span pill
+            const circleSpan = el.closest('.circle-option')?.querySelector('span');
+            if (circleSpan) return circleSpan;
+
+            // Otherwise target the custom checkbox visual square
+            if (el.nextElementSibling && el.nextElementSibling.classList.contains('checkbox-visual')) {
                 return el.nextElementSibling;
             }
-            return el.parentElement; // กรณีฉุกเฉิน
+            const parentVisual = el.parentElement?.querySelector('.checkbox-visual');
+            if (parentVisual) return parentVisual;
+
+            return el.parentElement; // fallback to label
         }
-        return el; // ถ้าเป็นช่อง Text ให้ล็อคที่ช่อง Text
+        return el; // text input
+    }
+
+    function getFieldLabel(input) {
+        if (!input) return "";
+
+        const name = input.name || "";
+        const val = (input.value || "").toLowerCase();
+
+        if (name === "s0_surgical_no") return "Surgical Number S (เลขตรวจชิ้นเนื้อ)";
+        if (name === "s1_side") return `Side: ${val.toUpperCase()} (ข้าง${val === 'right' ? 'ขวา' : 'ซ้าย'})`;
+        if (name === "s2_proc") {
+            if (val === "modified") return "Procedure: Modified radical mastectomy";
+            if (val === "simple") return "Procedure: Simple mastectomy";
+            if (val === "other") return "Procedure: Other";
+        }
+        if (name === "s2_other_text") return "Procedure: Other description";
+        if (name === "s3_dims_0") return "Specimen: Length (ความยาว cm)";
+        if (name === "s3_dims_1") return "Specimen: Width (ความกว้าง cm)";
+        if (name === "s3_dims_2") return "Specimen: Thickness (ความหนา cm)";
+        if (name === "s4_check") return "With axillary content (ชิ้นเนื้อรักแร้)";
+        if (name === "s4_dims_0") return "Axillary content: Length (cm)";
+        if (name === "s4_dims_1") return "Axillary content: Width (cm)";
+        if (name === "s4_dims_2") return "Axillary content: Thickness (cm)";
+        if (name === "s5_dims_0") return "Skin ellipse: Length (cm)";
+        if (name === "s5_dims_1") return "Skin ellipse: Width (cm)";
+        if (name === "s5_appears_normal") return "Skin: Appears normal (ผิวหนังปกติ)";
+        if (name === "s6_check") return "Shows old surgical scar (รอยแผลเป็น)";
+        if (name === "s7_len") return "Scar: Length (ความยาวแผล cm)";
+        if (name === "s7_locs") return `Scar Location: ${val} (ตำแหน่งแผลเป็น)`;
+        if (name === "s8_check") return "Shows ulceration (แผลเปื่อย)";
+        if (name === "s8_dims_0") return "Ulceration: Length (cm)";
+        if (name === "s8_dims_1") return "Ulceration: Width (cm)";
+        if (name === "s8_locs") return `Ulceration Location: ${val} (ตำแหน่งแผลเปื่อย)`;
+        if (name === "s9_val") return `Nipple: ${val} (หัวนม)`;
+        if (name === "s9_ulcer_text") return "Nipple: Ulceration description";
+        if (name === "s10_grammar") return `Tumor Quantifier: ${val} (ไวยากรณ์ก้อน)`;
+        if (name === "s10_infiltrative") return "Mass: Infiltrative firm mass (ก้อนแทรกซึม)";
+        if (name.startsWith("s10_inf_dims")) {
+            const dims = ["Length", "Width", "Thickness"];
+            const idx = parseInt(name.split("_").pop()) || 0;
+            return `Infiltrative Mass: ${dims[idx] || ""} (cm)`;
+        }
+        if (name === "s10_well") return "Mass: Well-defined firm mass (ก้อนขอบชัด)";
+        if (name.startsWith("s10_well_dims")) {
+            const dims = ["Length", "Width", "Thickness"];
+            const idx = parseInt(name.split("_").pop()) || 0;
+            return `Well-defined Mass: ${dims[idx] || ""} (cm)`;
+        }
+        if (name === "s10_prev1") return "Mass: Previous surgical cavity (โพรงผ่าตัดเดิม)";
+        if (name.startsWith("s10_prev1_dims")) {
+            const dims = ["Length", "Width", "Thickness"];
+            const idx = parseInt(name.split("_").pop()) || 0;
+            return `Cavity: ${dims[idx] || ""} (cm)`;
+        }
+        if (name === "s10_prev2") return "Mass: Cavity with residual mass (โพรงเดิมมีก้อนค้าง)";
+        if (name.startsWith("s10_prev2_cavity_dims")) {
+            const dims = ["Length", "Width", "Thickness"];
+            const idx = parseInt(name.split("_").pop()) || 0;
+            return `Cavity: ${dims[idx] || ""} (cm)`;
+        }
+        if (name.startsWith("s10_prev2_mass_dims")) {
+            const dims = ["Length", "Width", "Thickness"];
+            const idx = parseInt(name.split("_").pop()) || 0;
+            return `Residual Mass: ${dims[idx] || ""} (cm)`;
+        }
+        if (name === "s10_5_nipple") return "Location: Beneath nipple (ใต้หัวนม)";
+        if (name === "s10_5_scar") return "Location: Beneath scar (ใต้แผลเป็น)";
+        if (name === "s10_5_central") return "Location: Central portion (ส่วนกลางเต้านม)";
+        if (name === "s10_5_quadrant_check") return "Location: In quadrant (ในควอดแรนต์)";
+        if (name === "s10_5_quadrant_vals") return `Quadrant: ${val} (ควอดแรนต์)`;
+        if (name === "s10_5_other_check") return "Location: Other (ตำแหน่งอื่นๆ)";
+        if (name === "s10_5_other") return "Location: Other description";
+        if (name === "s11_deep") return "Margin: Deep (ขอบลึก cm)";
+        if (name === "s11_superior") return "Margin: Superior (ขอบบน cm)";
+        if (name === "s11_inferior") return "Margin: Inferior (ขอบล่าง cm)";
+        if (name === "s11_medial") return "Margin: Medial (ขอบใน cm)";
+        if (name === "s11_lateral") return "Margin: Lateral (ขอบนอก cm)";
+        if (name === "s11_skin") return "Margin: From skin (ห่างจากผิวหนัง cm)";
+        if (name === "s12_check") return "Parenchyma fat to fibrous ratio";
+        if (name === "s12_val_left") return "Ratio: Fat (ส่วนไขมัน)";
+        if (name === "s12_val_right") return "Ratio: Fibrous (ส่วนพังผืด)";
+        if (name === "s13_type" || name === "s13_unremarkable") return `Remaining tissue: ${val || "unremarkable"}`;
+        if (name === "s13_text") return "Remaining tissue description";
+        if (name === "s14_check") return "Lymph nodes (ต่อมน้ำเหลือง)";
+        if (name === "s14_min") return "Lymph node: Min diameter (cm)";
+        if (name === "s14_max") return "Lymph node: Max diameter (cm)";
+        if (name.startsWith("sec_")) {
+            const secKey = name.replace("sec_", "").replace(/_/g, " ");
+            return `Section: ${secKey}`;
+        }
+        if (name === "footer_prosecutor") return "Prosecutor (ผู้ตรวจชิ้นเนื้อ)";
+        if (name === "footer_date") return "Date (วันที่)";
+
+        const label = input.closest('label');
+        if (label) {
+            const text = label.textContent.trim().replace(/\s+/g, ' ');
+            if (text) return text.substring(0, 40);
+        }
+        return input.placeholder || name || "Form Box";
+    }
+
+    function updateActiveBoxHUD(input) {
+        const hud = document.getElementById('active-box-hud');
+        const hudTitle = document.getElementById('hud-box-name');
+        if (!hud || !hudTitle) return;
+
+        if (!input) {
+            hud.classList.remove('has-focus');
+            hudTitle.textContent = 'ยังไม่ได้เลือกช่อง (คลิกหรือ NEXT BOX)';
+            return;
+        }
+
+        hud.classList.add('has-focus');
+        const label = getFieldLabel(input);
+        hudTitle.textContent = label;
+
+        const subtext = document.querySelector('.dictation-subtext');
+        if (subtext) {
+            subtext.innerHTML = `ช่องปัจจุบัน: <strong style="color: #2563eb;">${label}</strong>`;
+        }
+    }
+
+    function updateFloatingFocusBadge(visual, input) {
+        const paper = document.querySelector('.paper-sheet');
+        if (!paper || !visual) return;
+
+        let badge = document.getElementById('gesture-focus-badge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'gesture-focus-badge';
+            badge.className = 'gesture-focus-badge';
+            paper.appendChild(badge);
+        }
+
+        const paperRect = paper.getBoundingClientRect();
+        const visualRect = visual.getBoundingClientRect();
+        const zoomScale = parseFloat(paper.getAttribute('data-zoom') || '1') || 1;
+
+        const relTop = (visualRect.top - paperRect.top) / zoomScale;
+        const relLeft = (visualRect.left - paperRect.left) / zoomScale;
+        const visualWidth = visualRect.width / zoomScale;
+
+        const label = getFieldLabel(input);
+        badge.innerHTML = `<span class="badge-dot"></span><span>${label}</span><div class="badge-arrow"></div>`;
+
+        badge.style.top = `${Math.max(6, relTop - 34)}px`;
+        badge.style.left = `${relLeft + (visualWidth / 2)}px`;
+        badge.classList.add('visible');
+    }
+
+    function applyGestureFocus(target) {
+        if (!target) return;
+        const inputs = getFormInputs();
+        const idx = inputs.indexOf(target);
+        if (idx !== -1) {
+            currentFocusedInputIndex = idx;
+        }
+
+        // 1. Remove previous gesture focus
+        document.querySelectorAll('.gesture-focus').forEach(el => el.classList.remove('gesture-focus'));
+        document.querySelectorAll('.active-gesture-row').forEach(el => el.classList.remove('active-gesture-row'));
+
+        // 2. Focus native target
+        if (document.activeElement !== target) {
+            try { target.focus(); } catch (e) {}
+        }
+        if (target.type === 'text' && typeof target.select === 'function') {
+            try { target.select(); } catch (e) {}
+        }
+
+        // 3. Highlight visual element
+        const visual = getVisual(target);
+        if (visual) {
+            visual.classList.add('gesture-focus');
+            visual.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            updateFloatingFocusBadge(visual, target);
+        }
+
+        // 4. Highlight parent form row
+        const parentRow = target.closest('.form-row, .table-row, tr, .form-group');
+        if (parentRow) {
+            parentRow.classList.add('active-gesture-row');
+        }
+
+        // 5. Update Sidebar HUD
+        updateActiveBoxHUD(target);
     }
 
     function triggerAction(action) {
         switch (action) {
             case 'CLEAR':
-                const activeElement = document.activeElement;
-                if (activeElement) {
-                    if (activeElement.type === 'text' || activeElement.tagName === 'TEXTAREA') {
-                        activeElement.value = '';
-                    }
-                    else if (activeElement.type === 'checkbox' || activeElement.type === 'radio') {
-                        activeElement.checked = false;
-                        const parent = activeElement.parentElement;
+                let activeClear = document.activeElement;
+                const inputs = getFormInputs();
+                if ((!activeClear || !inputs.includes(activeClear)) && currentFocusedInputIndex !== -1) {
+                    activeClear = inputs[currentFocusedInputIndex];
+                }
+                if (activeClear) {
+                    if (activeClear.type === 'text' || activeClear.tagName === 'TEXTAREA') {
+                        activeClear.value = '';
+                    } else if (activeClear.type === 'checkbox' || activeClear.type === 'radio') {
+                        activeClear.checked = false;
+                        const parent = activeClear.parentElement;
                         if (parent && parent.classList.contains('circle-option')) {
                             const span = parent.querySelector('span');
                             if (span) span.style = "";
                         }
                     }
-                    activeElement.classList.remove('low-confidence-highlight');
-                    if (activeElement.nextElementSibling && activeElement.nextElementSibling.classList.contains('checkbox-visual')) {
-                        activeElement.nextElementSibling.classList.remove('low-confidence-highlight');
+                    activeClear.classList.remove('low-confidence-highlight');
+                    if (activeClear.nextElementSibling && activeClear.nextElementSibling.classList.contains('checkbox-visual')) {
+                        activeClear.nextElementSibling.classList.remove('low-confidence-highlight');
                     }
+                    updateActiveBoxHUD(activeClear);
                 }
                 break;
             case 'SCROLL_UP':
@@ -576,17 +787,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 moveFocusRow(1);
                 break;
             case 'SELECT':
-                const active = document.activeElement;
-                if (active && (active.type === 'checkbox' || active.type === 'radio')) {
-                    active.click();
+                let activeSel = document.activeElement;
+                const formInps = getFormInputs();
+                if ((!activeSel || !formInps.includes(activeSel)) && currentFocusedInputIndex !== -1) {
+                    activeSel = formInps[currentFocusedInputIndex];
+                }
+                if (activeSel && (activeSel.type === 'checkbox' || activeSel.type === 'radio')) {
+                    activeSel.click();
 
-                    // ให้วงกลมกระพริบที่กรอบสี่เหลี่ยม ไม่ใช่ครอบทั้งประโยค
-                    const visualEl = getVisual(active);
+                    const visualEl = getVisual(activeSel);
                     if (visualEl) {
-                        visualEl.classList.add('gesture-focus');
-                        setTimeout(() => visualEl.classList.remove('gesture-focus'), 200);
-                        setTimeout(() => visualEl.classList.add('gesture-focus'), 400);
+                        visualEl.classList.add('select-success');
+                        setTimeout(() => visualEl.classList.remove('select-success'), 500);
                     }
+                    updateActiveBoxHUD(activeSel);
+                } else if (activeSel && (activeSel.type === 'text' || activeSel.tagName === 'TEXTAREA')) {
+                    if (typeof activeSel.select === 'function') activeSel.select();
                 } else if (txtTranscription) {
                     txtTranscription.select();
                 }
@@ -610,8 +826,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Allow clicking or tapping on gesture boxes directly
+    // Allow clicking or tapping on gesture boxes directly without stealing focus
     document.querySelectorAll('.gesture-box').forEach(box => {
+        box.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+        });
         box.addEventListener('click', function(e) {
             e.stopPropagation();
             const action = this.getAttribute('data-action');
@@ -623,28 +842,22 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function moveFocusRow(direction) {
-        const inputs = Array.from(document.querySelectorAll('input[type="text"], textarea, input[type="checkbox"], input[type="radio"]'));
-        const current = document.activeElement;
-        const currentIndex = inputs.indexOf(current);
+        const inputs = getFormInputs();
+        if (!inputs.length) return;
 
-        if (current) {
-            const currentVisual = getVisual(current);
-            if (currentVisual) currentVisual.classList.remove('gesture-focus');
+        let currentIndex = currentFocusedInputIndex;
+        if (currentIndex === -1 || currentIndex >= inputs.length) {
+            const active = document.activeElement;
+            currentIndex = inputs.indexOf(active);
         }
 
         if (currentIndex === -1) {
             const target = direction > 0 ? inputs[0] : inputs[inputs.length - 1];
-            if (target) {
-                target.focus();
-                const visual = getVisual(target);
-                if (visual) {
-                    visual.classList.add('gesture-focus');
-                    visual.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
+            applyGestureFocus(target);
             return;
         }
 
+        const current = inputs[currentIndex];
         const currentRect = current.getBoundingClientRect();
         const currentY = currentRect.top + currentRect.height / 2;
 
@@ -672,46 +885,70 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (target) {
-            target.focus();
-            const targetVisual = getVisual(target);
-            if (targetVisual) {
-                targetVisual.classList.add('gesture-focus');
-                targetVisual.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+            applyGestureFocus(target);
         }
     }
 
     function moveFocus(direction) {
-        const inputs = Array.from(document.querySelectorAll('input[type="text"], textarea, input[type="checkbox"], input[type="radio"]'));
-        const current = document.activeElement;
-        const currentIndex = inputs.indexOf(current);
+        const inputs = getFormInputs();
+        if (!inputs.length) return;
 
-        // ถอด Focus เดิมออก
-        if (current) {
-            const currentVisual = getVisual(current);
-            if (currentVisual) currentVisual.classList.remove('gesture-focus');
+        let currentIndex = currentFocusedInputIndex;
+        if (currentIndex === -1 || currentIndex >= inputs.length) {
+            const active = document.activeElement;
+            currentIndex = inputs.indexOf(active);
         }
 
         let nextIndex = 0;
         if (currentIndex !== -1) {
             nextIndex = currentIndex + direction;
+        } else {
+            nextIndex = direction > 0 ? 0 : inputs.length - 1;
         }
 
         if (nextIndex < 0) nextIndex = inputs.length - 1;
         if (nextIndex >= inputs.length) nextIndex = 0;
 
-        if (nextIndex >= 0 && nextIndex < inputs.length) {
-            const target = inputs[nextIndex];
-            target.focus(); // โฟกัส Input ซ่อนไว้
+        const target = inputs[nextIndex];
+        applyGestureFocus(target);
+    }
 
-            // ล็อคเป้ากรอบแดงไปที่กล่องสี่เหลี่ยม / วงกลม / Text
-            const targetVisual = getVisual(target);
-            if (targetVisual) {
-                targetVisual.classList.add('gesture-focus');
-                targetVisual.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Connect form click and focus events to automatically update gesture focus
+    const pathoForm = document.querySelector('.patho-form') || document.querySelector('.paper-sheet');
+    if (pathoForm) {
+        pathoForm.addEventListener('focusin', function(e) {
+            if (e.target.matches('input, textarea')) {
+                applyGestureFocus(e.target);
+            }
+        });
+        pathoForm.addEventListener('click', function(e) {
+            const target = e.target.closest('label')?.querySelector('input') || (e.target.matches('input, textarea') ? e.target : null);
+            if (target) {
+                applyGestureFocus(target);
+            }
+        });
+    }
+
+    // Keyboard navigation helper
+    document.addEventListener('keydown', function(e) {
+        const active = document.activeElement;
+        const isTyping = active && (active.type === 'text' || active.tagName === 'TEXTAREA') && !active.readOnly;
+        
+        if (!isTyping) {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                moveFocus(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                moveFocus(-1);
+            } else if (e.key === ' ' || e.key === 'Enter') {
+                if (active && (active.type === 'checkbox' || active.type === 'radio')) {
+                    e.preventDefault();
+                    triggerAction('SELECT');
+                }
             }
         }
-    }
+    });
 
     // --- Real-time Web Audio API Waveform & VU Meter Engine ---
     let audioVisualizerCtx = null;
