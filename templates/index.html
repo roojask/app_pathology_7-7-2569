@@ -152,14 +152,15 @@
                     <input type="text" class="inline-input" style="width: 200px; border-bottom: 1px dotted #000;">
                 </div>
 
-                <div class="form-row">
-                    <label>
+                <div class="form-row form-row-nowrap">
+                    <label style="white-space: nowrap;">
                         <input type="checkbox" name="s6_check" value="true" {% if data and data.get('s6_check')
                             %}checked{% endif %}>
                         <span class="checkbox-visual"></span>shows an old surgical scar
                     </label>
-                    <input type="text" name="s7_len" class="inline-input" style="width: 40px;"
-                        value="{{ data.get('s7_len', '') if data else '' }}"> cm in length at (
+                    <input type="text" name="s7_len" class="inline-input" style="width: 35px;"
+                        value="{{ data.get('s7_len', '') if data else '' }}">
+                    <span style="white-space: nowrap;">cm in length at (</span>
                     {% for loc in ['areola', 'upper', 'lower', 'inner', 'outer'] %}
                     <label class="circle-option">
                         <input type="checkbox" name="s7_locs" value="{{ loc }}" {% if data and loc in
@@ -168,19 +169,20 @@
                     </label>
                     {% if not loop.last %}/{% endif %}
                     {% endfor %}
-                    ) ( quadrant ).
+                    <span style="white-space: nowrap;">) ( quadrant ).</span>
                 </div>
 
-                <div class="form-row">
-                    <label>
+                <div class="form-row form-row-nowrap">
+                    <label style="white-space: nowrap;">
                         <input type="checkbox" name="s8_check" value="true" {% if data and data.get('s8_check')
                             %}checked{% endif %}>
                         <span class="checkbox-visual"></span>shows an ulceration
                     </label>
-                    <input type="text" name="s8_dims_0" class="inline-input" style="width: 40px;"
+                    <input type="text" name="s8_dims_0" class="inline-input" style="width: 35px;"
                         value="{{ data.get('s8_dims', ['',''])[0] if data and data.get('s8_dims') else '' }}"> x
-                    <input type="text" name="s8_dims_1" class="inline-input" style="width: 40px;"
-                        value="{{ data.get('s8_dims', ['',''])[1] if data and data.get('s8_dims') else '' }}"> cm . at (
+                    <input type="text" name="s8_dims_1" class="inline-input" style="width: 35px;"
+                        value="{{ data.get('s8_dims', ['',''])[1] if data and data.get('s8_dims') else '' }}">
+                    <span style="white-space: nowrap;">cm . at (</span>
                     {% for loc in ['areola', 'upper', 'lower', 'inner', 'outer'] %}
                     <label class="circle-option">
                         <input type="checkbox" name="s8_locs" value="{{ loc }}" {% if data and loc in
@@ -189,7 +191,7 @@
                     </label>
                     {% if not loop.last %}/{% endif %}
                     {% endfor %}
-                    ) ( quadrant ).
+                    <span style="white-space: nowrap;">) ( quadrant ).</span>
                 </div>
 
                 <div class="form-row">

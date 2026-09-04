@@ -416,9 +416,9 @@ body {
 .paper-sheet {
     background: #ffffff;
     width: 100%;
-    max-width: 800px;
+    max-width: 830px;
     min-height: 1080px;
-    padding: 45px 55px;
+    padding: 45px 44px;
     border-radius: 2px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     font-family: var(--font-doc);
@@ -543,15 +543,20 @@ body {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     line-height: 1.6;
+}
+
+.form-row-nowrap {
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .inline-input {
     border: none;
     border-bottom: 1px solid #777;
     background: transparent;
-    padding: 2px 4px;
+    padding: 2px 3px;
     font-family: var(--font-family);
     font-size: 13.5px;
     outline: none;
@@ -567,7 +572,7 @@ body {
 .circle-option {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     cursor: pointer;
 }
 
