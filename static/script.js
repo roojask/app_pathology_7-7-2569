@@ -80,17 +80,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function updateHandsFreeBadge(statusText, ringColor='#95a5a6', pulse=false) {
+    function updateHandsFreeBadge(statusText, dotColor='#22c55e', pulse=false) {
         const badgeText = document.getElementById('mic-status-text');
-        const pulseRing = document.getElementById('mic-pulse-ring');
+        const statusDot = document.getElementById('mic-status-dot');
         if (badgeText) badgeText.innerText = statusText;
-        if (pulseRing) {
-            pulseRing.style.background = ringColor;
-            if (pulse) {
-                pulseRing.style.boxShadow = `0 0 10px ${ringColor}`;
-            } else {
-                pulseRing.style.boxShadow = 'none';
-            }
+        if (statusDot) {
+            statusDot.style.backgroundColor = dotColor;
+        }
+    }
+
+    function updateGestureBadge(statusText, dotColor='#9ca3af') {
+        const badgeText = document.getElementById('gesture-status-text');
+        const statusDot = document.getElementById('gesture-status-dot');
+        if (badgeText) badgeText.innerText = statusText;
+        if (statusDot) {
+            statusDot.style.backgroundColor = dotColor;
         }
     }
 
@@ -104,18 +108,17 @@ document.addEventListener('DOMContentLoaded', function () {
         recognition.onstart = function () {
             isRecording = true;
             playAudioChime('start');
-            updateHandsFreeBadge('Mic Listening...', '#e74c3c', true);
+            updateHandsFreeBadge('Mic: Listening...', '#22c55e', true);
 
-            btnMicToggle.innerHTML = '<i class="fas fa-stop-circle" style="color:red;"></i> หยุดบันทึก (Stop)';
-            btnMicToggle.style.backgroundColor = '#ffcccc';
-
-            const boxMic = document.getElementById('box-mic');
-            if (boxMic) {
-                boxMic.innerText = "MIC ON (Say Stop)";
-                boxMic.style.backgroundColor = "rgba(231, 76, 60, 0.8)";
+            if (btnMicToggle) {
+                btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Stop';
+                btnMicToggle.classList.add('active');
             }
 
-            if (micStatusContainer) micStatusContainer.innerText = 'กำลังฟัง... (Listening...)';
+            const micCircle = document.getElementById('mic-pulse-circle');
+            if (micCircle) micCircle.classList.add('recording');
+
+            if (micStatusContainer) micStatusContainer.innerText = 'Dictating...';
         };
 
         recognition.onend = function () {
@@ -124,23 +127,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 try {
                     recognition.start();
                     if (micStatusContainer) {
-                        micStatusContainer.innerHTML = '<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-redo"></i> กู้คืนช่องสัญญาณไมค์อัตโนมัติ (Mic Auto-reconnected)...</span>';
+                        micStatusContainer.innerText = 'Dictating...';
                     }
                 } catch (e) {
                     console.log("Failed to auto-restart speech recognition:", e);
                 }
             } else {
                 playAudioChime('stop');
-                updateHandsFreeBadge('Hands-Free Ready', '#95a5a6', false);
-                btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
-                btnMicToggle.style.backgroundColor = '#ddd';
-
-                const boxMic = document.getElementById('box-mic');
-                if (boxMic) {
-                    boxMic.innerText = "MIC OFF";
-                    boxMic.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-                    boxMic.style.border = "1px solid rgba(255, 255, 255, 0.3)";
+                updateHandsFreeBadge('Mic: Ready', '#22c55e', false);
+                if (btnMicToggle) {
+                    btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Record';
+                    btnMicToggle.classList.remove('active');
                 }
+
+                const micCircle = document.getElementById('mic-pulse-circle');
+                if (micCircle) micCircle.classList.remove('recording');
+
+                if (micStatusContainer) micStatusContainer.innerText = 'Ready';
             }
         };
 
@@ -346,9 +349,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 isRecording = false; // Set to false first to tell onend not to auto-restart
                 try { recognition.stop(); } catch(e) {}
                 playAudioChime('stop');
-                updateHandsFreeBadge('Hands-Free Ready', '#95a5a6', false);
-                btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
-                btnMicToggle.style.backgroundColor = '#ddd';
+                updateHandsFreeBadge('Mic: Ready', '#22c55e', false);
+                btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Record';
+                btnMicToggle.classList.remove('active');
+                btnMicToggle.style.backgroundColor = '';
+                const micCircle = document.getElementById('mic-pulse-circle');
+                if (micCircle) micCircle.classList.remove('recording');
+                if (micStatusContainer) micStatusContainer.innerText = 'Ready';
             } else {
                 // Request microphone permission if needed
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -362,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 isRecording = true;
-                if (micStatusContainer) micStatusContainer.innerText = 'กำลังเริ่ม... (Starting...)';
+                if (micStatusContainer) micStatusContainer.innerText = 'Dictating...';
                 try {
                     recognition.start();
                 } catch (e) {
@@ -406,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             lastHandDetectedTime = Date.now();
+            updateGestureBadge('Gesture: Active', '#22c55e');
             canvasCtx.save();
             canvasCtx.translate(canvasElement.width, 0);
             canvasCtx.scale(-1, 1);
@@ -416,6 +424,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 detectGesture(landmarks);
             }
             canvasCtx.restore();
+        } else {
+            if (Date.now() - lastHandDetectedTime > 1500) {
+                updateGestureBadge('Gesture: No Hand', '#9ca3af');
+            }
         }
     }
 
@@ -859,6 +871,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    let currentFacingMode = 'user';
+
     async function startCameraDirectly() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             showError("เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง หรือไม่ได้รันบน HTTPS");
@@ -867,14 +881,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             if (btnCameraToggle) {
-                btnCameraToggle.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังเปิดกล้อง...';
+                btnCameraToggle.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Photo';
             }
 
             localVideoStream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 640 },
                     height: { ideal: 480 },
-                    facingMode: 'user'
+                    facingMode: currentFacingMode
                 },
                 audio: false
             });
@@ -895,7 +909,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (camPlaceholder) camPlaceholder.style.display = 'none';
             if (cameraFeedEl) cameraFeedEl.classList.remove('collapsed');
             if (btnCameraToggle) {
-                btnCameraToggle.innerHTML = '<i class="fas fa-video-slash" style="color: #ef4444;"></i> Stop Camera';
+                btnCameraToggle.innerHTML = '<i class="fa-solid fa-camera"></i> Photo';
                 btnCameraToggle.classList.add('active');
             }
 
@@ -934,15 +948,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (camPlaceholder) {
                 camPlaceholder.style.display = 'flex';
                 camPlaceholder.innerHTML = `
-                    <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; border: 1px solid rgba(239, 68, 68, 0.4);">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 20px; color: #ef4444;"></i>
+                    <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 18px; color: #ef4444;"></i>
                     </div>
-                    <span style="font-size: 13px; font-weight: 700; color: #f87171;">ไม่สามารถเปิดกล้องได้</span>
+                    <span style="font-size: 12.5px; font-weight: 700; color: #f87171;">ไม่สามารถเปิดกล้องได้</span>
                     <span style="font-size: 11px; color: #94a3b8; margin-top: 4px; text-align: center; max-width: 250px;">กรุณากด 'Allow' สิทธิ์กล้องในเบราว์เซอร์ แล้วคลิกที่นี่อีกครั้ง</span>
                 `;
             }
             if (btnCameraToggle) {
-                btnCameraToggle.innerHTML = '<i class="fas fa-camera" style="color: #2563eb;"></i> Camera';
+                btnCameraToggle.innerHTML = '<i class="fa-solid fa-camera"></i> Photo';
                 btnCameraToggle.classList.remove('active');
             }
             showError("ไม่สามารถเปิดกล้องได้ (" + (err.name || err.message) + "). กรุณาตรวจสอบว่าได้กด 'Allow' สิทธิ์กล้องในเบราว์เซอร์แล้ว");
@@ -964,16 +978,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (camPlaceholder) {
             camPlaceholder.style.display = 'flex';
             camPlaceholder.innerHTML = `
-                <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(37, 99, 235, 0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; border: 1px solid rgba(37, 99, 235, 0.4);">
-                    <i class="fas fa-video" style="font-size: 20px; color: #3b82f6;"></i>
-                </div>
-                <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">คลิกเปิดกล้อง (Start Camera)</span>
-                <span style="font-size: 11px; color: #94a3b8; margin-top: 2px;">ควบคุมด้วยท่าทางมือ (10 Gestures)</span>
+                <div class="cam-icon-circle"><i class="fa-solid fa-camera"></i></div>
+                <span class="cam-prompt-text">คลิกเปิดกล้อง (Start Camera)</span>
             `;
         }
         if (cameraFeedEl) cameraFeedEl.classList.add('collapsed');
         if (btnCameraToggle) {
-            btnCameraToggle.innerHTML = '<i class="fas fa-camera" style="color: #2563eb;"></i> Camera';
+            btnCameraToggle.innerHTML = '<i class="fa-solid fa-camera"></i> Photo';
             btnCameraToggle.classList.remove('active');
         }
         if (canvasCtx && canvasElement) {
@@ -990,6 +1001,57 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    const btnCameraFlip = document.getElementById('btn-camera-flip');
+    if (btnCameraFlip) {
+        btnCameraFlip.addEventListener('click', function(e) {
+            e.stopPropagation();
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            if (isCameraRunning) {
+                stopCameraDirectly();
+                setTimeout(() => startCameraDirectly(), 250);
+            }
+        });
+    }
+
+    window.exportDocxDirectly = function() {
+        const form = document.querySelector('.patho-form');
+        if (!form) return;
+        const formData = new FormData(form);
+        const sNo = form.querySelector('input[name="s0_surgical_no"]')?.value?.trim() || 'case';
+        
+        fetch('/export_docx', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Export request failed');
+            return res.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `pathology_breast_gross_${sNo}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }, 2000);
+        })
+        .catch(err => {
+            console.warn('DOCX export error, submitting form fallback:', err);
+            const origAction = form.action;
+            const origTarget = form.target;
+            form.action = '/export_docx';
+            form.target = '_blank';
+            form.submit();
+            form.action = origAction;
+            form.target = origTarget;
+        });
+    };
 
     // Auto-start camera on page load
     setTimeout(() => {

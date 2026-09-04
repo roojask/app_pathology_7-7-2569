@@ -11,11 +11,10 @@
 
 <body>
 
-    <!-- Unified Top Navigation Bar -->
+    <!-- Unified Top Navigation Bar (Matching Mockup) -->
     <header class="top-navbar">
         <div class="nav-left">
             <a href="{{ url_for('dashboard') }}" class="brand-logo">
-                <span class="brand-dot"></span>
                 Gross reporting
             </a>
             <nav class="nav-pills">
@@ -26,28 +25,32 @@
         </div>
 
         <div class="nav-center">
-            <div class="status-indicator">
-                <span id="mic-pulse-ring" class="status-dot"></span>
-                <span id="mic-status-text">Mic: Ready</span>
+            <div class="nav-status-item">
+                <span id="mic-status-dot" class="status-dot-green"></span>
+                <span id="mic-status-text">Mic: Listening...</span>
             </div>
-            <div class="status-indicator">
-                <span class="status-dot active"></span>
-                <span>Gesture: Active</span>
+            <div class="nav-status-item">
+                <span id="gesture-status-dot" class="status-dot-gray"></span>
+                <span id="gesture-status-text">Gesture: No Hand</span>
             </div>
         </div>
 
         <div class="nav-right">
             {% if current_user.is_authenticated %}
-            <div class="user-profile">
-                <span class="user-name">{{ current_user.name or current_user.username }}</span>
-                <span class="user-role">{{ "Administrator" if current_user.check_is_admin else "Doctor" }}</span>
+            <div class="user-profile-block">
+                <span class="user-profile-name">{{ current_user.name or current_user.username }}</span>
+                <span class="user-profile-sub">{{ "admin" if current_user.check_is_admin else "doctor" }}</span>
             </div>
-            <a href="{{ url_for('logout') }}" class="btn-switch" title="Sign out / Switch user">
-                <i class="fas fa-arrow-right-from-bracket"></i> Switch
+            <a href="{{ url_for('logout') }}" class="btn-switch-custom" title="Sign out / Switch user">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Switch
             </a>
             {% else %}
-            <a href="{{ url_for('login') }}" class="btn-switch">
-                <i class="fas fa-sign-in-alt"></i> Login
+            <div class="user-profile-block">
+                <span class="user-profile-name">doctor</span>
+                <span class="user-profile-sub">doctor</span>
+            </div>
+            <a href="{{ url_for('login') }}" class="btn-switch-custom">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Switch
             </a>
             {% endif %}
         </div>
@@ -68,16 +71,13 @@
                     <span id="clinical-warning-text">{% if flags and flags.get('s0_surgical_no') %}⚠️ <strong>แจ้งเตือนความปลอดภัย (Missing Surgical Number):</strong> ไม่พบรหัสสิ่งส่งตรวจในข้อความบรรยาย กรุณาระบุรหัสเคส (เช่น S-24-XXXX) เพื่อความถูกต้องของเวชระเบียน{% endif %}</span>
                 </div>
 
-                <div class="form-header">
-                    Surgical Number S
-                    <input type="text" name="s0_surgical_no" class="inline-input" 
-                        style="width: 150px; {% if flags and flags.get('s0_surgical_no') %}border: 2px solid #e67e22; background-color: #fef9e7; box-shadow: 0 0 8px rgba(230, 126, 34, 0.4);{% endif %}"
-                        placeholder="ระบุรหัสเคส เช่น 24-1001"
+                <div class="doc-header-top">
+                    <span class="surg-label-text">Surgical Number S</span>
+                    <input type="text" name="s0_surgical_no" class="surg-pill-box" 
                         value="{{ data.get('s0_surgical_no', '') if data else '' }}">
                 </div>
 
-                <div class="form-title" style="text-align: center; font-weight: bold; margin-bottom: 5px;">Breast cancer
-                </div>
+                <div class="doc-title-clean">Breast gross 1</div>
 
                 <div class="form-row">
                     Received in formalin is a (
@@ -608,130 +608,95 @@
             <!-- Floating Paper Zoom Control Widget (- 100% +) -->
             <div class="zoom-floating-control" id="zoom-control-widget">
                 <button type="button" class="zoom-btn" id="btn-zoom-out" onclick="window.changePaperZoom(-0.1); return false;" title="Zoom Out (ย่อฟอร์ม)">
-                    <i class="fas fa-minus"></i>
+                    <i class="fa-solid fa-minus"></i>
                 </button>
                 <button type="button" class="zoom-text" id="zoom-level-text" onclick="window.setPaperZoom(1.0); return false;" title="Click to Reset (รีเซ็ตขนาด 100%)">100%</button>
                 <button type="button" class="zoom-btn" id="btn-zoom-in" onclick="window.changePaperZoom(0.1); return false;" title="Zoom In (ขยายฟอร์ม)">
-                    <i class="fas fa-plus"></i>
+                    <i class="fa-solid fa-plus"></i>
                 </button>
             </div>
         </div> <!-- End of .document-canvas -->
 
-        <!-- Right: Modern Workstation Sidebar -->
+        <!-- Right: Modern Workstation Sidebar (Matching Mockup) -->
         <aside class="workstation-sidebar">
             
-            <!-- 1. Dictation & Audio Status Card -->
-            <div class="sidebar-card">
-                <div class="dictation-status-badge">
-                    <div class="pulse-circle" id="mic-pulse-circle">
-                        <i class="fas fa-microphone"></i>
-                    </div>
-                    <div class="dictation-info">
-                        <h4>DICTATING</h4>
-                        <p id="sidebar-dictation-state">Ready to Listen</p>
-                    </div>
-                </div>
-
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
-                    Say a measurement, use gesture controls, or tap any field.
-                </div>
-
-                <!-- Audio Controls -->
-                <div class="audio-control-grid" style="margin-bottom: 0;">
-                    <button type="button" class="btn-record-toggle" id="btn-mic-toggle">
-                        <i class="fas fa-circle" style="color: #ef4444; font-size: 10px;"></i> Record
-                    </button>
-                    <button type="button" class="btn-record-toggle" id="btn-camera-toggle">
-                        <i class="fas fa-camera" style="color: #2563eb;"></i> Camera
-                    </button>
+            <!-- 1. Dictating Status Header -->
+            <div class="sidebar-dictation-header">
+                <div class="dictation-status-dot-large" id="mic-pulse-circle"></div>
+                <div class="dictation-status-text-block">
+                    <span class="dictation-label">DICTATING</span>
+                    <h2 class="dictation-main-status" id="sidebar-dictation-state">Ready</h2>
                 </div>
             </div>
 
-            <!-- 2. Camera HUD Card (Right in the middle, prominent and immediately visible!) -->
-            <div class="camera-card">
-                <div class="camera-tag">
-                    <i class="fas fa-video"></i> FRONT CAMERA &bull; 10 GESTURES
-                </div>
-                <div class="camera-feed" style="height: 280px; position: relative; background: #0b0f19; overflow: hidden;">
-                    <!-- Native Live Video Stream (GPU accelerated, zero latency, mirrored) -->
-                    <video class="input_video" autoplay playsinline muted style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); z-index: 1;"></video>
-                    
-                    <!-- Transparent canvas for neon hand landmarks & gesture tracking -->
-                    <canvas class="output_canvas" width="480" height="420" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; pointer-events: none;"></canvas>
+            <p class="dictation-subtext">Say a measurement, or tap a field to start.</p>
+
+            <!-- 2. Dual Top Buttons: [ ● Record ] & [ 📷 Photo ] -->
+            <div class="sidebar-top-btn-row">
+                <button type="button" class="btn-sidebar-pill" id="btn-mic-toggle">
+                    <span class="btn-dot-red"></span> Record
+                </button>
+                <button type="button" class="btn-sidebar-pill" id="btn-camera-toggle">
+                    <i class="fa-solid fa-camera"></i> Photo
+                </button>
+            </div>
+
+            <!-- 3. Clean Camera Card -->
+            <div class="camera-card-clean">
+                <div class="camera-feed-box" id="camera-feed-container">
+                    <!-- Native Mirrored Video Stream -->
+                    <video class="input_video" autoplay playsinline muted></video>
+                    <!-- Transparent Canvas for hand landmarks -->
+                    <canvas class="output_canvas" width="480" height="360"></canvas>
                     
                     <!-- Camera Start / Status Placeholder -->
-                    <div id="camera-placeholder" onclick="document.getElementById('btn-camera-toggle').click();" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.94); color: #94a3b8; z-index: 3; cursor: pointer; transition: all 0.2s;">
-                        <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(37, 99, 235, 0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; border: 1px solid rgba(37, 99, 235, 0.4);">
-                            <i class="fas fa-video" style="font-size: 20px; color: #3b82f6;"></i>
-                        </div>
-                        <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">คลิกเปิดกล้อง (Start Camera)</span>
-                        <span style="font-size: 11px; color: #64748b; margin-top: 2px;">ควบคุมด้วยท่าทางมือ (10 Gestures)</span>
+                    <div id="camera-placeholder" onclick="document.getElementById('btn-camera-toggle').click();">
+                        <div class="cam-icon-circle"><i class="fa-solid fa-camera"></i></div>
+                        <span class="cam-prompt-text">คลิกเปิดกล้อง (Start Camera)</span>
                     </div>
 
-                    <!-- Scanner Line & Corner Reticles -->
-                    <div class="camera-scanner-overlay" style="z-index: 4;">
-                        <div class="reticle-corner top-left"></div>
-                        <div class="reticle-corner top-right"></div>
-                        <div class="reticle-corner bottom-left"></div>
-                        <div class="reticle-corner bottom-right"></div>
-                        <div class="scanner-line"></div>
-                    </div>
+                    <!-- Bottom-Left Badge: FRONT CAMERA -->
+                    <div class="camera-badge-left">FRONT CAMERA</div>
 
-                    <!-- Gesture Action Overlay -->
-                    <div class="gesture-controls" style="z-index: 5;">
-                        <div class="gesture-box" id="box-clear" data-action="CLEAR">CLEAR</div>
-                        <div class="gesture-box" id="box-scroll-up" data-action="SCROLL_UP">SCROLL UP</div>
-                        <div class="gesture-box" id="box-prev-row" data-action="PREV_ROW">PREV ROW</div>
-                        <div class="gesture-box" id="box-next-row" data-action="NEXT_ROW">NEXT ROW</div>
-                        <div class="gesture-box" id="box-prev" data-action="PREV">PREV BOX</div>
-                        <div class="gesture-box" id="box-next" data-action="NEXT">NEXT BOX</div>
-                        <div class="gesture-box" id="box-select" data-action="SELECT">SELECT</div>
-                        <div class="gesture-box" id="box-scroll-down" data-action="SCROLL_DOWN">SCROLL DOWN</div>
-                        <div class="gesture-box" id="box-save" data-action="SAVE">SAVE / PDF</div>
-                        <div class="gesture-box" id="box-mic" data-action="MIC_TOGGLE">MIC ON/OFF</div>
-                    </div>
+                    <!-- Bottom-Right Flip/Rotate Button -->
+                    <button type="button" class="camera-btn-flip" id="btn-camera-flip" title="Switch Camera">
+                        <i class="fa-solid fa-camera-rotate"></i>
+                    </button>
                 </div>
             </div>
 
-            <!-- 3. Actions Card (Directly under camera) -->
-            <div class="sidebar-card sidebar-actions">
-                <button type="button" class="btn-primary-dark" onclick="document.getElementById('btn-save-submit').click()">
-                    <i class="fas fa-check"></i> Save & Generate PDF
+            <!-- 4. Action Buttons directly under camera: [ ✓ Save ] & [ 📥 Export DOCX ] -->
+            <div class="sidebar-action-btn-row">
+                <button type="button" class="btn-sidebar-save" id="btn-sidebar-save" onclick="document.getElementById('btn-save-submit').click();">
+                    <i class="fa-solid fa-check"></i> Save
                 </button>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <a href="{{ url_for('history') }}" class="btn-secondary-outline">
-                        <i class="fas fa-history"></i> History
-                    </a>
-                    <a href="{{ url_for('export_history_csv') }}" class="btn-secondary-outline">
-                        <i class="fas fa-file-excel"></i> Export CSV
-                    </a>
-                </div>
+                <button type="button" class="btn-sidebar-export" id="btn-sidebar-export" onclick="window.exportDocxDirectly();">
+                    <i class="fa-solid fa-arrow-down-to-bracket"></i> Export DOCX
+                </button>
             </div>
 
-            <!-- 4. Dictation Details & Live Waveform -->
-            <div class="sidebar-card">
-                <!-- Live Waveform & VU Meter -->
-                <div style="background: #0f172a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span style="font-size: 10px; font-weight: bold; color: #94a3b8; text-transform: uppercase;">
-                            <i class="fas fa-wave-square" style="color: #00f0ff;"></i> Live Waveform
-                        </span>
-                        <span id="audio-db-text" style="font-size: 10px; font-weight: bold; color: #00f0ff;">0 dB</span>
+            <!-- 5. Input Controls Section -->
+            <div class="input-controls-section">
+                <h3 class="input-controls-heading">Input controls</h3>
+
+                <!-- Live Waveform -->
+                <div class="waveform-box">
+                    <div class="waveform-info-row">
+                        <span class="waveform-title"><i class="fa-solid fa-wave-square"></i> Live Waveform</span>
+                        <span id="audio-db-text" class="waveform-db">0 dB</span>
                     </div>
-                    <canvas id="audio-waveform-canvas" width="360" height="30" style="width: 100%; height: 30px; display: block;"></canvas>
-                    <div style="width: 100%; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; margin-top: 4px;">
-                        <div id="audio-vu-meter" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981 60%, #f59e0b 85%, #ef4444 100%); transition: width 0.05s ease-out;"></div>
+                    <canvas id="audio-waveform-canvas" width="320" height="26"></canvas>
+                    <div class="vu-meter-bar">
+                        <div id="audio-vu-meter"></div>
                     </div>
                 </div>
 
                 <!-- Recorded Audio Player Widget -->
-                <div id="sidebar-audio-playback-container" style="margin-bottom: 10px; {% if not audio_filename %}display:none;{% endif %}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                            <i class="fas fa-play-circle" style="color: var(--accent-green);"></i> Recorded Audio
-                        </span>
+                <div id="sidebar-audio-playback-container" style="{% if not audio_filename %}display:none;{% endif %} margin-bottom: 14px;">
+                    <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 4px;">
+                        <i class="fa-solid fa-play"></i> Recorded Audio
                     </div>
-                    <audio controls style="width: 100%; height: 32px; border-radius: 6px; outline: none;" id="sidebar-audio-player">
+                    <audio controls id="sidebar-audio-player" style="width: 100%; height: 32px; border-radius: 6px;">
                         {% if audio_filename %}
                             {% if audio_filename.startswith('http://') or audio_filename.startswith('https://') %}
                             <source src="{{ audio_filename }}" type="audio/wav">
@@ -742,31 +707,27 @@
                     </audio>
                 </div>
 
-                <!-- Live / Loaded Transcription Textarea & Fill Again Button -->
-                <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                            <i class="fas fa-align-left"></i> Dictation Transcript
-                        </span>
-                        <button type="button" id="btn-reextract-side" style="background: #f1f5f9; border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;">
-                            <i class="fas fa-rotate" style="font-size: 10px;"></i> Fill again
+                <!-- Transcript Box + Fill Again -->
+                <div class="transcript-box-wrapper">
+                    <div class="transcript-header-row">
+                        <span class="transcript-label"><i class="fa-solid fa-align-left"></i> Dictation Transcript</span>
+                        <button type="button" id="btn-reextract-side" class="btn-fill-again">
+                            <i class="fa-solid fa-rotate"></i> Fill again
                         </button>
                     </div>
-                    <textarea id="sidebar-transcription-box" rows="3" style="width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px; font-size: 12.5px; line-height: 1.4; color: var(--text-main); font-family: inherit; resize: vertical;" placeholder="Speech dictation text or loaded case notes...">{{ transcription if transcription else "" }}</textarea>
+                    <textarea id="sidebar-transcription-box" rows="3" placeholder="Speech dictation text or loaded case notes...">{{ transcription if transcription else "" }}</textarea>
                 </div>
-            </div>
 
-            <!-- 5. Dictation File Upload -->
-            <div class="sidebar-card" style="font-size: 12px;">
-                <h4 style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
-                    <i class="fas fa-file-audio"></i> Upload Audio File
-                </h4>
-                <form action="/" method="post" enctype="multipart/form-data" id="audio-upload-form">
-                    <input id="file-upload" type="file" name="audio_file" style="font-size: 11px; width: 100%; margin-bottom: 6px;">
-                    <button type="submit" class="btn-secondary-outline" style="width: 100%; font-size: 12px; padding: 6px;">
-                        <i class="fas fa-arrow-up-from-bracket"></i> Process Audio
-                    </button>
-                </form>
+                <!-- Audio Upload -->
+                <div class="audio-upload-wrapper">
+                    <span class="upload-label"><i class="fa-solid fa-file-audio"></i> Upload Audio File</span>
+                    <form action="/" method="post" enctype="multipart/form-data" id="audio-upload-form">
+                        <input id="file-upload" type="file" name="audio_file" class="file-input-clean">
+                        <button type="submit" class="btn-upload-submit">
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Process Audio
+                        </button>
+                    </form>
+                </div>
             </div>
 
         </aside>

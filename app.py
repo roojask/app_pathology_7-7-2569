@@ -503,6 +503,108 @@ def export_history_csv():
     output.headers["Content-type"] = "text/csv; charset=utf-8"
     return output
 
+@app.route("/export_docx", methods=["GET", "POST"])
+def export_docx_report():
+    import docx
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from io import BytesIO
+
+    form_data = request.form if request.method == "POST" else request.args
+    s_no = form_data.get("s0_surgical_no", "").strip() or "Case"
+
+    doc = docx.Document()
+    
+    # Page Margins
+    for sec in doc.sections:
+        sec.top_margin = Inches(0.8)
+        sec.bottom_margin = Inches(0.8)
+        sec.left_margin = Inches(0.9)
+        sec.right_margin = Inches(0.9)
+
+    # Header Title
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    r_sno = title.add_run(f"Surgical Number: S {s_no}\n")
+    r_sno.bold = True
+    r_sno.font.size = Pt(12)
+
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r_title = p_title.add_run("Breast gross 1\nPathology Gross Examination Report")
+    r_title.bold = True
+    r_title.font.size = Pt(14)
+    r_title.font.color.rgb = RGBColor(17, 24, 39)
+
+    doc.add_paragraph("―" * 45)
+
+    # Specimen info
+    p1 = doc.add_paragraph()
+    side = form_data.get("s1_side", "__________")
+    proc = form_data.get("s2_proc", "")
+    other = form_data.get("s2_other_text", "")
+    p1.add_run(f"Received in formalin is a {side} {proc} mastectomy specimen. {other}\n")
+
+    # Dimensions
+    d0 = form_data.get("s3_dims_0", "___")
+    d1 = form_data.get("s3_dims_1", "___")
+    d2 = form_data.get("s3_dims_2", "___")
+    doc.add_paragraph(f"Specimen measuring: {d0} x {d1} x {d2} cm.")
+
+    # Skin and Nipple
+    skin0 = form_data.get("s4_dims_0", "___")
+    skin1 = form_data.get("s4_dims_1", "___")
+    doc.add_paragraph(f"The skin ellipse: {skin0} x {skin1} cm.")
+
+    # Tumor info
+    doc.add_heading("Tumor and Resection Margins", level=2)
+    t_deep = form_data.get("s11_deep", "___")
+    t_sup = form_data.get("s11_superior", "___")
+    t_inf = form_data.get("s11_inferior", "___")
+    t_med = form_data.get("s11_medial", "___")
+    t_lat = form_data.get("s11_lateral", "___")
+    t_skin = form_data.get("s11_skin", "___")
+    
+    table = doc.add_table(rows=3, cols=2)
+    table.rows[0].cells[0].text = f"Deep margin: {t_deep} cm"
+    table.rows[0].cells[1].text = f"Superior margin: {t_sup} cm"
+    table.rows[1].cells[0].text = f"Inferior margin: {t_inf} cm"
+    table.rows[1].cells[1].text = f"Medial margin: {t_med} cm"
+    table.rows[2].cells[0].text = f"Lateral margin: {t_lat} cm"
+    table.rows[2].cells[1].text = f"Skin margin: {t_skin} cm"
+
+    # Representative Sections
+    doc.add_heading("Representative Sections Submitted", level=2)
+    sec_names = [
+        ("Nipple", form_data.get("sec_nipple", "")),
+        ("Mass", form_data.get("sec_mass", "")),
+        ("Old Biopsy / Cavity", form_data.get("sec_old_biopsy", "")),
+        ("Deep Margin", form_data.get("sec_deep_margin", "")),
+        ("Nearest Margin", form_data.get("sec_nearest_margin", "")),
+        ("Axillary Lymph Nodes", form_data.get("sec_axillary", "")),
+    ]
+    for label, val in sec_names:
+        if val:
+            doc.add_paragraph(f"• {label}: {val}")
+
+    # Footer
+    doc.add_paragraph("\n")
+    p_footer = doc.add_paragraph()
+    p_footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    prosecutor = form_data.get("footer_prosecutor", ".................................................")
+    date_val = form_data.get("footer_date", ".................................................")
+    p_footer.add_run(f"Prosecutor: {prosecutor}\nDate: {date_val}\nApproved in conference")
+
+    buf = BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    filename = f"pathology_breast_gross_{s_no}.docx"
+    response = make_response(buf.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return response
+
 @app.route("/export_fhir/<int:history_id>")
 @login_required
 def export_fhir_record(history_id):
