@@ -138,13 +138,39 @@ def process_pdf_15_sections(template_path, output_path, data):
     if data.get("s5_appears_normal"):
         draw_standard_tick_at(page, 248.5, 154.6)
 
-    if data.get("s6_check"):
+    if data.get("s6_check") or data.get("s7_len") or data.get("s7_locs"):
         draw_standard_tick_at(page, 46.4, 175.7)
         if data.get("s7_len"): write_text(page, "cm in length", data["s7_len"], offset_x=15, align_left=True)
+        if data.get("s7_locs"):
+            locs = data["s7_locs"]
+            if isinstance(locs, str): locs = [locs]
+            loc_rect = fitz.Rect(260, 166, 430, 186)
+            for loc in locs:
+                for word in loc.strip().lower().split():
+                    hits = page.search_for(word, clip=loc_rect)
+                    if hits:
+                        rect = hits[0]
+                        shape = page.new_shape()
+                        shape.draw_oval(fitz.Rect(rect.x0 - 2.5, rect.y0 - 1.5, rect.x1 + 2.5, rect.y1 + 1.5))
+                        shape.finish(color=RED, width=1.5)
+                        shape.commit()
 
-    if data.get("s8_check"):
+    if data.get("s8_check") or data.get("s8_dims") or data.get("s8_locs"):
         draw_standard_tick_at(page, 46.4, 197.0)
         if data.get("s8_dims"): write_exact_slot_dims(page, [154.8, 202.8], 199.8, data["s8_dims"])
+        if data.get("s8_locs"):
+            locs = data["s8_locs"]
+            if isinstance(locs, str): locs = [locs]
+            loc_rect = fitz.Rect(260, 188, 420, 208)
+            for loc in locs:
+                for word in loc.strip().lower().split():
+                    hits = page.search_for(word, clip=loc_rect)
+                    if hits:
+                        rect = hits[0]
+                        shape = page.new_shape()
+                        shape.draw_oval(fitz.Rect(rect.x0 - 2.5, rect.y0 - 1.5, rect.x1 + 2.5, rect.y1 + 1.5))
+                        shape.finish(color=RED, width=1.5)
+                        shape.commit()
     
     if data.get("s9_val"):
         vals = data["s9_val"]
@@ -185,18 +211,20 @@ def process_pdf_15_sections(template_path, output_path, data):
     if data.get("s10_5_central"): draw_standard_tick_at(page, 315.6, 361.4)
     
     # Quadrant
-    if data.get("s10_5_quadrant_check"):
+    if data.get("s10_5_quadrant_check") or data.get("s10_5_quadrant_vals"):
         draw_standard_tick_at(page, 110.0, 382.8)
         
         if data.get("s10_5_quadrant_vals"):
-            line_clip = fitz.Rect(120, 370, 300, 395)
-            for q in data["s10_5_quadrant_vals"]:
+            line_clip = fitz.Rect(120, 370, 260, 395)
+            q_list = data["s10_5_quadrant_vals"]
+            if isinstance(q_list, str): q_list = [q_list]
+            for q in q_list:
                 for word in q.split():
                      word_hits = page.search_for(word, clip=line_clip)
                      if word_hits:
                          w = word_hits[0]
                          shape = page.new_shape()
-                         shape.draw_oval(fitz.Rect(w.x0 - 2, w.y0 - 2, w.x1 + 2, w.y1 + 2))
+                         shape.draw_oval(fitz.Rect(w.x0 - 2.5, w.y0 - 1.5, w.x1 + 2.5, w.y1 + 1.5))
                          shape.finish(color=RED, width=1.5)
                          shape.commit()
 

@@ -6,7 +6,11 @@ import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
+
 from configs.config import Config
+
 
 
 def normalize_report_dict(source: Any) -> Dict[str, Any]:
@@ -158,6 +162,36 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
         r.bold = bold
         return r
 
+    # Helper to add circled option as a dark capsule pill (white bold text on black background, matching Image 2)
+    def add_circled_run(para, text, is_selected, size=BODY_SIZE):
+        if is_selected:
+            r = para.add_run(f" {text} ")
+            r.font.name = FONT_NAME
+            r.font.size = size
+            r.bold = True
+            shd = parse_xml(f'<w:shd {nsdecls("w")} w:fill="18181B" w:val="clear"/>')
+            r._r.get_or_add_rPr().append(shd)
+            color = parse_xml(f'<w:color {nsdecls("w")} w:val="FFFFFF"/>')
+            r._r.get_or_add_rPr().append(color)
+            return r
+        else:
+            r = para.add_run(text)
+            r.font.name = FONT_NAME
+            r.font.size = size
+            return r
+
+    # Helper to render parenthesized options separated by " / "
+    def add_choice_group(para, options, selected_list, prefix="( ", suffix=" )"):
+        if prefix:
+            add_run(para, prefix)
+        for i, opt in enumerate(options):
+            if i > 0:
+                add_run(para, " / ")
+            is_sel = any(opt.lower() == s.lower() or opt.lower() in s.lower().split() for s in selected_list)
+            add_circled_run(para, opt, is_sel)
+        if suffix:
+            add_run(para, suffix)
+
     # 0. Header: Surgical Number S.............................................
     s_val = data.get("s0_surgical_no", "").strip()
     for pfx in ["Surgical Number:", "Surgical Number", "S-", "S -", "S ", "s-", "s "]:
@@ -178,17 +212,12 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
 
     # 2. Side and Procedure (Modified)
     side = data.get("s1_side", "").lower().strip()
-    if side == "right":
-        side_str = "( ☑ right / ☐ left )"
-    elif side == "left":
-        side_str = "( ☐ right / ☑ left )"
-    else:
-        side_str = "( right / left )"
     mod_chk = "☑" if data.get("s2_proc") == "modified" else "☐"
 
     p[2].text = ""
     add_run(p[2], "Received in formalin  is  a  ", bold=True)
-    add_run(p[2], f"{side_str}\t{mod_chk}    modified radical mastectomy specimen")
+    add_choice_group(p[2], ["right", "left"], [side] if side else [], prefix="( ", suffix=" )")
+    add_run(p[2], f"\t{mod_chk}    modified radical mastectomy specimen")
 
     # 3. Simple mastectomy and Other text
     simp_chk = "☑" if data.get("s2_proc") == "simple" else "☐"
@@ -246,13 +275,6 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     scar_chk = "☑" if has_scar else "☐"
     s_len = data.get("s7_len", "").strip()
     s_locs = [l.lower() for l in data.get("s7_locs", [])]
-    formatted_sl = []
-    for opt in ["areola", "upper", "lower", "inner", "outer"]:
-        if opt in s_locs:
-            formatted_sl.append(f"☑ {opt}")
-        else:
-            formatted_sl.append(opt)
-    sl_joined = " / ".join(formatted_sl)
 
     p[6].text = ""
     add_run(p[6], f"{scar_chk} shows an old surgical scar ")
@@ -260,20 +282,15 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
         add_run(p[6], f" {s_len} ", bold=True)
     else:
         add_run(p[6], ".................")
-    add_run(p[6], f" cm in length at ( {sl_joined} )  ( quadrant ).")
+    add_run(p[6], " cm in length at ")
+    add_choice_group(p[6], ["areola", "upper", "lower", "inner", "outer"], s_locs, prefix="( ", suffix=" )")
+    add_run(p[6], "  ( quadrant ).")
 
     # 7. Ulceration
     has_ulc = data.get("s8_check") or bool(data.get("s8_dims")) or bool(data.get("s8_locs"))
     ulc_chk = "☑" if has_ulc else "☐"
     u_dims = data.get("s8_dims", [])
     u_locs = [l.lower() for l in data.get("s8_locs", [])]
-    formatted_ul = []
-    for opt in ["areola", "upper", "lower", "inner", "outer"]:
-        if opt in u_locs:
-            formatted_ul.append(f"☑ {opt}")
-        else:
-            formatted_ul.append(opt)
-    ul_joined = " / ".join(formatted_ul)
 
     p[7].text = ""
     add_run(p[7], f"{ulc_chk} shows an ulceration ")
@@ -283,7 +300,9 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
         add_run(p[7], f" {ud0} x {ud1} ", bold=True)
     else:
         add_run(p[7], "................ x ................ ")
-    add_run(p[7], f"cm .   at ( {ul_joined} ) ( quadrant ).")
+    add_run(p[7], "cm .   at ")
+    add_choice_group(p[7], ["areola", "upper", "lower", "inner", "outer"], u_locs, prefix="( ", suffix=" )")
+    add_run(p[7], " ( quadrant ).")
 
     # 8. Nipple
     n_vals = data.get("s9_val", [])
@@ -305,17 +324,11 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
 
     # 9. Grammar / Quantifier
     grammar_val = data.get("s10_grammar", "").strip().lower()
-    formatted_g = []
-    for opt in ["is a", "is an", "are two", "are multiple"]:
-        if opt == grammar_val:
-            formatted_g.append(f"☑ {opt}")
-        else:
-            formatted_g.append(opt)
-    g_joined = " / ".join(formatted_g)
 
     p[9].text = ""
-    add_run(p[9], "There  ( ", bold=True)
-    add_run(p[9], f"{g_joined} ) …………………………………………………………………………………………………")
+    add_run(p[9], "There  ", bold=True)
+    add_choice_group(p[9], ["is a", "is an", "are two", "are multiple"], [grammar_val] if grammar_val else [], prefix="( ", suffix=" )")
+    add_run(p[9], " …………………………………………………………………………………………………")
 
     # 10. Infiltrative Mass
     is_inf = data.get("s10_infiltrative")
@@ -398,19 +411,14 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     # 15. Tumor location quadrant / other
     q_chk = "☑" if (data.get("s10_5_quadrant_check") or bool(data.get("s10_5_quadrant_vals"))) else "☐"
     q_vals = [q.lower() for q in data.get("s10_5_quadrant_vals", [])]
-    formatted_q = []
-    for opt in ["upper", "lower", "inner", "outer"]:
-        if opt in q_vals:
-            formatted_q.append(f"☑ {opt}")
-        else:
-            formatted_q.append(opt)
-    q_joined = " / ".join(formatted_q)
 
     other_chk = "☑" if (data.get("s10_5_other_check") or bool(data.get("s10_5_other"))) else "☐"
     other_txt = data.get("s10_5_other", "").strip()
 
     p[15].text = ""
-    add_run(p[15], f"           {q_chk}   in ( {q_joined} )  quadrant .       {other_chk}    ")
+    add_run(p[15], f"           {q_chk}   in ")
+    add_choice_group(p[15], ["upper", "lower", "inner", "outer"], q_vals, prefix="( ", suffix=" )")
+    add_run(p[15], f"  quadrant .       {other_chk}    ")
     if other_txt:
         add_run(p[15], other_txt, bold=True)
     else:
