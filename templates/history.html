@@ -116,27 +116,25 @@
                 </thead>
                 <tbody>
                     {% for h in histories %}
-                    <tr>
+                    <tr onclick="window.location='{{ url_for('load_history', history_id=h.id) }}';" style="cursor: pointer;" title="คลิกเพื่อเปิดดูประวัติเคสนี้">
                         <td style="color: var(--text-muted); font-weight: 600;">{{ h.id }}</td>
                         <td><strong style="color: var(--text-main); font-size: 14px;">{{ h.surgical_number or "-" }}</strong></td>
                         <td style="color: var(--text-muted);"><i class="fas fa-user-doctor" style="font-size: 11px; margin-right: 4px;"></i> {{ current_user.username }}</td>
                         <td style="color: var(--text-muted);">{{ h.timestamp.strftime('%Y-%m-%d %H:%M:%S') if h.timestamp else "-" }}</td>
-                        <td>
+                        <td onclick="event.stopPropagation();">
                             {% if h.audio_filename %}
-                            <audio controls style="height: 24px; width: 130px; vertical-align: middle;">
-                                {% if h.audio_filename.startswith('http://') or h.audio_filename.startswith('https://') %}
-                                <source src="{{ h.audio_filename }}" type="audio/wav">
-                                {% else %}
-                                <source src="{{ url_for('get_upload', filename=h.audio_filename) }}" type="audio/wav">
-                                {% endif %}
+                            {% set audio_src = h.audio_filename if (h.audio_filename.startswith('http://') or h.audio_filename.startswith('https://')) else url_for('get_upload', filename=h.audio_filename) %}
+                            {% set audio_mime = 'audio/mpeg' if h.audio_filename.lower().endswith('.mp3') else 'audio/wav' %}
+                            <audio controls style="height: 26px; width: 140px; vertical-align: middle;">
+                                <source src="{{ audio_src }}" type="{{ audio_mime }}">
                             </audio>
                             {% else %}
                             <span style="color: #cbd5e1; font-size: 12px;">None</span>
                             {% endif %}
                         </td>
-                        <td style="text-align: right; white-space: nowrap;">
-                            <a href="{{ url_for('load_history', history_id=h.id) }}" class="btn-action-load">
-                                <i class="fas fa-arrow-up"></i> Load & Edit
+                        <td style="text-align: right; white-space: nowrap;" onclick="event.stopPropagation();">
+                            <a href="{{ url_for('load_history', history_id=h.id) }}" class="btn-action-load" style="background-color: #059669; color: #ffffff; border-color: #059669;" title="เปิดดูประวัติในแบบฟอร์ม">
+                                <i class="fa-solid fa-folder-open"></i> เปิดดูประวัติ (View Case)
                             </a>
                             <a href="{{ url_for('export_docx_report', history_id=h.id) }}" class="btn-action-fhir" style="background-color: #2563eb; color: #ffffff;" title="Export Word Document (.docx)">
                                 <i class="fa-solid fa-file-word"></i> DOCX

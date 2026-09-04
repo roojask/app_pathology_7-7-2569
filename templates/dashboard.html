@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -92,7 +92,7 @@
             <table class="recent-table">
                 <tbody>
                     {% for case in recent_cases %}
-                    <tr>
+                    <tr onclick="window.location='{{ url_for('load_history', history_id=case.id) }}';" style="cursor: pointer;" title="คลิกเพื่อเปิดดูประวัติเคสนี้">
                         <td style="width: 35%;">
                             <span class="case-id-badge">{{ case.surgical_number or "Untitled case" }}</span>
                         </td>
@@ -102,9 +102,9 @@
                         <td style="width: 25%; color: var(--text-muted);">
                             {{ case.timestamp.strftime('%Y-%m-%d %H:%M') if case.timestamp else "Recently" }}
                         </td>
-                        <td style="width: 15%; text-align: right;">
-                            <a href="{{ url_for('load_history', history_id=case.id) }}" style="color: var(--text-main); font-weight: 600; text-decoration: none; font-size: 12px;">
-                                Open &rarr;
+                        <td style="width: 15%; text-align: right;" onclick="event.stopPropagation();">
+                            <a href="{{ url_for('load_history', history_id=case.id) }}" style="color: #059669; font-weight: 700; text-decoration: none; font-size: 13px;">
+                                เปิดดูประวัติ &rarr;
                             </a>
                         </td>
                     </tr>

@@ -735,8 +735,8 @@ body {
 .camera-feed-box {
     position: relative;
     width: 100%;
-    height: 360px;
-    min-height: 360px;
+    height: 230px;
+    min-height: 230px;
     flex-shrink: 0;
     overflow: hidden;
     background: #000000;
@@ -1039,62 +1039,103 @@ body {
     transition: width 0.05s ease-out;
 }
 
-.transcript-box-wrapper {
-    margin-bottom: 4px;
-}
-
-.transcript-header-row {
+/* Sidebar Audio Playback Card (Matching Reference Mockup) */
+.sidebar-audio-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 12px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
-.transcript-label {
+.btn-audio-clear {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    border-radius: 4px;
+    background: #475569;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 11px;
-    font-weight: 600;
-    color: #6b7280;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    transition: background 0.15s ease;
+}
+
+.btn-audio-clear:hover {
+    background: #1e293b;
+}
+
+.fill-again-row {
+    margin-bottom: 8px;
 }
 
 .btn-fill-again {
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    border-radius: 4px;
-    padding: 3px 8px;
-    font-size: 11px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 5px 14px;
+    font-size: 12px;
     font-weight: 600;
+    color: #334155;
     cursor: pointer;
-    color: #374151;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    transition: all 0.15s;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    transition: all 0.15s ease;
 }
 
 .btn-fill-again:hover {
-    background: #e5e7eb;
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
 }
 
-#sidebar-transcription-box {
+.transcript-box-wrapper {
+    margin-bottom: 12px;
+}
+
+.sidebar-transcript-area {
     width: 100%;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 8px;
+    box-sizing: border-box;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
     font-size: 12.5px;
-    line-height: 1.4;
-    color: #111827;
+    line-height: 1.5;
+    color: #334155;
     font-family: inherit;
     resize: vertical;
     outline: none;
-    box-sizing: border-box;
+    min-height: 90px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
 }
 
-#sidebar-transcription-box:focus {
-    border-color: #9ca3af;
+.sidebar-transcript-area:focus {
+    border-color: #94a3b8;
+    background: #ffffff;
+}
+
+.case-loaded-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+    font-size: 12px;
+    font-weight: 700;
+    margin-left: 6px;
 }
 
 .audio-upload-wrapper {

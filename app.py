@@ -570,6 +570,125 @@ def export_fhir_record(history_id):
     response.headers["Content-type"] = "application/json; charset=utf-8"
     return response
 
+def synthesize_transcription_from_data(data: dict) -> str:
+    """
+    Synthesizes fluent clinical pathology dictation text from structured form data
+    for historical cases that did not store raw speech transcripts.
+    """
+    if not data:
+        return ""
+    
+    parts = []
+    # 1. Specimen & Procedure
+    side = data.get("s1_side", "").strip()
+    proc = data.get("s2_proc", "").strip()
+    if proc == "modified":
+        proc_desc = "modified radical mastectomy specimen"
+    elif proc == "simple":
+        proc_desc = "simple mastectomy specimen"
+    else:
+        proc_desc = "mastectomy specimen"
+        
+    specimen_lead = "Received in formalin is a"
+    if side:
+        specimen_lead += f" {side}"
+    specimen_lead += f" {proc_desc}"
+    
+    s3_dims = data.get("s3_dims") or []
+    valid_s3 = [str(d) for d in s3_dims if str(d).strip()]
+    if valid_s3:
+        specimen_lead += f" measuring {' x '.join(valid_s3)} cm."
+    else:
+        specimen_lead += "."
+        
+    s4_dims = data.get("s4_dims") or []
+    valid_s4 = [str(d) for d in s4_dims if str(d).strip()]
+    if data.get("s4_check") or valid_s4:
+        if valid_s4:
+            specimen_lead += f" with axillary content measuring {' x '.join(valid_s4)} cm."
+        else:
+            specimen_lead += " with axillary content."
+    parts.append(specimen_lead)
+    
+    # 2. Skin ellipse and scar
+    s5_dims = data.get("s5_dims") or []
+    valid_s5 = [str(d) for d in s5_dims if str(d).strip()]
+    skin_details = []
+    if valid_s5:
+        skin_details.append(f"The skin ellipse measures {' x '.join(valid_s5)} cm")
+    if data.get("s5_appears_normal"):
+        skin_details.append("appears normal")
+    if skin_details:
+        parts.append(", ".join(skin_details) + ".")
+        
+    if data.get("s6_check") or data.get("s7_len") or data.get("s7_locs"):
+        scar_text = "Shows an old surgical scar"
+        if data.get("s7_len"):
+            scar_text += f" {data.get('s7_len')} cm in length"
+        locs = data.get("s7_locs") or []
+        if locs:
+            scar_text += f" at ({', '.join(locs)}) quadrant"
+        parts.append(scar_text + ".")
+        
+    if data.get("s8_check") or data.get("s8_dims") or data.get("s8_locs"):
+        s8_dims = data.get("s8_dims") or []
+        valid_s8 = [str(d) for d in s8_dims if str(d).strip()]
+        ulc_text = "Shows an ulceration"
+        if valid_s8:
+            ulc_text += f" measuring {' x '.join(valid_s8)} cm"
+        s8_locs = data.get("s8_locs") or []
+        if s8_locs:
+            ulc_text += f" at ({', '.join(s8_locs)}) quadrant"
+        parts.append(ulc_text + ".")
+        
+    if data.get("s9_val"):
+        parts.append(f"The nipple {data.get('s9_val')}.")
+        
+    # 3. Tumor / Mass
+    grammar = data.get("s10_grammar", "is a")
+    masses = []
+    if data.get("s10_infiltrative") or data.get("s10_inf_dims"):
+        inf_dims = [str(d) for d in (data.get("s10_inf_dims") or []) if str(d).strip()]
+        d_str = f" measuring {' x '.join(inf_dims)} cm" if inf_dims else ""
+        masses.append(f"infiltrative firm yellow white mass{d_str}")
+        
+    if data.get("s10_well") or data.get("s10_well_dims"):
+        well_dims = [str(d) for d in (data.get("s10_well_dims") or []) if str(d).strip()]
+        d_str = f" measuring {' x '.join(well_dims)} cm" if well_dims else ""
+        masses.append(f"well-defined firm white mass with slit like appearance{d_str}")
+        
+    if data.get("s10_prev1") or data.get("s10_prev1_dims"):
+        p1_dims = [str(d) for d in (data.get("s10_prev1_dims") or []) if str(d).strip()]
+        d_str = f" measuring {' x '.join(p1_dims)} cm" if p1_dims else ""
+        masses.append(f"previous surgical cavity with adjacent fibrous tissue{d_str}")
+        
+    quad_vals = data.get("s10_5_quadrant_vals") or []
+    loc_clause = f" located at ({' '.join(quad_vals)}) quadrant" if quad_vals else ""
+    
+    if masses:
+        parts.append(f"There {grammar} {', and '.join(masses)}{loc_clause}.")
+        
+    # 4. Margins
+    margin_items = []
+    for m_key, m_name in [("s11_deep", "deep"), ("s11_superior", "superior"), ("s11_inferior", "inferior"),
+                          ("s11_medial", "medial"), ("s11_lateral", "lateral"), ("s11_skin", "skin")]:
+        val = data.get(m_key)
+        if val:
+            margin_items.append(f"{m_name} margin is {val} cm")
+    if margin_items:
+        parts.append("Resection margins: " + ", ".join(margin_items) + ".")
+        
+    # 5. Lymph nodes
+    if data.get("s14_check") or data.get("s14_num") or data.get("s14_min") or data.get("s14_max"):
+        ln_text = "Axillary lymph nodes identified"
+        if data.get("s14_num"):
+            ln_text += f", total {data.get('s14_num')} nodes found"
+        if data.get("s14_min") or data.get("s14_max"):
+            ln_text += f" ranging from {data.get('s14_min', '')} to {data.get('s14_max', '')} cm"
+        parts.append(ln_text + ".")
+        
+    return " ".join(parts)
+
 @app.route("/history/load/<int:history_id>")
 @login_required
 def load_history(history_id):
@@ -587,17 +706,57 @@ def load_history(history_id):
         return redirect(url_for('history'))
         
     flags = generate_confidence_flags(data)
-    transcription = data.get("transcription") or data.get("transcription_text") or ""
-    audio_fn = history_record.audio_filename or data.get("audio_filename") or ""
     
+    # Check or synthesize transcription
+    transcription = data.get("transcription") or data.get("transcription_text") or ""
+    if not transcription or not transcription.strip():
+        transcription = synthesize_transcription_from_data(data)
+        # Persist synthesized transcription into database for fast subsequent loads
+        try:
+            data["transcription"] = transcription
+            history_record.form_data = json.dumps(data)
+            db.session.commit()
+        except Exception as update_err:
+            db.session.rollback()
+            print(f"[load_history update_err] {update_err}")
+
+    audio_fn = history_record.audio_filename or data.get("audio_filename") or ""
+
+    # Ensure PDF and DOCX files are present on disk for immediate viewing/downloading
+    pdf_filename = f"case_{history_id}.pdf"
+    pdf_path = Config.OUTPUT_DIR / pdf_filename
+    if not pdf_path.exists() and Config.PDF_TEMPLATE_PATH.exists():
+        try:
+            process_pdf_15_sections(Config.PDF_TEMPLATE_PATH, pdf_path, data)
+        except Exception as pe:
+            print(f"[load_history PDF Error] {pe}")
+            pdf_filename = None
+
+    docx_filename = f"case_{history_id}.docx"
+    docx_path = Config.OUTPUT_DIR / docx_filename
+    if not docx_path.exists():
+        try:
+            from src.export.docx_exporter import generate_docx_document
+            docx_buf = generate_docx_document(data)
+            with open(docx_path, "wb") as f:
+                f.write(docx_buf.getvalue())
+        except Exception as de:
+            print(f"[load_history DOCX Error] {de}")
+            docx_filename = None
+            
     flash("History loaded successfully.", "success")
     return render_template(
         "index.html",
         data=data,
         flags=flags,
         transcription=transcription,
-        audio_filename=audio_fn
+        audio_filename=audio_fn,
+        pdf_filename=pdf_filename,
+        docx_filename=docx_filename,
+        loaded_history_id=history_id,
+        loaded_surgical_no=history_record.surgical_number
     )
+
 
 if __name__ == "__main__":
     if Config.USE_HTTPS and Config.SSL_CERT_PATH.exists() and Config.SSL_KEY_PATH.exists():

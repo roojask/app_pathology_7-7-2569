@@ -21,6 +21,11 @@
                 <a href="{{ url_for('dashboard') }}" class="nav-pill">Dashboard</a>
                 <a href="{{ url_for('index') }}" class="nav-pill active">Form</a>
                 <a href="{{ url_for('history') }}" class="nav-pill">History</a>
+                {% if loaded_history_id %}
+                <span class="case-loaded-pill" title="กำลังเปิดดูประวัติเคสนี้">
+                    <i class="fa-solid fa-folder-open"></i> {{ loaded_surgical_no or ("Case #" ~ loaded_history_id) }}
+                </span>
+                {% endif %}
             </nav>
         </div>
 
@@ -626,7 +631,7 @@
             </div>
         </div> <!-- End of .document-canvas -->
 
-        <!-- Right: Modern Workstation Sidebar (Matching Mockup) -->
+        <!-- Right: Modern Workstation Sidebar (Matching User Reference) -->
         <aside class="workstation-sidebar">
             
             <!-- 1. Dictating Status Header -->
@@ -643,16 +648,42 @@
             <!-- 2. Dual Top Buttons: [ ● Record ] & [ 📷 Photo ] -->
             <div class="sidebar-top-btn-row">
                 <button type="button" class="btn-sidebar-pill" id="btn-mic-toggle">
-                    <span class="btn-dot-red"></span> Record
+                    <span class="btn-dot-red"></span> <span id="btn-mic-text">Record</span>
                 </button>
                 <button type="button" class="btn-sidebar-pill" id="btn-camera-toggle">
                     <i class="fa-solid fa-camera"></i> Photo
                 </button>
             </div>
 
-            <!-- 3. Clean Camera Card with Gesture Grid -->
-            <div class="camera-card-clean">
-                <div class="camera-feed-box" id="camera-feed-container">
+            <!-- 3. Recorded Audio Player Widget (Right below buttons, matching user reference) -->
+            <div id="sidebar-audio-playback-container" class="sidebar-audio-box" style="{% if not audio_filename %}display:none;{% else %}display:flex;{% endif %}">
+                <audio controls id="sidebar-audio-player" preload="metadata" style="flex: 1; height: 36px; border-radius: 6px; outline: none;">
+                    {% if audio_filename %}
+                        {% set audio_src = audio_filename if (audio_filename.startswith('http://') or audio_filename.startswith('https://')) else url_for('get_upload', filename=audio_filename) %}
+                        {% set audio_mime = 'audio/mpeg' if audio_filename.lower().endswith('.mp3') else 'audio/wav' %}
+                        <source src="{{ audio_src }}" type="{{ audio_mime }}">
+                    {% endif %}
+                </audio>
+                <button type="button" id="btn-clear-audio" onclick="clearSidebarAudio();" title="Remove Audio" class="btn-audio-clear">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- 4. Fill Again Button -->
+            <div class="fill-again-row" style="margin-bottom: 8px;">
+                <button type="button" id="btn-reextract-side" class="btn-fill-again">
+                    Fill again
+                </button>
+            </div>
+
+            <!-- 5. Dictation Transcript Box -->
+            <div class="transcript-box-wrapper" style="margin-bottom: 14px;">
+                <textarea id="sidebar-transcription-box" rows="5" class="sidebar-transcript-area" placeholder="Speech dictation text or loaded case notes...">{{ transcription if transcription else "" }}</textarea>
+            </div>
+
+            <!-- 6. Live Camera Feed (Cleanly placed at bottom of sidebar, matching user reference) -->
+            <div class="camera-card-clean" style="margin-top: 4px;">
+                <div class="camera-feed-box" id="camera-feed-container" style="height: 230px; min-height: 230px;">
                     <!-- Native Mirrored Video Stream -->
                     <video class="input_video" autoplay playsinline muted></video>
                     <!-- Transparent Canvas for hand landmarks -->
@@ -691,70 +722,23 @@
                 </div>
             </div>
 
-            <!-- 4. Action Buttons directly under camera: [ ✓ Save ] & [ 📥 Export DOCX ] -->
-            <div class="sidebar-action-btn-row">
-                <button type="button" class="btn-sidebar-save" id="btn-sidebar-save" onclick="document.getElementById('btn-save-submit').click();">
-                    <i class="fa-solid fa-check"></i> Save
-                </button>
-                <button type="button" class="btn-sidebar-export" id="btn-sidebar-export" onclick="window.exportDocxDirectly();">
-                    <i class="fa-solid fa-arrow-down-to-bracket"></i> Export DOCX
-                </button>
-            </div>
-
-            <!-- 5. Input Controls Section -->
-            <div class="input-controls-section">
-                <h3 class="input-controls-heading">Input controls</h3>
-
-                <!-- Live Waveform -->
-                <div class="waveform-box">
-                    <div class="waveform-info-row">
-                        <span class="waveform-title"><i class="fa-solid fa-wave-square"></i> Live Waveform</span>
-                        <span id="audio-db-text" class="waveform-db">0 dB</span>
-                    </div>
-                    <canvas id="audio-waveform-canvas" width="320" height="26"></canvas>
-                    <div class="vu-meter-bar">
-                        <div id="audio-vu-meter"></div>
-                    </div>
+            <!-- Active Recording Waveform Indicator (shown only while actively recording) -->
+            <div class="waveform-box" id="active-recording-waveform" style="display: none; margin-top: 8px;">
+                <div class="waveform-info-row">
+                    <span class="waveform-title"><i class="fa-solid fa-wave-square"></i> Live Waveform</span>
+                    <span id="audio-db-text" class="waveform-db">0 dB</span>
                 </div>
-
-                <!-- Recorded Audio Player Widget -->
-                <div id="sidebar-audio-playback-container" style="{% if not audio_filename %}display:none;{% endif %} margin-bottom: 14px;">
-                    <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 4px;">
-                        <i class="fa-solid fa-play"></i> Recorded Audio
-                    </div>
-                    <audio controls id="sidebar-audio-player" style="width: 100%; height: 32px; border-radius: 6px;">
-                        {% if audio_filename %}
-                            {% if audio_filename.startswith('http://') or audio_filename.startswith('https://') %}
-                            <source src="{{ audio_filename }}" type="audio/wav">
-                            {% else %}
-                            <source src="{{ url_for('get_upload', filename=audio_filename) }}" type="audio/wav">
-                            {% endif %}
-                        {% endif %}
-                    </audio>
-                </div>
-
-                <!-- Transcript Box + Fill Again -->
-                <div class="transcript-box-wrapper">
-                    <div class="transcript-header-row">
-                        <span class="transcript-label"><i class="fa-solid fa-align-left"></i> Dictation Transcript</span>
-                        <button type="button" id="btn-reextract-side" class="btn-fill-again">
-                            <i class="fa-solid fa-rotate"></i> Fill again
-                        </button>
-                    </div>
-                    <textarea id="sidebar-transcription-box" rows="3" placeholder="Speech dictation text or loaded case notes...">{{ transcription if transcription else "" }}</textarea>
-                </div>
-
-                <!-- Audio Upload -->
-                <div class="audio-upload-wrapper">
-                    <span class="upload-label"><i class="fa-solid fa-file-audio"></i> Upload Audio File</span>
-                    <form action="/" method="post" enctype="multipart/form-data" id="audio-upload-form">
-                        <input id="file-upload" type="file" name="audio_file" class="file-input-clean">
-                        <button type="submit" class="btn-upload-submit">
-                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Process Audio
-                        </button>
-                    </form>
+                <canvas id="audio-waveform-canvas" width="320" height="26"></canvas>
+                <div class="vu-meter-bar">
+                    <div id="audio-vu-meter"></div>
                 </div>
             </div>
+
+            <!-- Hidden audio upload form for backend processing -->
+            <form action="/" method="post" enctype="multipart/form-data" id="audio-upload-form" style="display: none;">
+                <input id="file-upload" type="file" name="audio_file" class="file-input-clean">
+                <button type="submit" class="btn-upload-submit">Process</button>
+            </form>
 
         </aside>
     </div>
@@ -783,6 +767,25 @@
                 window.setPaperZoom(currentDocZoom + delta);
             };
         })();
+
+        // Clear and close recorded audio player
+        window.clearSidebarAudio = function() {
+            const audioContainer = document.getElementById('sidebar-audio-playback-container');
+            const audioPlayer = document.getElementById('sidebar-audio-player');
+            const hiddenAudio = document.getElementById('hidden-audio-filename');
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.removeAttribute('src');
+                audioPlayer.innerHTML = '';
+                audioPlayer.load();
+            }
+            if (audioContainer) {
+                audioContainer.style.display = 'none';
+            }
+            if (hiddenAudio) {
+                hiddenAudio.value = '';
+            }
+        };
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>

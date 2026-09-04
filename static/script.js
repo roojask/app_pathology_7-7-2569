@@ -1038,6 +1038,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 startCameraDirectly();
             }
         });
+
+        // Automatically start camera if user already granted permission
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'camera' }).then(function(res) {
+                if (res.state === 'granted' && !isCameraRunning) {
+                    startCameraDirectly();
+                }
+            }).catch(function() {});
+        }
     }
 
     const btnCameraFlip = document.getElementById('btn-camera-flip');
