@@ -525,10 +525,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 break;
             case 'SCROLL_UP':
-                document.querySelector('.document-pane').scrollBy({ top: -200, behavior: 'smooth' });
+                const canvasUp = document.querySelector('.document-canvas') || document.querySelector('.document-pane');
+                if (canvasUp) canvasUp.scrollBy({ top: -250, behavior: 'smooth' });
                 break;
             case 'SCROLL_DOWN':
-                document.querySelector('.document-pane').scrollBy({ top: 200, behavior: 'smooth' });
+                const canvasDown = document.querySelector('.document-canvas') || document.querySelector('.document-pane');
+                if (canvasDown) canvasDown.scrollBy({ top: 250, behavior: 'smooth' });
                 break;
             case 'PREV':
                 moveFocus(-1);
@@ -1797,6 +1799,38 @@ document.addEventListener('DOMContentLoaded', function () {
     const formElement = document.querySelector('.patho-form');
     if (formElement) {
         formElement.addEventListener('submit', () => clearLocalDraft());
+    }
+
+    // --- Interactive Paper Zoom Controller (- 100% +) ---
+    let currentDocZoom = 1.0;
+    const paperSheetElement = document.querySelector('.paper-sheet');
+    const zoomTextElement = document.getElementById('zoom-level-text');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+
+    function setPaperZoom(newZoom) {
+        currentDocZoom = Math.min(Math.max(newZoom, 0.55), 1.5);
+        if (paperSheetElement) {
+            paperSheetElement.style.transform = `scale(${currentDocZoom})`;
+            paperSheetElement.style.transformOrigin = 'top center';
+        }
+        if (zoomTextElement) {
+            zoomTextElement.textContent = `${Math.round(currentDocZoom * 100)}%`;
+        }
+    }
+
+    if (btnZoomIn) {
+        btnZoomIn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setPaperZoom(currentDocZoom + 0.1);
+        });
+    }
+
+    if (btnZoomOut) {
+        btnZoomOut.addEventListener('click', (e) => {
+            e.preventDefault();
+            setPaperZoom(currentDocZoom - 0.1);
+        });
     }
 
     // Restore draft on load

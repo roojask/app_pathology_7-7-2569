@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap');
 
 :root {
     --bg-main: #f8fafc;
@@ -416,11 +416,15 @@ body {
 
 .document-canvas {
     flex: 1;
+    height: 100%;
     overflow-y: auto;
-    padding: 32px;
+    overflow-x: auto;
+    padding: 36px 20px 80px 20px;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     position: relative;
+    scroll-behavior: smooth;
 }
 
 .paper-sheet {
@@ -435,6 +439,53 @@ body {
     color: #111;
     position: relative;
     line-height: 1.7;
+    transform-origin: top center;
+    transition: transform 0.15s ease-out;
+    margin-bottom: 40px;
+}
+
+/* Floating Zoom Controller (- 100% +) */
+.zoom-floating-control {
+    position: fixed;
+    bottom: 24px;
+    right: 470px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    border-radius: var(--radius-pill);
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 99;
+    user-select: none;
+}
+
+.zoom-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+
+.zoom-btn:hover {
+    background: #f1f5f9;
+}
+
+.zoom-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-main);
+    min-width: 44px;
+    text-align: center;
 }
 
 .doc-header-top {
