@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,7 +10,11 @@
 <body style="background-color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh;">
 
     <div class="auth-card">
+        <div class="auth-icon-badge">
+            <i class="fa-solid fa-user-plus"></i>
+        </div>
         <h1 class="auth-title">Create Account</h1>
+        <p class="auth-subtitle">Register for Pathology Gross Reporting System</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -24,32 +28,45 @@
 
         <form method="POST" action="{{ url_for('register') }}">
             <div class="auth-field">
-                <label for="name">Full Name (Doctor / Resident)</label>
+                <label for="name"><i class="fa-solid fa-id-card" style="color: #64748b;"></i> Full Name (Doctor / Resident)</label>
                 <input type="text" id="name" name="name" required placeholder="Dr. Somsak ...">
             </div>
 
             <div class="auth-field">
-                <label for="username">Username</label>
+                <label for="username"><i class="fa-regular fa-user" style="color: #64748b;"></i> Username</label>
                 <input type="text" id="username" name="username" required placeholder="doctor1">
             </div>
 
             <div class="auth-field">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required placeholder="doctor@hospital.org">
+                <label for="email"><i class="fa-regular fa-envelope" style="color: #64748b;"></i> Email</label>
+                <input type="email" id="email" name="email" required placeholder="doctor@kku.ac.th">
             </div>
 
             <div class="auth-field">
-                <label for="password">Password</label>
+                <label for="password"><i class="fa-solid fa-lock" style="color: #64748b;"></i> Password</label>
                 <input type="password" id="password" name="password" required placeholder="Create a secure password">
             </div>
 
-            <button type="submit" class="btn-primary-dark" style="margin-top: 10px;">
-                Register Account
+            <button type="submit" class="btn-primary-dark">
+                <i class="fa-solid fa-user-check"></i> Register Account
             </button>
         </form>
 
-        <div style="margin-top: 16px; text-align: center; font-size: 13px;">
-            <a href="{{ url_for('login') }}" style="color: var(--text-main); font-weight: 600; text-decoration: none;">Already have an account? Sign in</a>
+        <div style="margin-top: 18px; text-align: center; font-size: 13px;">
+            <a href="{{ url_for('login') }}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Already have an account? Sign in</a>
+        </div>
+
+        <div class="auth-footer-logos">
+            <div class="auth-institutions-label">Khon Kaen University</div>
+            <div class="auth-logos-grid">
+                <div class="logo-item" title="Department of Pathology, Faculty of Medicine, Khon Kaen University">
+                    <img src="{{ url_for('static', filename='images/logo_med_patho_kku.png') }}" alt="Department of Pathology, Faculty of Medicine, Khon Kaen University">
+                </div>
+                <div class="logo-divider"></div>
+                <div class="logo-item" title="College of Computing, Khon Kaen University">
+                    <img src="{{ url_for('static', filename='images/logo_cp_kku.png') }}" alt="College of Computing, Khon Kaen University">
+                </div>
+            </div>
         </div>
     </div>
 

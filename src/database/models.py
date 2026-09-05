@@ -42,7 +42,52 @@ class FormHistory(db.Model):
     surgical_number = db.Column(db.String(100), nullable=True)
     form_data = db.Column(db.Text, nullable=False) # Store JSON string of data dict
     audio_filename = db.Column(db.String(200), nullable=True) # Unique audio filename
+    photo_data = db.Column(db.Text, nullable=True) # Base64 JPEG stored directly in DB
     timestamp = db.Column(db.DateTime, default=get_thai_time)
+
+    @property
+    def latest_revision_number(self):
+        if self.revisions:
+            return self.revisions[-1].revision_number
+        return 1
+
+    @property
+    def has_photo(self):
+        if self.photo_data and len(self.photo_data.strip()) > 20:
+            return True
+        try:
+            import json
+            d = json.loads(self.form_data)
+            return bool(d.get("photo_data"))
+        except Exception:
+            return False
+
+    @property
+    def photo_url(self):
+        if self.has_photo:
+            return f"/api/case/{self.id}/photo"
+        return None
+
+
+class CaseRevision(db.Model):
+    __tablename__ = 'case_revision'
+    id = db.Column(db.Integer, primary_key=True)
+    history_id = db.Column(db.Integer, db.ForeignKey('form_history.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    revision_number = db.Column(db.Integer, default=1)
+    action = db.Column(db.String(50), default="update") # 'create', 'update'
+    changes_summary = db.Column(db.Text, nullable=True) # JSON list of changed fields
+    full_snapshot = db.Column(db.Text, nullable=True) # JSON snapshot of form_data
+    comment = db.Column(db.String(255), nullable=True)
+    timestamp = db.Column(db.DateTime, default=get_thai_time)
+
+    case = db.relationship('FormHistory', backref=db.backref('revisions', lazy=True, order_by='CaseRevision.revision_number.asc()'))
+    author = db.relationship('User', backref=db.backref('case_revisions', lazy=True))
+
+    @property
+    def revision_label(self):
+        return f"v{self.revision_number}"
+
 
 
 class AudioTask(db.Model):

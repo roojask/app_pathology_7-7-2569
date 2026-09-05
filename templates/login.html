@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,51 +7,60 @@
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body style="background-color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+<body style="background-color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px 16px; box-sizing: border-box;">
 
     <div class="auth-card">
-        <h1 class="auth-title">Gross reporting</h1>
+        <div class="auth-icon-badge">
+            <i class="fa-solid fa-microscope"></i>
+        </div>
+        <h1 class="auth-title">Gross Reporting</h1>
+        <p class="auth-subtitle">AI-Assisted Pathology Documentation System</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
+        {% set shown = [] %}
         {% for category, message in messages %}
+        {% if message not in shown and "History" not in message %}
+        {% set _ = shown.append(message) %}
         <div style="padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; font-size: 13px; background-color: {% if category == 'success' %}#dcfce7; color: #15803d;{% elif category == 'danger' %}#fee2e2; color: #b91c1c;{% else %}#e0f2fe; color: #0369a1;{% endif %}">
             {{ message }}
         </div>
+        {% endif %}
         {% endfor %}
         {% endif %}
         {% endwith %}
 
         <form method="POST" action="{{ url_for('login') }}">
             <div class="auth-field">
-                <label for="username">Username</label>
+                <label for="username"><i class="fa-regular fa-user" style="color: #64748b;"></i> Username</label>
                 <input type="text" id="username" name="username" required autofocus placeholder="Enter your username">
             </div>
 
             <div class="auth-field">
-                <label for="password">Password</label>
+                <label for="password"><i class="fa-solid fa-lock" style="color: #64748b;"></i> Password</label>
                 <input type="password" id="password" name="password" required placeholder="Enter your password">
             </div>
 
-            <button type="submit" class="btn-primary-dark" style="margin-top: 10px;">
-                Sign in
+            <button type="submit" class="btn-primary-dark">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in
             </button>
         </form>
 
-        <div style="margin-top: 16px; display: flex; justify-content: space-between; font-size: 12px;">
-            <a href="{{ url_for('register') }}" style="color: var(--text-muted); text-decoration: none;">Create account</a>
-            <a href="{{ url_for('forgot_password') }}" style="color: var(--text-muted); text-decoration: none;">Forgot password?</a>
+        <div style="margin-top: 18px; display: flex; justify-content: space-between; font-size: 12.5px;">
+            <a href="{{ url_for('register') }}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Create account</a>
+            <a href="{{ url_for('forgot_password') }}" style="color: #64748b; text-decoration: none;">Forgot password?</a>
         </div>
 
         <div class="auth-footer-logos">
-            <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 11px; font-weight: 600;">
-                <i class="fas fa-microscope" style="font-size: 18px; color: #64748b;"></i>
-                <span>Pathology Clinical Lab</span>
-            </div>
-            <div style="width: 1px; height: 16px; background: #cbd5e1;"></div>
-            <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 11px; font-weight: 600;">
-                <i class="fas fa-brain" style="color: var(--accent-blue);"></i>
-                <span>PathoVoice AI Core</span>
+            <div class="auth-institutions-label">Khon Kaen University</div>
+            <div class="auth-logos-grid">
+                <div class="logo-item" title="Department of Pathology, Faculty of Medicine, Khon Kaen University">
+                    <img src="{{ url_for('static', filename='images/logo_med_patho_kku.png') }}" alt="Department of Pathology, Faculty of Medicine, Khon Kaen University">
+                </div>
+                <div class="logo-divider"></div>
+                <div class="logo-item" title="College of Computing, Khon Kaen University">
+                    <img src="{{ url_for('static', filename='images/logo_cp_kku.png') }}" alt="College of Computing, Khon Kaen University">
+                </div>
             </div>
         </div>
     </div>

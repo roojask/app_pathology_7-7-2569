@@ -3,15 +3,16 @@ import json
 import uuid
 import datetime
 import ipaddress
-from flask import Flask, render_template, request, send_from_directory, redirect, url_for, flash, make_response
+from flask import Flask, render_template, request, send_from_directory, redirect, url_for, flash, make_response, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 # --- Modular Imports ---
 from configs.config import Config
-from src.database.models import db, User, FormHistory, get_thai_time
+from src.database.models import db, User, FormHistory, CaseRevision, get_thai_time
 from src.stt.whisper_model import transcribe_audio
 from src.nlp.extractor import extract_data_15_sections, generate_confidence_flags
 from src.pdf.generator import process_pdf_15_sections
+from src.utils.diff_tracker import calculate_form_diff
 
 app = Flask(__name__)
 
@@ -124,6 +125,12 @@ def load_user(user_id):
 
 with app.app_context():
     db.create_all()
+    try:
+        from sqlalchemy import text
+        db.session.execute(text("ALTER TABLE form_history ADD COLUMN IF NOT EXISTS photo_data TEXT;"))
+        db.session.commit()
+    except Exception as _mig_err:
+        db.session.rollback()
 
 # ==========================================
 # --- Routes ---
@@ -134,6 +141,7 @@ def index():
     if request.method == "POST":
         transcription = None
         audio_fn = request.form.get('audio_filename')
+        photo_data = request.form.get('photo_data') or ""
         
         if request.form.get('transcription_text'):
             transcription = request.form.get('transcription_text')
@@ -148,8 +156,6 @@ def index():
             audio_fn = filename
             transcription = transcribe_audio(audio_path)
 
-
-
             # Upload to Supabase Storage if configured
             if Config.SUPABASE_URL and Config.SUPABASE_KEY:
                 from src.storage.supabase_client import upload_audio_to_supabase
@@ -158,8 +164,6 @@ def index():
                     print(f"[App] Audio uploaded to Supabase Storage: {public_url}")
                     audio_fn = public_url
 
-
-            
             # Text Normalization is already handled inside extract_data_15_sections,
             # but for display purposes we might want to normalize it here too.
             from src.nlp.normalizer import normalize_text
@@ -171,9 +175,10 @@ def index():
              data = extract_data_15_sections(transcription)
              flags = generate_confidence_flags(data) 
         
-        return render_template('index.html', transcription=transcription, data=data, flags=flags, audio_filename=audio_fn)
+        return render_template('index.html', transcription=transcription, data=data, flags=flags, audio_filename=audio_fn, photo_data=photo_data, is_new_case=False)
 
-    return render_template("index.html")
+    is_new = request.args.get("new") in ["1", "true", "True"] or request.args.get("new_case") in ["1", "true", "True"]
+    return render_template("index.html", is_new_case=is_new, photo_data="")
 
 @app.route("/generate", methods=["GET", "POST"])
 def generate_pdf():
@@ -271,34 +276,152 @@ def generate_pdf():
 
     flags = generate_confidence_flags(data)
     
-    # Always record form history to PostgreSQL database
+    # Always record form history and revision audit trail to PostgreSQL database
+    diff_list = []
+    current_revision = 1
+    loaded_hist_id = form_data.get("loaded_history_id")
+    history_record = None
+
     try:
         user_id = current_user.id if (hasattr(current_user, 'is_authenticated') and current_user.is_authenticated) else 1
         s_no = data.get("s0_surgical_no", "Unknown")
         audio_fn = form_data.get("audio_filename")
+        photo_raw = form_data.get("photo_data") or ""
+        photo_cleared = form_data.get("photo_cleared") in ["true", "1", "True"]
+
+        if photo_cleared:
+            photo_raw = ""
+            if "photo_data" in data:
+                del data["photo_data"]
+        elif photo_raw:
+            data["photo_data"] = photo_raw
+
         # Save transcription text inside data JSON for permanent recall
         data["transcription"] = form_data.get("transcription") or form_data.get("transcription_text") or ""
         data["audio_filename"] = audio_fn
-        history_record = FormHistory(
-            user_id=user_id,
-            surgical_number=s_no,
-            form_data=json.dumps(data),
-            audio_filename=audio_fn,
-            timestamp=get_thai_time()
-        )
-        db.session.add(history_record)
-        db.session.commit()
-        print(f"[DB SUCCESS] Successfully saved case {s_no} to PostgreSQL (id={history_record.id})")
+
+        if loaded_hist_id and str(loaded_hist_id).strip().isdigit():
+            history_record = FormHistory.query.get(int(loaded_hist_id))
+
+        if history_record:
+            # Updating an existing case
+            old_data = {}
+            try:
+                old_data = json.loads(history_record.form_data)
+            except Exception:
+                old_data = {}
+
+            diff_list = calculate_form_diff(old_data, data)
+
+            # Ensure an initial v1 exists if this record predated the revision table
+            rev_count = CaseRevision.query.filter_by(history_id=history_record.id).count()
+            if rev_count == 0:
+                v1 = CaseRevision(
+                    history_id=history_record.id,
+                    user_id=history_record.user_id,
+                    revision_number=1,
+                    action="create",
+                    changes_summary="[]",
+                    full_snapshot=history_record.form_data,
+                    comment="สร้างเอกสารฉบับแรก (Initial Report)",
+                    timestamp=history_record.timestamp
+                )
+                db.session.add(v1)
+                db.session.commit()
+                rev_count = 1
+
+            if photo_cleared:
+                history_record.photo_data = None
+            elif photo_raw:
+                history_record.photo_data = photo_raw
+
+            if diff_list:
+                current_revision = rev_count + 1
+                history_record.surgical_number = s_no
+                history_record.form_data = json.dumps(data)
+                history_record.timestamp = get_thai_time()
+                if audio_fn:
+                    history_record.audio_filename = audio_fn
+
+                new_rev = CaseRevision(
+                    history_id=history_record.id,
+                    user_id=user_id,
+                    revision_number=current_revision,
+                    action="update",
+                    changes_summary=json.dumps(diff_list, ensure_ascii=False),
+                    full_snapshot=json.dumps(data, ensure_ascii=False),
+                    comment=f"แก้ไขข้อมูล {len(diff_list)} จุด",
+                    timestamp=get_thai_time()
+                )
+                db.session.add(new_rev)
+                db.session.commit()
+                print(f"[REVISION] Case #{history_record.id} updated to v{current_revision} with {len(diff_list)} change(s)")
+            else:
+                current_revision = rev_count
+                history_record.form_data = json.dumps(data)
+                db.session.commit()
+                print(f"[REVISION] Case #{history_record.id} saved without field changes (v{current_revision})")
+
+            # Update permanent case files
+            try:
+                import shutil
+                shutil.copy(pdf_path, Config.OUTPUT_DIR / f"case_{history_record.id}.pdf")
+                shutil.copy(docx_path, Config.OUTPUT_DIR / f"case_{history_record.id}.docx")
+            except Exception as fe:
+                print(f"[REVISION FILE COPY NOTE] {fe}")
+
+        else:
+            # Brand new case
+            history_record = FormHistory(
+                user_id=user_id,
+                surgical_number=s_no,
+                form_data=json.dumps(data),
+                audio_filename=audio_fn,
+                photo_data=photo_raw if photo_raw else None,
+                timestamp=get_thai_time()
+            )
+            db.session.add(history_record)
+            db.session.commit()
+
+            v1 = CaseRevision(
+                history_id=history_record.id,
+                user_id=user_id,
+                revision_number=1,
+                action="create",
+                changes_summary="[]",
+                full_snapshot=json.dumps(data, ensure_ascii=False),
+                comment="สร้างเอกสารฉบับแรก (Initial Report)",
+                timestamp=get_thai_time()
+            )
+            db.session.add(v1)
+            db.session.commit()
+            current_revision = 1
+            print(f"[DB SUCCESS] Created new case {s_no} (id={history_record.id}) with revision v1")
+
+            try:
+                import shutil
+                shutil.copy(pdf_path, Config.OUTPUT_DIR / f"case_{history_record.id}.pdf")
+                shutil.copy(docx_path, Config.OUTPUT_DIR / f"case_{history_record.id}.docx")
+            except Exception as fe:
+                print(f"[NEW CASE FILE COPY NOTE] {fe}")
+
     except Exception as e:
         db.session.rollback()
-        print(f"[DB ERROR] Could not save history: {e}")
-    
+        print(f"[DB ERROR] Could not save history/revision: {e}")
+
+    photo_to_render = (history_record.photo_data if history_record and history_record.photo_data else photo_raw) if not photo_cleared else ""
     return render_template("index.html", 
                            pdf_filename=pdf_filename, 
                            docx_filename=docx_filename,
                            transcription=form_data.get("transcription"),
                            audio_filename=form_data.get("audio_filename"),
-                           data=data, flags=flags)
+                           photo_data=photo_to_render,
+                           data=data, flags=flags,
+                           is_new_case=False,
+                           loaded_history_id=history_record.id if history_record else None,
+                           loaded_surgical_no=history_record.surgical_number if history_record else None,
+                           diff_list=diff_list,
+                           revision_number=current_revision)
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -431,6 +554,11 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             flash("Invalid username or password.", "danger")
+    else:
+        # Clear any stale non-auth flash messages from session
+        from flask import session
+        if '_flashes' in session:
+            session['_flashes'] = [(cat, msg) for cat, msg in session['_flashes'] if 'History' not in msg]
             
     return render_template("login.html")
 
@@ -453,6 +581,8 @@ def dashboard():
 @login_required
 def logout():
     logout_user()
+    from flask import session
+    session.clear()
     return redirect(url_for('login'))
 
 @app.route("/forgot-password", methods=["GET", "POST"])
@@ -721,6 +851,7 @@ def load_history(history_id):
             print(f"[load_history update_err] {update_err}")
 
     audio_fn = history_record.audio_filename or data.get("audio_filename") or ""
+    photo_data = getattr(history_record, 'photo_data', None) or data.get("photo_data") or ""
 
     # Ensure PDF and DOCX files are present on disk for immediate viewing/downloading
     pdf_filename = f"case_{history_id}.pdf"
@@ -744,18 +875,111 @@ def load_history(history_id):
             print(f"[load_history DOCX Error] {de}")
             docx_filename = None
             
-    flash("History loaded successfully.", "success")
+    rev = CaseRevision.query.filter_by(history_id=history_id).order_by(CaseRevision.revision_number.desc()).first()
+    revision_number = rev.revision_number if rev else 1
+
     return render_template(
         "index.html",
         data=data,
         flags=flags,
         transcription=transcription,
         audio_filename=audio_fn,
+        photo_data=photo_data,
         pdf_filename=pdf_filename,
         docx_filename=docx_filename,
         loaded_history_id=history_id,
-        loaded_surgical_no=history_record.surgical_number
+        loaded_surgical_no=history_record.surgical_number,
+        revision_number=revision_number,
+        is_new_case=False
     )
+
+@app.route("/api/case/<int:history_id>/revisions")
+@login_required
+def get_case_revisions(history_id):
+    history_record = FormHistory.query.get_or_404(history_id)
+    revisions = CaseRevision.query.filter_by(history_id=history_id).order_by(CaseRevision.revision_number.desc()).all()
+
+    if not revisions:
+        # Create retroactive v1 for legacy cases
+        v1 = CaseRevision(
+            history_id=history_record.id,
+            user_id=history_record.user_id,
+            revision_number=1,
+            action="create",
+            changes_summary="[]",
+            full_snapshot=history_record.form_data,
+            comment="สร้างเอกสารฉบับแรก (Initial Report)",
+            timestamp=history_record.timestamp
+        )
+        db.session.add(v1)
+        db.session.commit()
+        revisions = [v1]
+
+    result = []
+    for r in revisions:
+        author = User.query.get(r.user_id) if r.user_id else None
+        author_name = author.name or author.username if author else "Staff"
+        changes = []
+        try:
+            changes = json.loads(r.changes_summary)
+        except Exception:
+            changes = []
+        result.append({
+            "revision_number": r.revision_number,
+            "action": r.action,
+            "author": author_name,
+            "timestamp": r.timestamp.strftime("%d/%m/%Y %H:%M:%S") if r.timestamp else "-",
+            "comment": r.comment or "",
+            "changes_count": len(changes),
+            "changes": changes
+        })
+
+    return jsonify({
+        "status": "success",
+        "case_id": history_id,
+        "surgical_number": history_record.surgical_number or "-",
+        "total_revisions": len(result),
+        "revisions": result
+    })
+
+@app.route("/api/case/<int:history_id>/photo")
+@login_required
+def get_case_photo(history_id):
+    history_record = FormHistory.query.get_or_404(history_id)
+    if not current_user.check_is_admin and history_record.user_id != current_user.id:
+        return "Unauthorized", 403
+
+    photo_str = history_record.photo_data or ""
+    if not photo_str:
+        try:
+            d = json.loads(history_record.form_data)
+            photo_str = d.get("photo_data", "")
+        except Exception:
+            pass
+
+    if not photo_str:
+        return "No photo found for this case", 404
+
+    import base64
+    mime_type = "image/jpeg"
+    if "," in photo_str:
+        header, b64_body = photo_str.split(",", 1)
+        if "image/png" in header:
+            mime_type = "image/png"
+        elif "image/webp" in header:
+            mime_type = "image/webp"
+    else:
+        b64_body = photo_str
+
+    try:
+        img_bytes = base64.b64decode(b64_body)
+    except Exception as e:
+        return f"Invalid photo data: {e}", 400
+
+    resp = make_response(img_bytes)
+    resp.headers["Content-Type"] = mime_type
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
 
 
 if __name__ == "__main__":

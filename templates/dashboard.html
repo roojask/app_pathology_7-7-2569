@@ -20,13 +20,14 @@
                 <a href="{{ url_for('dashboard') }}" class="nav-pill active">Dashboard</a>
                 <a href="{{ url_for('index') }}" class="nav-pill">Form</a>
                 <a href="{{ url_for('history') }}" class="nav-pill">History</a>
+                <a href="{{ url_for('index', new='1') }}" class="nav-pill" style="color: #2563eb; font-weight: 600;" onclick="try{localStorage.removeItem('patho_form_draft_v1');}catch(e){}"><i class="fa-solid fa-plus"></i> New Case</a>
             </nav>
         </div>
 
         <div class="nav-right">
             <div class="user-profile">
                 <span class="user-name">{{ current_user.name or current_user.username }}</span>
-                <span class="user-role">{{ "Administrator" if current_user.check_is_admin else "Doctor" }}</span>
+                <span class="user-role">{{ "Administrator" if current_user.check_is_admin else "Staff" }}</span>
             </div>
             <a href="{{ url_for('logout') }}" class="btn-switch" title="Sign out / Switch user">
                 <i class="fas fa-arrow-right-from-bracket"></i> Switch
@@ -39,14 +40,14 @@
         
         <!-- Greeting Header -->
         <div class="greeting-header">
-            <h1 class="greeting-title">Good day, {{ current_user.name or "doctor" }}</h1>
+            <h1 class="greeting-title">Good day, {{ current_user.name or current_user.username }}</h1>
             <p class="greeting-subtitle">Start a new case, or pick up where you left off.</p>
         </div>
 
         <!-- Section 1: Start a Case -->
         <div class="section-label">START A CASE</div>
         <div class="templates-grid">
-            <a href="{{ url_for('index') }}" class="template-card">
+            <a href="{{ url_for('index', new='1') }}" class="template-card" onclick="try{localStorage.removeItem('patho_form_draft_v1');}catch(e){}">
                 <div>
                     <h3 class="template-title">Breast gross</h3>
                     <p class="template-desc">Mastectomy specimen: laterality, dimensions, skin, nipple, mass, margins and representative sections.</p>
@@ -97,7 +98,7 @@
                             <span class="case-id-badge">{{ case.surgical_number or "Untitled case" }}</span>
                         </td>
                         <td style="width: 25%; color: var(--text-muted);">
-                            <i class="fas fa-user-doctor" style="font-size: 11px; margin-right: 4px;"></i> {{ current_user.username }}
+                            <i class="fa-solid fa-user" style="font-size: 11px; margin-right: 4px;"></i> {{ current_user.username }}
                         </td>
                         <td style="width: 25%; color: var(--text-muted);">
                             {{ case.timestamp.strftime('%Y-%m-%d %H:%M') if case.timestamp else "Recently" }}

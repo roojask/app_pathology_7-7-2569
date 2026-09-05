@@ -29,8 +29,80 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Default to 100% English Dictation (en-US) for Medical Pathology
-    let currentMicLang = 'en-US';
+    // --- Speech Recognition Language Engine (Default to th-TH bilingual with persistent memory) ---
+    let currentMicLang = localStorage.getItem('patho_mic_lang') || 'th-TH';
+
+    function updateMicLangUI() {
+        const btn = document.getElementById('btn-mic-lang-toggle');
+        const label = document.getElementById('mic-lang-label');
+        if (!btn || !label) return;
+        if (currentMicLang === 'th-TH') {
+            label.textContent = 'TH (ไทย)';
+            btn.className = 'btn-lang-badge lang-th';
+            btn.title = 'ภาษาพูดปัจจุบัน: ไทย (th-TH) - แตะเพื่อสลับเป็น English';
+        } else {
+            label.textContent = 'EN (Eng)';
+            btn.className = 'btn-lang-badge lang-en';
+            btn.title = 'Current Speech Language: English (en-US) - Tap to switch to Thai';
+        }
+    }
+
+    const btnMicLangToggle = document.getElementById('btn-mic-lang-toggle');
+    if (btnMicLangToggle) {
+        btnMicLangToggle.addEventListener('click', function () {
+            currentMicLang = (currentMicLang === 'th-TH') ? 'en-US' : 'th-TH';
+            localStorage.setItem('patho_mic_lang', currentMicLang);
+            updateMicLangUI();
+            if (recognition) {
+                recognition.lang = currentMicLang;
+                if (isRecording) {
+                    try { recognition.stop(); } catch(e) {}
+                    setTimeout(() => {
+                        if (isRecording) {
+                            try { recognition.start(); } catch(e) {}
+                        }
+                    }, 200);
+                }
+            }
+        });
+        updateMicLangUI();
+    }
+
+    // --- Text-to-Speech (TTS) & Hands-Free Feedback Engine ---
+    let isVoiceFeedbackEnabled = true;
+    const btnHandsfreeToggle = document.getElementById('btn-handsfree-toggle');
+
+    function speakFeedback(text, lang = (currentMicLang === 'th-TH' ? 'th-TH' : 'en-US')) {
+        if (!isVoiceFeedbackEnabled) return;
+        if ('speechSynthesis' in window) {
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang;
+                utterance.rate = 1.05;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            } catch(ttsErr) {
+                console.warn("TTS Error:", ttsErr);
+            }
+        }
+    }
+
+    if (btnHandsfreeToggle) {
+        btnHandsfreeToggle.addEventListener('click', function () {
+            isVoiceFeedbackEnabled = !isVoiceFeedbackEnabled;
+            if (isVoiceFeedbackEnabled) {
+                btnHandsfreeToggle.style.backgroundColor = '#28a745';
+                btnHandsfreeToggle.style.color = 'white';
+                btnHandsfreeToggle.innerHTML = '<i class="fas fa-volume-up"></i> เสียงตอบรับ: ON';
+                speakFeedback('เปิดระบบเสียงตอบรับเรียบร้อยแล้ว');
+            } else {
+                btnHandsfreeToggle.style.backgroundColor = '#7f8c8d';
+                btnHandsfreeToggle.style.color = 'white';
+                btnHandsfreeToggle.innerHTML = '<i class="fas fa-volume-mute"></i> เสียงตอบรับ: OFF';
+            }
+        });
+    }
 
     // --- Web Audio Chime Synthesizer for Zero-Latency Audio Feedback ---
     function playAudioChime(type) {
@@ -123,21 +195,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
         recognition.onend = function () {
             if (isRecording) {
-                // If it ended but isRecording is still true, it was a silence timeout. Restart!
-                try {
-                    recognition.start();
-                    if (micStatusContainer) {
-                        micStatusContainer.innerText = 'Dictating...';
+                // If it ended but isRecording is still true, it was a silence timeout.
+                // Use a short delay for iPadOS/Safari audio engine cleanup before auto-restart
+                setTimeout(() => {
+                    if (isRecording) {
+                        try {
+                            recognition.lang = currentMicLang;
+                            recognition.start();
+                            if (micStatusContainer) {
+                                micStatusContainer.innerText = 'Dictating...';
+                            }
+                        } catch (e) {
+                            console.log("Auto-restart speech recognition retry:", e);
+                        }
                     }
-                } catch (e) {
-                    console.log("Failed to auto-restart speech recognition:", e);
-                }
+                }, 150);
             } else {
                 playAudioChime('stop');
                 updateHandsFreeBadge('Mic: Ready', '#22c55e', false);
                 if (btnMicToggle) {
                     btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Record';
                     btnMicToggle.classList.remove('active');
+                    btnMicToggle.style.backgroundColor = '';
                 }
 
                 const micCircle = document.getElementById('mic-pulse-circle');
@@ -160,38 +239,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const totalText = finalTranscript + interimTranscript;
-            
-            // --- Text-to-Speech (TTS) & Hands-Free Feedback ---
-            let isVoiceFeedbackEnabled = true;
-            const btnHandsfreeToggle = document.getElementById('btn-handsfree-toggle');
-
-            function speakFeedback(text, lang = 'th-TH') {
-                if (!isVoiceFeedbackEnabled) return;
-                if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = lang;
-                    utterance.rate = 1.05;
-                    utterance.pitch = 1.0;
-                    window.speechSynthesis.speak(utterance);
-                }
-            }
-
-            if (btnHandsfreeToggle) {
-                btnHandsfreeToggle.addEventListener('click', function () {
-                    isVoiceFeedbackEnabled = !isVoiceFeedbackEnabled;
-                    if (isVoiceFeedbackEnabled) {
-                        btnHandsfreeToggle.style.backgroundColor = '#28a745';
-                        btnHandsfreeToggle.style.color = 'white';
-                        btnHandsfreeToggle.innerHTML = '<i class="fas fa-volume-up"></i> เสียงตอบรับ (Hands-Free): ON';
-                        speakFeedback('เปิดระบบเสียงตอบรับเรียบร้อยแล้ว');
-                    } else {
-                        btnHandsfreeToggle.style.backgroundColor = '#7f8c8d';
-                        btnHandsfreeToggle.style.color = 'white';
-                        btnHandsfreeToggle.innerHTML = '<i class="fas fa-volume-mute"></i> เสียงตอบรับ (Hands-Free): OFF';
-                    }
-                });
-            }
 
             // Check for voice commands
             const checkText = totalText.toLowerCase().trim();
@@ -232,6 +279,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 speakFeedback("ปิดกล้องเรียบร้อยแล้ว");
                 const camBtn = document.getElementById('btn-camera-toggle');
                 if (camBtn && isCameraRunning) camBtn.click();
+                return;
+            }
+
+            // 2.1 Voice Command: Capture Photo (ถ่ายภาพ / ถ่ายรูป)
+            if (checkText.endsWith("ถ่ายภาพ") || checkText.endsWith("ถ่ายรูป") || checkText.endsWith("take photo") || checkText.endsWith("capture photo")) {
+                playAudioChime('success');
+                updateHandsFreeBadge('Photo Taken', '#3b82f6', true);
+                speakFeedback("ถ่ายภาพชิ้นเนื้อเรียบร้อยแล้ว");
+                captureSpecimenPhoto();
                 return;
             }
 
@@ -332,8 +388,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             isRecording = false;
-            btnMicToggle.innerHTML = '<i class="fas fa-microphone"></i> เริ่มบันทึกเสียง (Start)';
-            btnMicToggle.style.backgroundColor = '#ddd';
+            if (btnMicToggle) {
+                btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Record';
+                btnMicToggle.classList.remove('active');
+                btnMicToggle.style.backgroundColor = '';
+            }
+            const micCircle = document.getElementById('mic-pulse-circle');
+            if (micCircle) micCircle.classList.remove('recording');
 
             if (event.error === 'not-allowed') {
                 showError("ไม่อนุญาตให้ใช้ไมโครโฟน (Not Allowed). กรุณากด 'Allow' ที่แถบ URL หรือตรวจสอบการตั้งค่า");
@@ -371,6 +432,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 isRecording = true;
                 if (micStatusContainer) micStatusContainer.innerText = 'Dictating...';
                 try {
+                    recognition.lang = currentMicLang;
                     recognition.start();
                 } catch (e) {
                     console.warn("Speech recognition error, trying Whisper fallback:", e);
@@ -402,9 +464,75 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     let lastActionTime = 0;
-    const ACTION_COOLDOWN = 800;
+    const ACTION_COOLDOWN = 400; // Responsive 400ms cooldown for snappy box navigation
     let lastHandDetectedTime = 0;
     let videoFrameCounter = 0;
+
+    let cachedVideoBounds = null;
+    let cachedFeedRect = null;
+    let cachedBoxRects = [];
+
+    function updateCachedGeometry() {
+        const feedBox = document.querySelector('.camera-feed-box');
+        if (!feedBox) return;
+
+        const cWidth = feedBox.clientWidth || 354;
+        const cHeight = feedBox.clientHeight || 270;
+        const vWidth = (videoElement && videoElement.videoWidth) ? videoElement.videoWidth : 1280;
+        const vHeight = (videoElement && videoElement.videoHeight) ? videoElement.videoHeight : 720;
+        const containerAspect = cWidth / cHeight;
+        const videoAspect = vWidth / vHeight;
+
+        // Cover mode: video scales to fill the container completely without black bars
+        let renderW = cWidth;
+        let renderH = cHeight;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (containerAspect > videoAspect) {
+            // Container is wider than video: video scales to width, overflows top/bottom
+            renderW = cWidth;
+            renderH = cWidth / videoAspect;
+            offsetY = (cHeight - renderH) / 2;
+        } else {
+            // Container is taller/narrower than video: video scales to height, overflows left/right
+            renderH = cHeight;
+            renderW = cHeight * videoAspect;
+            offsetX = (cWidth - renderW) / 2;
+        }
+
+        cachedVideoBounds = {
+            width: renderW,
+            height: renderH,
+            left: offsetX,
+            top: offsetY,
+            containerWidth: cWidth,
+            containerHeight: cHeight
+        };
+
+        cachedFeedRect = feedBox.getBoundingClientRect();
+
+        // The gesture overlay grid fills the entire container so buttons are spacious and easy to hit
+        const gestureOverlay = document.querySelector('.gesture-controls');
+        if (gestureOverlay) {
+            gestureOverlay.style.position = 'absolute';
+            gestureOverlay.style.left = '0px';
+            gestureOverlay.style.top = '0px';
+            gestureOverlay.style.width = '100%';
+            gestureOverlay.style.height = '100%';
+        }
+
+        // Cache all gesture box bounding client rects to eliminate forced reflows during frame rendering
+        const boxes = document.querySelectorAll('.gesture-box');
+        cachedBoxRects = Array.from(boxes).map(box => ({
+            box,
+            rect: box.getBoundingClientRect(),
+            action: box.getAttribute('data-action')
+        }));
+    }
+
+    window.addEventListener('resize', updateCachedGeometry, { passive: true });
+    window.addEventListener('orientationchange', updateCachedGeometry, { passive: true });
 
     function onResults(results) {
         if (!canvasCtx || !canvasElement) return;
@@ -413,6 +541,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const gestureOverlay = document.querySelector('.gesture-controls');
         const btnCameraGrid = document.getElementById('btn-camera-grid');
+
+        if (!cachedVideoBounds || cachedBoxRects.length === 0) {
+            updateCachedGeometry();
+        }
 
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             lastHandDetectedTime = Date.now();
@@ -424,16 +556,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 btnCameraGrid.classList.add('active');
             }
             canvasCtx.save();
-            canvasCtx.translate(canvasElement.width, 0);
-            canvasCtx.scale(-1, 1);
+            if (currentFacingMode === 'user') {
+                canvasCtx.translate(canvasElement.width, 0);
+                canvasCtx.scale(-1, 1);
+            }
             for (const landmarks of results.multiHandLandmarks) {
-                // Neon Cyan connections and white points with cyan glow
-                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00f0ff', lineWidth: 3 });
-                drawLandmarks(canvasCtx, landmarks, { color: '#ffffff', fillColor: '#00f0ff', lineWidth: 1, radius: 4 });
-                detectGesture(landmarks);
+                if (typeof drawConnectors === 'function' && typeof HAND_CONNECTIONS !== 'undefined') {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00f0ff', lineWidth: 3 });
+                }
+                if (typeof drawLandmarks === 'function') {
+                    drawLandmarks(canvasCtx, landmarks, { color: '#ffffff', fillColor: '#00f0ff', lineWidth: 1, radius: 4 });
+                }
+            }
+            if (results.multiHandLandmarks[0]) {
+                detectGesture(results.multiHandLandmarks[0]);
             }
             canvasCtx.restore();
         } else {
+            // Hand not detected: clean up hover states immediately
+            for (let i = 0; i < cachedBoxRects.length; i++) {
+                cachedBoxRects[i].box.classList.remove('hovered');
+            }
+            smoothCursorX = null;
+            smoothCursorY = null;
+            lockedTargetBox = null;
+            isPinchState = false;
+            hasClickedThisPinch = false;
+            pinchFrameCount = 0;
+
             if (Date.now() - lastHandDetectedTime > 1200) {
                 updateGestureBadge('Gesture: No Hand', '#9ca3af');
                 if (gestureOverlay && !gestureOverlay.hasAttribute('data-manual-keep')) {
@@ -448,7 +598,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let smoothCursorX = null;
     let smoothCursorY = null;
-    const EMA_ALPHA = 0.40; // Silky smooth jitter suppression filter
+
+    // Gesture control state machine: STRICT PINCH-ONLY (Index finger + Thumb)
+    let isPinchState = false;
+    let hasClickedThisPinch = false;
+    let pinchFrameCount = 0;
+    let lockedTargetBox = null;
 
     function playGestureChime() {
         try {
@@ -472,53 +627,168 @@ document.addEventListener('DOMContentLoaded', function () {
     function detectGesture(landmarks) {
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
+        const wrist = landmarks[0];
+        const middleMCP = landmarks[9];
 
-        const distance = Math.sqrt(
-            Math.pow(thumbTip.x - indexTip.x, 2) +
-            Math.pow(thumbTip.y - indexTip.y, 2)
-        );
+        // Hand scale to normalize pinch distance across various camera distances
+        const handScale = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y) || 0.25;
+        const pinchDistance = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+        const normalizedPinch = pinchDistance / handScale;
 
-        const rawX = (thumbTip.x + indexTip.x) / 2;
-        const rawY = (thumbTip.y + indexTip.y) / 2;
+        // Strict pinch detection with Schmitt trigger hysteresis:
+        // - To engage pinch: index and thumb tips must actually touch (< 0.22)
+        // - To disengage pinch: fingers must open back up (> 0.32)
+        const PINCH_START_THRESH = 0.22;
+        const PINCH_RELEASE_THRESH = 0.32;
 
+        if (!isPinchState) {
+            if (normalizedPinch < PINCH_START_THRESH || pinchDistance < 0.042) {
+                pinchFrameCount++;
+                if (pinchFrameCount >= 2) { // Must hold for 2 consecutive frames to eliminate camera noise
+                    isPinchState = true;
+                    hasClickedThisPinch = false;
+                }
+            } else {
+                pinchFrameCount = 0;
+            }
+        } else {
+            if (normalizedPinch > PINCH_RELEASE_THRESH && pinchDistance > 0.055) {
+                // User opened hand: allow subsequent clicks
+                isPinchState = false;
+                hasClickedThisPinch = false;
+                pinchFrameCount = 0;
+            }
+        }
+
+        // Use index finger tip as the pointer (or midpoint when pinching to keep cursor steady)
+        const rawX = isPinchState ? (thumbTip.x + indexTip.x) / 2 : indexTip.x;
+        const rawY = isPinchState ? (thumbTip.y + indexTip.y) / 2 : indexTip.y;
+
+        // Adaptive velocity filter: Zero lag when moving, smooth stability when hovering
         if (smoothCursorX === null) {
             smoothCursorX = rawX;
             smoothCursorY = rawY;
         } else {
-            smoothCursorX = smoothCursorX * (1 - EMA_ALPHA) + rawX * EMA_ALPHA;
-            smoothCursorY = smoothCursorY * (1 - EMA_ALPHA) + rawY * EMA_ALPHA;
+            const moveSpeed = Math.hypot(rawX - smoothCursorX, rawY - smoothCursorY);
+            // Dynamic alpha: fast movements get alpha ~0.88 (instant tracking), hovering gets alpha ~0.50 (anti-jitter)
+            const dynamicAlpha = Math.min(0.88, Math.max(0.50, 0.50 + (moveSpeed * 3.5)));
+            smoothCursorX = smoothCursorX * (1 - dynamicAlpha) + rawX * dynamicAlpha;
+            smoothCursorY = smoothCursorY * (1 - dynamicAlpha) + rawY * dynamicAlpha;
         }
 
-        const cursorX_norm = 1 - smoothCursorX;
+        // Map smoothed cursor to physical screen coordinates on the rendered video frame
+        if (!cachedVideoBounds || !cachedFeedRect) {
+            updateCachedGeometry();
+        }
+        const bounds = cachedVideoBounds;
+        const feedRect = cachedFeedRect;
+
+        const cursorX_norm = (currentFacingMode === 'user') ? (1 - smoothCursorX) : smoothCursorX;
         const cursorY_norm = smoothCursorY;
 
-        const rect = canvasElement.getBoundingClientRect();
-        const clientX = rect.left + (cursorX_norm * rect.width);
-        const clientY = rect.top + (cursorY_norm * rect.height);
+        const rawClientX = feedRect.left + bounds.left + (cursorX_norm * bounds.width);
+        const rawClientY = feedRect.top + bounds.top + (cursorY_norm * bounds.height);
+        const clientX = Math.max(feedRect.left + 2, Math.min(feedRect.right - 2, rawClientX));
+        const clientY = Math.max(feedRect.top + 2, Math.min(feedRect.bottom - 2, rawClientY));
 
-        const PINCH_THRESHOLD = 0.06;
+        // Sticky target magnetism (Hysteresis): expands active box by 12px to prevent accidental jumping
+        let newTargetBox = null;
+        const STICKY_MARGIN = 12;
 
-        canvasCtx.beginPath();
-        canvasCtx.arc(smoothCursorX * canvasElement.width, smoothCursorY * canvasElement.height, 6, 0, 2 * Math.PI);
-        canvasCtx.fillStyle = distance < PINCH_THRESHOLD ? "#00f0ff" : "rgba(255, 255, 255, 0.6)";
-        canvasCtx.fill();
-
-        if (distance < PINCH_THRESHOLD) {
-            const element = document.elementFromPoint(clientX, clientY);
-
-            if (element && element.classList.contains('gesture-box')) {
-                element.classList.add('active');
-                setTimeout(() => element.classList.remove('active'), 200);
-
-                const now = Date.now();
-                if (now - lastActionTime > ACTION_COOLDOWN) {
-                    playGestureChime();
-                    const action = element.getAttribute('data-action');
-                    triggerAction(action);
-                    lastActionTime = now;
+        if (lockedTargetBox) {
+            const item = cachedBoxRects.find(i => i.box === lockedTargetBox);
+            if (item) {
+                const r = item.rect;
+                if (clientX >= (r.left - STICKY_MARGIN) && clientX <= (r.right + STICKY_MARGIN) &&
+                    clientY >= (r.top - STICKY_MARGIN) && clientY <= (r.bottom + STICKY_MARGIN)) {
+                    newTargetBox = lockedTargetBox;
                 }
             }
         }
+
+        if (!newTargetBox) {
+            for (let i = 0; i < cachedBoxRects.length; i++) {
+                const item = cachedBoxRects[i];
+                const r = item.rect;
+                if (clientX >= r.left && clientX <= r.right &&
+                    clientY >= r.top && clientY <= r.bottom) {
+                    newTargetBox = item.box;
+                    break;
+                }
+            }
+        }
+
+        const now = Date.now();
+        if (newTargetBox !== lockedTargetBox) {
+            lockedTargetBox = newTargetBox;
+        }
+
+        // Update hover visual classes on DOM
+        for (let i = 0; i < cachedBoxRects.length; i++) {
+            const b = cachedBoxRects[i].box;
+            if (b === newTargetBox) {
+                if (!b.classList.contains('hovered')) b.classList.add('hovered');
+            } else {
+                if (b.classList.contains('hovered')) b.classList.remove('hovered');
+            }
+        }
+
+        // STRICT PINCH-ONLY TRIGGER:
+        // Clicks ONLY when index finger and thumb physically touch each other (Pinch).
+        // Fires EXACTLY ONCE per physical pinch down (Single-Click Latch).
+        // User MUST open fingers apart before another click can occur.
+        // Hovering / holding still will NEVER auto-click.
+        if (isPinchState && !hasClickedThisPinch && newTargetBox && (now - lastActionTime > ACTION_COOLDOWN)) {
+            hasClickedThisPinch = true; // Lock until user explicitly opens fingers
+            lastActionTime = now;
+
+            newTargetBox.classList.add('active');
+            setTimeout(() => newTargetBox.classList.remove('active'), 250);
+
+            playGestureChime();
+            const action = newTargetBox.getAttribute('data-action');
+            triggerAction(action);
+
+            updateGestureBadge('Pinch: ' + action, '#22c55e');
+            setTimeout(() => {
+                if (isCameraRunning) updateGestureBadge('Gesture: Active', '#22c55e');
+            }, 600);
+        }
+
+        // Visual indicator on canvas
+        const cursorCanvasX = smoothCursorX * canvasElement.width;
+        const cursorCanvasY = smoothCursorY * canvasElement.height;
+
+        // Dynamic pinch ring indicator: contracts as index and thumb approach each other
+        const pinchProximity = Math.max(0, Math.min(1, 1 - (normalizedPinch / 0.40)));
+        const baseRadius = 24 - (pinchProximity * 14);
+
+        canvasCtx.beginPath();
+        canvasCtx.arc(cursorCanvasX, cursorCanvasY, baseRadius, 0, 2 * Math.PI);
+        canvasCtx.lineWidth = isPinchState ? 4 : (newTargetBox ? 2.5 : 1.5);
+        canvasCtx.strokeStyle = isPinchState ? "#22c55e" : (newTargetBox ? "#00f0ff" : "rgba(255, 255, 255, 0.65)");
+        canvasCtx.stroke();
+
+        // Connective ray between thumb and index finger tips when close, visually showing pinch readiness
+        const thumbCanvasX = thumbTip.x * canvasElement.width;
+        const thumbCanvasY = thumbTip.y * canvasElement.height;
+        const indexCanvasX = indexTip.x * canvasElement.width;
+        const indexCanvasY = indexTip.y * canvasElement.height;
+
+        if (pinchProximity > 0.35) {
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(thumbCanvasX, thumbCanvasY);
+            canvasCtx.lineTo(indexCanvasX, indexCanvasY);
+            canvasCtx.lineWidth = isPinchState ? 3.5 : 1.5;
+            canvasCtx.strokeStyle = isPinchState ? "#22c55e" : "rgba(0, 240, 255, 0.6)";
+            canvasCtx.stroke();
+        }
+
+        // Center pinpoint
+        canvasCtx.beginPath();
+        canvasCtx.arc(cursorCanvasX, cursorCanvasY, isPinchState ? 6 : 4, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = isPinchState ? "#22c55e" : (newTargetBox ? "#00f0ff" : "#ffffff");
+        canvasCtx.fill();
     }
 
     // --- อัปเดตฟังก์ชันเพื่อค้นหาช่องสี่เหลี่ยม/วงกลมโดยเฉพาะ ---
@@ -714,13 +984,36 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.gesture-focus').forEach(el => el.classList.remove('gesture-focus'));
         document.querySelectorAll('.active-gesture-row').forEach(el => el.classList.remove('active-gesture-row'));
 
-        // 2. Focus native target
-        if (document.activeElement !== target) {
-            try { target.focus(); } catch (e) {}
+        // 2. Focus native target WITHOUT opening mobile/tablet virtual keyboard
+        if (document.activeElement && document.activeElement !== target && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
         }
+
+        const prevInputMode = target.getAttribute('inputmode');
+        // Setting inputmode='none' instructs mobile/tablet browsers NOT to summon the software keyboard
+        target.setAttribute('inputmode', 'none');
+        try {
+            target.focus({ preventScroll: true });
+        } catch (e) {}
+
         if (target.type === 'text' && typeof target.select === 'function') {
             try { target.select(); } catch (e) {}
         }
+
+        // Restore normal inputmode when user physically touches or clicks the input to type
+        const restoreInputMode = function() {
+            if (prevInputMode !== null) {
+                target.setAttribute('inputmode', prevInputMode);
+            } else {
+                target.removeAttribute('inputmode');
+            }
+            target.removeEventListener('pointerdown', restoreInputMode);
+            target.removeEventListener('touchstart', restoreInputMode);
+            target.removeEventListener('keydown', restoreInputMode);
+        };
+        target.addEventListener('pointerdown', restoreInputMode, { once: true });
+        target.addEventListener('touchstart', restoreInputMode, { once: true });
+        target.addEventListener('keydown', restoreInputMode, { once: true });
 
         // 3. Highlight visual element
         const visual = getVisual(target);
@@ -739,6 +1032,16 @@ document.addEventListener('DOMContentLoaded', function () {
         // 5. Update Sidebar HUD
         updateActiveBoxHUD(target);
     }
+
+    // Global listener: If user physically touches an input with finger/stylus, allow on-screen keyboard
+    document.addEventListener('pointerdown', function(e) {
+        const input = e.target;
+        if (input && (input.tagName === 'INPUT' || input.tagName === 'TEXTAREA')) {
+            if (input.getAttribute('inputmode') === 'none') {
+                input.removeAttribute('inputmode');
+            }
+        }
+    }, true);
 
     function triggerAction(action) {
         switch (action) {
@@ -1117,25 +1420,45 @@ document.addEventListener('DOMContentLoaded', function () {
     let localVideoStream = null;
     let handsInstance = null;
     let animFrameId = null;
+    let isMediaPipeBusy = false;
+    let offscreenCanvas = null;
+    let offscreenCtx = null;
+    let currentFacingMode = 'user';
 
-    if (typeof Hands !== 'undefined') {
+    function initMediaPipeHands() {
+        if (handsInstance) return true;
+        if (typeof Hands === 'undefined') {
+            return false;
+        }
         try {
             handsInstance = new Hands({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
             });
             handsInstance.setOptions({
                 maxNumHands: 1,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.7,
-                minTrackingConfidence: 0.7
+                modelComplexity: 0, // 0 = Lite (Optimized for iPad & Mobile WebKit Wasm)
+                minDetectionConfidence: 0.5, // 0.5 is optimal for iPad cameras & varying lighting
+                minTrackingConfidence: 0.5
             });
             handsInstance.onResults(onResults);
+            console.log("MediaPipe Hands initialized successfully with Lite model.");
+            return true;
         } catch (e) {
-            console.warn("Hands init note:", e);
+            console.warn("MediaPipe Hands init note:", e);
+            return false;
         }
     }
 
-    let currentFacingMode = 'user';
+    // Attempt init immediately and set up retry interval if library script is downloading
+    if (!initMediaPipeHands()) {
+        let retries = 0;
+        const initInterval = setInterval(() => {
+            retries++;
+            if (initMediaPipeHands() || retries > 25) {
+                clearInterval(initInterval);
+            }
+        }, 200);
+    }
 
     async function startCameraDirectly() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1148,11 +1471,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 btnCameraToggle.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Photo';
             }
 
+            if (!handsInstance) {
+                initMediaPipeHands();
+            }
+
             localVideoStream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
-                    facingMode: currentFacingMode
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    frameRate: { ideal: 30, max: 30 },
+                    facingMode: { ideal: currentFacingMode }
                 },
                 audio: false
             });
@@ -1161,6 +1489,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 videoElement.srcObject = localVideoStream;
                 videoElement.muted = true;
                 videoElement.playsInline = true;
+                if (currentFacingMode === 'environment') {
+                    videoElement.classList.add('unmirrored');
+                } else {
+                    videoElement.classList.remove('unmirrored');
+                }
                 try {
                     await videoElement.play();
                 } catch (playErr) {
@@ -1180,28 +1513,95 @@ document.addEventListener('DOMContentLoaded', function () {
                 btnCameraToggle.classList.add('active');
             }
 
+            const badgeLeft = document.querySelector('.camera-badge-left');
+            if (badgeLeft) {
+                badgeLeft.textContent = currentFacingMode === 'environment' ? 'BACK CAMERA' : 'FRONT CAMERA';
+            }
+
+            const captureBtn = document.getElementById('btn-camera-capture');
+            if (captureBtn) captureBtn.style.display = 'inline-flex';
+            const topCaptureBtn = document.getElementById('btn-camera-top-capture');
+            if (topCaptureBtn) topCaptureBtn.style.display = 'inline-flex';
+
             // Start Hands processing loop
             async function processVideoFrame() {
                 if (!isCameraRunning) return;
                 
                 videoFrameCounter++;
                 const isIdle = (Date.now() - lastHandDetectedTime) > 6000;
-                
-                // Clear transparent overlay canvas
-                if (canvasCtx && canvasElement) {
-                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                // Dynamically sync canvas dimensions and container dimensions
+                if (videoElement && videoElement.videoWidth && videoElement.videoHeight) {
+                    if (canvasElement) {
+                        const maxCanvasDim = 640;
+                        let cW = videoElement.videoWidth;
+                        let cH = videoElement.videoHeight;
+                        if (cW > maxCanvasDim) {
+                            cH = Math.round((cH * maxCanvasDim) / cW);
+                            cW = maxCanvasDim;
+                        }
+                        if (canvasElement.width !== cW || canvasElement.height !== cH) {
+                            canvasElement.width = cW;
+                            canvasElement.height = cH;
+                            updateCachedGeometry();
+                        }
+                    }
+                    if (cameraFeedEl && !cameraFeedEl._heightApplied) {
+                        const isExp = cameraFeedEl.classList.contains('camera-expanded');
+                        cameraFeedEl.style.height = isExp ? '440px' : '270px';
+                        cameraFeedEl.style.aspectRatio = 'auto';
+                        cameraFeedEl._heightApplied = true;
+                        updateCachedGeometry();
+                    }
                 }
 
-                // If no hands detected for 6s, throttle MediaPipe to 15 FPS to conserve 30% CPU
+                // If no hands detected for 6s, throttle MediaPipe to 15 FPS to conserve CPU/battery
                 if (isIdle && (videoFrameCounter % 2 !== 0)) {
                     animFrameId = requestAnimationFrame(processVideoFrame);
                     return;
                 }
 
-                if (handsInstance && videoElement && videoElement.readyState >= 2) {
+                if (handsInstance && videoElement && videoElement.readyState >= 2 && !isMediaPipeBusy) {
+                    isMediaPipeBusy = true;
                     try {
-                        await handsInstance.send({ image: videoElement });
-                    } catch (e) {}
+                        if (!offscreenCanvas) {
+                            offscreenCanvas = document.createElement('canvas');
+                        }
+                        const vWidth = videoElement.videoWidth;
+                        const vHeight = videoElement.videoHeight;
+                        if (vWidth && vHeight) {
+                            // Downscale video frame to optimal MediaPipe input size (max 480px)
+                            // MediaPipe neural network internally uses 256x256. 
+                            // Passing 480px reduces Wasm memory copy by 86% and cuts 70ms of latency!
+                            const maxAiDim = 480;
+                            let aiW = vWidth;
+                            let aiH = vHeight;
+                            if (aiW > maxAiDim || aiH > maxAiDim) {
+                                if (aiW >= aiH) {
+                                    aiH = Math.round((aiH * maxAiDim) / aiW);
+                                    aiW = maxAiDim;
+                                } else {
+                                    aiW = Math.round((aiW * maxAiDim) / aiH);
+                                    aiH = maxAiDim;
+                                }
+                            }
+                            if (offscreenCanvas.width !== aiW || offscreenCanvas.height !== aiH) {
+                                offscreenCanvas.width = aiW;
+                                offscreenCanvas.height = aiH;
+                                offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+                            }
+                            if (offscreenCtx) {
+                                offscreenCtx.drawImage(videoElement, 0, 0, aiW, aiH);
+                                await handsInstance.send({ image: offscreenCanvas });
+                            } else {
+                                await handsInstance.send({ image: videoElement });
+                            }
+                        }
+                    } catch (sendErr) {
+                        console.warn("MediaPipe frame send error:", sendErr);
+                    } finally {
+                        isMediaPipeBusy = false;
+                    }
                 }
                 animFrameId = requestAnimationFrame(processVideoFrame);
             }
@@ -1233,6 +1633,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function stopCameraDirectly() {
         isCameraRunning = false;
+        isMediaPipeBusy = false;
         if (animFrameId) cancelAnimationFrame(animFrameId);
         if (localVideoStream) {
             localVideoStream.getTracks().forEach(t => t.stop());
@@ -1248,6 +1649,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const btnCameraGrid = document.getElementById('btn-camera-grid');
         if (btnCameraGrid) btnCameraGrid.classList.remove('active');
+        const captureBtn = document.getElementById('btn-camera-capture');
+        if (captureBtn) captureBtn.style.display = 'none';
+        const topCaptureBtn = document.getElementById('btn-camera-top-capture');
+        if (topCaptureBtn) topCaptureBtn.style.display = 'none';
 
         const camPlaceholder = document.getElementById('camera-placeholder');
         if (camPlaceholder) {
@@ -1263,6 +1668,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (canvasCtx && canvasElement) {
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        }
+        if (cameraFeedEl) {
+            cameraFeedEl._aspectRatioApplied = false;
         }
         updateGestureBadge('Gesture: Off', '#9ca3af');
     }
@@ -1291,11 +1699,128 @@ document.addEventListener('DOMContentLoaded', function () {
         btnCameraFlip.addEventListener('click', function(e) {
             e.stopPropagation();
             currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            
+            const badgeLeft = document.querySelector('.camera-badge-left');
+            if (badgeLeft) {
+                badgeLeft.textContent = currentFacingMode === 'environment' ? 'BACK CAMERA' : 'FRONT CAMERA';
+            }
+
             if (isCameraRunning) {
                 stopCameraDirectly();
                 setTimeout(() => startCameraDirectly(), 250);
             }
         });
+    }
+
+    const btnCameraCapture = document.getElementById('btn-camera-capture');
+    if (btnCameraCapture) {
+        btnCameraCapture.addEventListener('click', function(e) {
+            e.stopPropagation();
+            captureSpecimenPhoto();
+        });
+    }
+
+    const btnCameraTopCapture = document.getElementById('btn-camera-top-capture');
+    if (btnCameraTopCapture) {
+        btnCameraTopCapture.addEventListener('click', function(e) {
+            e.stopPropagation();
+            captureSpecimenPhoto();
+        });
+    }
+
+    function captureSpecimenPhoto() {
+        if (!isCameraRunning || !videoElement || videoElement.readyState < 2) {
+            showError("กรุณาเปิดกล้องก่อนทำการถ่ายภาพ");
+            return;
+        }
+
+        try {
+            const snapCanvas = document.createElement('canvas');
+            const vWidth = videoElement.videoWidth || 640;
+            const vHeight = videoElement.videoHeight || 480;
+
+            const maxDim = 1280;
+            let targetW = vWidth;
+            let targetH = vHeight;
+            if (targetW > maxDim || targetH > maxDim) {
+                if (targetW >= targetH) {
+                    targetH = Math.round((targetH * maxDim) / targetW);
+                    targetW = maxDim;
+                } else {
+                    targetW = Math.round((targetW * maxDim) / targetH);
+                    targetH = maxDim;
+                }
+            }
+
+            snapCanvas.width = targetW;
+            snapCanvas.height = targetH;
+            const sCtx = snapCanvas.getContext('2d');
+
+            if (currentFacingMode === 'user') {
+                // Mirror for front camera so user gets what they see
+                sCtx.translate(targetW, 0);
+                sCtx.scale(-1, 1);
+            }
+
+            sCtx.drawImage(videoElement, 0, 0, targetW, targetH);
+
+            const photoDataUrl = snapCanvas.toDataURL('image/jpeg', 0.85);
+
+            const hiddenPhotoInput = document.getElementById('hidden-photo-data');
+            const hiddenClearedInput = document.getElementById('hidden-photo-cleared');
+            if (hiddenPhotoInput) hiddenPhotoInput.value = photoDataUrl;
+            if (hiddenClearedInput) hiddenClearedInput.value = 'false';
+
+            const photoContainer = document.getElementById('specimen-photo-container');
+            const previewImg = document.getElementById('specimen-preview-img');
+            if (previewImg) previewImg.src = photoDataUrl;
+            if (photoContainer) {
+                photoContainer.style.display = 'block';
+                photoContainer.classList.add('photo-flash-anim');
+                setTimeout(() => photoContainer.classList.remove('photo-flash-anim'), 600);
+            }
+
+            showAppToast("📸 ถ่ายภาพชิ้นเนื้อสำเร็จ พร้อมบันทึกลงฐานข้อมูล");
+        } catch (err) {
+            console.error("Photo capture error:", err);
+            showError("เกิดข้อผิดพลาดในการถ่ายภาพ: " + (err.message || err));
+        }
+    }
+
+    const btnClearPhoto = document.getElementById('btn-clear-photo');
+    if (btnClearPhoto) {
+        btnClearPhoto.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (confirm("ต้องการลบภาพถ่ายชิ้นเนื้อนี้หรือไม่?")) {
+                const hiddenPhotoInput = document.getElementById('hidden-photo-data');
+                const hiddenClearedInput = document.getElementById('hidden-photo-cleared');
+                if (hiddenPhotoInput) hiddenPhotoInput.value = '';
+                if (hiddenClearedInput) hiddenClearedInput.value = 'true';
+
+                const photoContainer = document.getElementById('specimen-photo-container');
+                const previewImg = document.getElementById('specimen-preview-img');
+                if (previewImg) previewImg.src = '';
+                if (photoContainer) photoContainer.style.display = 'none';
+
+                showAppToast("ลบภาพถ่ายชิ้นเนื้อเรียบร้อยแล้ว");
+            }
+        });
+    }
+
+    function showAppToast(msg) {
+        let toast = document.getElementById('app-floating-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'app-floating-toast';
+            toast.className = 'app-toast-pill';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
     }
 
     const btnCameraGrid = document.getElementById('btn-camera-grid');
@@ -1314,6 +1839,24 @@ document.addEventListener('DOMContentLoaded', function () {
                     gestureOverlay.setAttribute('data-manual-keep', 'true');
                     btnCameraGrid.classList.add('active');
                 }
+            }
+        });
+    }
+
+    const btnCameraExpand = document.getElementById('btn-camera-expand');
+    if (btnCameraExpand) {
+        btnCameraExpand.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const feedContainer = document.getElementById('camera-feed-container');
+            if (feedContainer) {
+                feedContainer.classList.toggle('camera-expanded');
+                const isExpanded = feedContainer.classList.contains('camera-expanded');
+                feedContainer.style.aspectRatio = 'auto';
+                feedContainer.style.height = isExpanded ? '440px' : '270px';
+                btnCameraExpand.classList.toggle('active', isExpanded);
+                updateCachedGeometry();
+                setTimeout(updateCachedGeometry, 320);
+                showAppToast(isExpanded ? "ขยายขนาดช่องสั่งการเรียบร้อย (Expanded Grid)" : "ย่อขนาดช่องสั่งการ (Compact Grid)");
             }
         });
     }
@@ -1379,20 +1922,41 @@ document.addEventListener('DOMContentLoaded', function () {
         let t = text.toLowerCase();
         
         t = t.replace(/,/g, ' ');
-        t = t.replace(/\./g, ' '); // Clean dots to prevent regex disruption
+        // Clean dots only when NOT between digits (preserves decimal numbers like 11.4 x 14.9 x 7.8)
+        t = t.replace(/(?<!\d)\.|\.(?!\d)/g, ' ');
         
         // Thai dictation translation mapping
         const thaiToEnglish = {
             "ข้างขวา": "right",
+            "เต้าขวา": "right",
             "ขวา": "right",
             "ข้างซ้าย": "left",
+            "เต้าซ้าย": "left",
             "ซ้าย": "left",
             "ตัดเต้านม": "mastectomy",
             "มาสเทค": "mastectomy",
+            "มอดิฟายด์": "modified",
+            "มอดิฟาย": "modified",
+            "เรดิคัล": "radical",
+            "แรดิคัล": "radical",
+            "ซิมเปิล": "simple",
             "รักแร้": "axillary",
             "ต่อมน้ำเหลือง": "lymph node",
             "เซนติเนล": "sentinel",
             "ก้อนเนื้อ": "mass",
+            "ก้อน": "mass",
+            "แมส": "mass",
+            "บนนอก": "upper outer",
+            "บนใน": "upper inner",
+            "ล่างนอก": "lower outer",
+            "ล่างใน": "lower inner",
+            "กึ่งกลาง": "central",
+            "ขอบตัด": "margin",
+            "ขอบลึก": "deep margin",
+            "ขอบบน": "superior margin",
+            "ขอบล่าง": "inferior margin",
+            "ขอบใน": "medial margin",
+            "ขอบนอก": "lateral margin",
             "ขนาด": "",
             "คูณ": "x",
             "ผิวหนัง": "skin",
@@ -1401,7 +1965,12 @@ document.addEventListener('DOMContentLoaded', function () {
             "ดึงรั้ง": "inverted",
             "บอด": "inverted",
             "แผลเป็น": "scar",
-            "แผลเปื่อย": "ulceration"
+            "แผลเปื่อย": "ulceration",
+            "จุด": ".",
+            "เซนติเมตร": "cm",
+            "เซน": "cm",
+            "มิลลิเมตร": "mm",
+            "มิล": "mm"
         };
         for (const [thai, eng] of Object.entries(thaiToEnglish)) {
             t = t.replace(new RegExp(thai, 'g'), eng);
@@ -1433,7 +2002,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const numWords = {
             "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
             "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
-            "by": "x", "times": "x", "point": "."
+            "by": "x", "times": "x", "point": ".",
+            "หนึ่ง": "1", "สอง": "2", "สาม": "3", "สี่": "4", "ห้า": "5",
+            "หก": "6", "เจ็ด": "7", "แปด": "8", "เก้า": "9", "สิบ": "10"
         };
         for (const [word, val] of Object.entries(numWords)) {
             t = t.replace(new RegExp(`\\b${word}\\b`, 'g'), val);
@@ -2135,13 +2706,65 @@ document.addEventListener('DOMContentLoaded', function () {
     const DRAFT_STORAGE_KEY = 'patho_form_draft_v1';
     let draftSaveTimeout = null;
 
+    function resetFormToBlank() {
+        clearLocalDraft();
+        const form = document.querySelector('.patho-form');
+        if (form) {
+            form.querySelectorAll('input, select, textarea').forEach(el => {
+                if (el.type === 'radio' || el.type === 'checkbox') {
+                    el.checked = false;
+                } else if (el.type !== 'submit' && el.type !== 'button') {
+                    el.value = '';
+                }
+                el.removeAttribute('data-manual');
+                el.style.border = '';
+                el.style.backgroundColor = '';
+                el.style.boxShadow = '';
+                el.classList.remove('low-confidence-highlight');
+            });
+            document.querySelectorAll('.checkbox-visual, .circle-option, .low-confidence-highlight').forEach(el => {
+                el.classList.remove('low-confidence-highlight');
+            });
+        }
+        if (txtTranscription) txtTranscription.value = '';
+        if (sidebarTranscriptionBox) sidebarTranscriptionBox.value = '';
+
+        if (typeof window.clearSidebarAudio === 'function') {
+            window.clearSidebarAudio();
+        }
+
+        const warnBox = document.getElementById('clinical-warning-box');
+        if (warnBox) warnBox.style.display = 'none';
+
+        const draftBar = document.getElementById('draft-recovery-bar');
+        if (draftBar) draftBar.style.display = 'none';
+
+        // Clear specimen photo capture and preview
+        const hiddenPhotoInput = document.getElementById('hidden-photo-data');
+        const hiddenClearedInput = document.getElementById('hidden-photo-cleared');
+        if (hiddenPhotoInput) hiddenPhotoInput.value = '';
+        if (hiddenClearedInput) hiddenClearedInput.value = 'false';
+
+        const photoContainer = document.getElementById('specimen-photo-container');
+        const previewImg = document.getElementById('specimen-preview-img');
+        if (previewImg) previewImg.src = '';
+        if (photoContainer) photoContainer.style.display = 'none';
+
+        validateFormData();
+    }
+    window.resetFormToBlank = resetFormToBlank;
+
     function autoSaveDraft() {
+        // DO NOT save drafts if viewing a loaded historical case
+        if (document.querySelector('.case-loaded-pill') || document.body.getAttribute('data-is-history') === 'true') {
+            return;
+        }
         if (draftSaveTimeout) clearTimeout(draftSaveTimeout);
         draftSaveTimeout = setTimeout(() => {
             try {
                 const formData = {};
                 document.querySelectorAll('.patho-form input, .patho-form select, .patho-form textarea').forEach(el => {
-                    if (!el.name || el.name === 'audio_file') return;
+                    if (!el.name || el.name === 'audio_file' || el.name === 'photo_data') return;
                     if (el.type === 'radio' || el.type === 'checkbox') {
                         if (el.checked) formData[el.name] = el.value;
                     } else {
@@ -2160,27 +2783,77 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function restoreDraftIfAvailable() {
         try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isExplicitNew = urlParams.get('new') === '1' || 
+                                  urlParams.get('new_case') === '1' || 
+                                  document.body.getAttribute('data-is-new-case') === 'true';
+
+            if (isExplicitNew) {
+                // Clear any stored draft and ensure 100% clean blank form
+                clearLocalDraft();
+                resetFormToBlank();
+                if (window.history.replaceState && (urlParams.has('new') || urlParams.has('new_case'))) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+                return;
+            }
+
+            // Do not prompt or restore draft if viewing an existing case from history
+            if (document.querySelector('.case-loaded-pill') || document.body.getAttribute('data-is-history') === 'true') {
+                return;
+            }
+
             const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
             if (!saved) return;
             const parsed = JSON.parse(saved);
-            if (!parsed || !parsed.data) return;
+            if (!parsed || !parsed.data || Object.keys(parsed.data).length === 0) return;
 
             const currentSurgNo = document.querySelector('[name="s0_surgical_no"]')?.value;
-            // Only restore if form is empty
+            // Only prompt if form currently has no surgical number
             if (!currentSurgNo || currentSurgNo.trim() === '') {
-                Object.entries(parsed.data).forEach(([name, val]) => {
-                    const inputs = document.querySelectorAll(`[name="${name}"]`);
-                    if (inputs.length > 0 && (inputs[0].type === 'radio' || inputs[0].type === 'checkbox')) {
-                        inputs.forEach(r => {
-                            if (r.value === val) r.checked = true;
-                        });
-                    } else if (inputs.length > 0) {
-                        inputs[0].value = val;
+                const draftBar = document.getElementById('draft-recovery-bar');
+                const draftTime = document.getElementById('draft-saved-time');
+                if (draftBar) {
+                    if (draftTime && parsed.savedAt) {
+                        try {
+                            const d = new Date(parsed.savedAt);
+                            draftTime.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' น.';
+                        } catch(e) {
+                            draftTime.textContent = 'ฉบับก่อนหน้า';
+                        }
                     }
-                });
-                validateFormData();
-                if (micStatusContainer) {
-                    micStatusContainer.innerHTML = '<span style="color:#2980b9;"><i class="fas fa-history"></i> กู้คืนข้อมูลร่างล่าสุดอัตโนมัติ (Draft Auto-Restored)</span>';
+                    draftBar.style.display = 'flex';
+
+                    const btnRestore = document.getElementById('btn-restore-draft');
+                    const btnDiscard = document.getElementById('btn-discard-draft');
+
+                    if (btnRestore) {
+                        btnRestore.onclick = function() {
+                            Object.entries(parsed.data).forEach(([name, val]) => {
+                                const inputs = document.querySelectorAll(`[name="${name}"]`);
+                                if (inputs.length > 0 && (inputs[0].type === 'radio' || inputs[0].type === 'checkbox')) {
+                                    inputs.forEach(r => {
+                                        if (r.value === val) r.checked = true;
+                                    });
+                                } else if (inputs.length > 0) {
+                                    inputs[0].value = val;
+                                }
+                            });
+                            validateFormData();
+                            draftBar.style.display = 'none';
+                            if (micStatusContainer) {
+                                micStatusContainer.innerHTML = '<span style="color:#2563eb;"><i class="fas fa-history"></i> กู้คืนข้อมูลร่างล่าสุดเรียบร้อยแล้ว</span>';
+                            }
+                        };
+                    }
+
+                    if (btnDiscard) {
+                        btnDiscard.onclick = function() {
+                            clearLocalDraft();
+                            draftBar.style.display = 'none';
+                            resetFormToBlank();
+                        };
+                    }
                 }
             }
         } catch(e) {}

@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
-<body>
+<body data-is-new-case="{{ 'true' if is_new_case else 'false' }}" data-is-history="{{ 'true' if loaded_history_id else 'false' }}">
 
     <!-- Unified Top Navigation Bar (Matching Mockup) -->
     <header class="top-navbar">
@@ -21,10 +21,14 @@
                 <a href="{{ url_for('dashboard') }}" class="nav-pill">Dashboard</a>
                 <a href="{{ url_for('index') }}" class="nav-pill active">Form</a>
                 <a href="{{ url_for('history') }}" class="nav-pill">History</a>
+                <a href="{{ url_for('index', new='1') }}" class="nav-pill btn-new-case-nav" style="color: #2563eb; font-weight: 600;" onclick="try{localStorage.removeItem('patho_form_draft_v1');sessionStorage.clear();}catch(e){}"><i class="fa-solid fa-plus"></i> New Case</a>
                 {% if loaded_history_id %}
                 <span class="case-loaded-pill" title="กำลังเปิดดูประวัติเคสนี้">
                     <i class="fa-solid fa-folder-open"></i> {{ loaded_surgical_no or ("Case #" ~ loaded_history_id) }}
                 </span>
+                <button type="button" class="btn-revision-nav" onclick="openRevisionModal({{ loaded_history_id }})" title="คลิกดูประวัติการแก้ไขของเคสนี้">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Revision <span class="badge-rev-num">v{{ revision_number or 1 }}</span>
+                </button>
                 {% endif %}
             </nav>
         </div>
@@ -44,15 +48,15 @@
             {% if current_user.is_authenticated %}
             <div class="user-profile-block">
                 <span class="user-profile-name">{{ current_user.name or current_user.username }}</span>
-                <span class="user-profile-sub">{{ "admin" if current_user.check_is_admin else "doctor" }}</span>
+                <span class="user-profile-sub">{{ "admin" if current_user.check_is_admin else "Staff" }}</span>
             </div>
             <a href="{{ url_for('logout') }}" class="btn-switch-custom" title="Sign out / Switch user">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i> Switch
             </a>
             {% else %}
             <div class="user-profile-block">
-                <span class="user-profile-name">doctor</span>
-                <span class="user-profile-sub">doctor</span>
+                <span class="user-profile-name">Staff</span>
+                <span class="user-profile-sub">User</span>
             </div>
             <a href="{{ url_for('login') }}" class="btn-switch-custom">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i> Switch
@@ -69,6 +73,59 @@
 
                 <input type="hidden" name="transcription" id="hidden-transcription" value="{{ transcription }}">
                 <input type="hidden" name="audio_filename" id="hidden-audio-filename" value="{{ audio_filename if audio_filename else '' }}">
+                <input type="hidden" name="loaded_history_id" id="loaded-history-id" value="{{ loaded_history_id or '' }}">
+                <input type="hidden" name="photo_data" id="hidden-photo-data" value="{{ photo_data if photo_data else '' }}">
+                <input type="hidden" name="photo_cleared" id="hidden-photo-cleared" value="false">
+
+                {% if diff_list and diff_list|length > 0 %}
+                <div class="diff-summary-card" id="diff-summary-alert">
+                    <div class="diff-summary-header">
+                        <div class="diff-summary-title">
+                            <i class="fa-solid fa-circle-check"></i> บันทึกการแก้ไขเรียบร้อยแล้ว (Revision v{{ revision_number }})
+                        </div>
+                        <div class="diff-summary-badge">
+                            แก้ไขทั้งหมด {{ diff_list|length }} จุด
+                        </div>
+                    </div>
+                    <div class="diff-summary-body">
+                        <p class="diff-summary-desc">รายการที่มีการเปลี่ยนแปลงในรอบนี้:</p>
+                        <ul class="diff-list">
+                            {% for d in diff_list %}
+                            <li class="diff-item">
+                                <span class="diff-field-name">{{ d.label }}:</span>
+                                <span class="diff-val-old" title="ค่าเดิม"><del>{{ d.old }}</del></span>
+                                <i class="fa-solid fa-arrow-right diff-arrow"></i>
+                                <span class="diff-val-new" title="ค่าใหม่">{{ d.new }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="diff-summary-footer">
+                        <button type="button" class="btn-view-all-revs" onclick="openRevisionModal({{ loaded_history_id }})">
+                            <i class="fa-solid fa-clock-rotate-left"></i> ดูไทม์ไลน์การแก้ไขทั้งหมด (Full Audit Trail)
+                        </button>
+                        <button type="button" class="btn-close-diff-card" onclick="document.getElementById('diff-summary-alert').style.display='none';">
+                            ปิดการแจ้งเตือน
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Interactive Unsaved Draft Recovery Prompt (Hidden by default) -->
+                <div id="draft-recovery-bar" style="display: none; background: #eff6ff; border: 1.5px solid #3b82f6; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(59,130,246,0.12); align-items: center; justify-content: space-between; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px; color: #1e40af; font-size: 13.5px; font-weight: 500;">
+                        <i class="fa-solid fa-clock-rotate-left" style="font-size: 16px; color: #2563eb;"></i>
+                        <span>พบข้อมูลฉบับร่างที่บันทึกไว้อัตโนมัติ (<span id="draft-saved-time">--</span>) คุณต้องการกู้คืนหรือไม่?</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" id="btn-restore-draft" style="padding: 6px 14px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fa-solid fa-rotate-left"></i> กู้คืนข้อมูล (Restore)
+                        </button>
+                        <button type="button" id="btn-discard-draft" style="padding: 6px 12px; background: #fff; color: #64748b; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px; font-weight: 500; cursor: pointer;">
+                            <i class="fa-solid fa-trash-can"></i> ละทิ้ง (Discard)
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Clinical Safety Warning Box -->
                 <div id="clinical-warning-box" style="{% if flags and flags.get('s0_surgical_no') %}display: block;{% else %}display: none;{% endif %} background-color: #fdf2e9; border: 1.5px solid #e67e22; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; color: #d35400; font-size: 14px; font-weight: 500; text-align: left; line-height: 1.5; box-shadow: 0 2px 8px rgba(230,126,34,0.15);">
@@ -596,7 +653,7 @@
                 </script>
 
                 <div class="form-row action-button-row">
-                    {% if not pdf_filename %}
+                    {% if not pdf_filename or is_new_case %}
                     <button type="submit" class="btn-primary-gen" id="btn-save-submit"><i class="fa-solid fa-file-export"></i> สร้างเอกสาร (Generate PDF / DOCX)</button>
                     {% else %}
                     <a href="{{ url_for('view_pdf_file', filename=pdf_filename) }}" target="_blank" class="btn-view-style"
@@ -641,6 +698,9 @@
                     <span class="dictation-label">DICTATING</span>
                     <h2 class="dictation-main-status" id="sidebar-dictation-state">Ready</h2>
                 </div>
+                <button type="button" class="btn-lang-badge lang-th" id="btn-mic-lang-toggle" title="สลับภาษาพูด (Switch Speech Language: ไทย / English)">
+                    <i class="fa-solid fa-language"></i> <span id="mic-lang-label">TH (ไทย)</span>
+                </button>
             </div>
 
             <p class="dictation-subtext">Say a measurement, or tap a field to start.</p>
@@ -692,7 +752,7 @@
 
             <!-- 6. Live Camera Feed (Cleanly placed at bottom of sidebar, matching user reference) -->
             <div class="camera-card-clean" style="margin-top: 4px;">
-                <div class="camera-feed-box" id="camera-feed-container" style="height: 230px; min-height: 230px;">
+                <div class="camera-feed-box" id="camera-feed-container">
                     <!-- Native Mirrored Video Stream -->
                     <video class="input_video" autoplay playsinline muted></video>
                     <!-- Transparent Canvas for hand landmarks -->
@@ -707,27 +767,94 @@
                     <!-- Top-Left Badge: FRONT CAMERA -->
                     <div class="camera-badge-left">FRONT CAMERA</div>
 
-                    <!-- Top-Right Flip/Rotate and Toggle Grid Buttons -->
+                    <!-- Top Bar Quick Shutter Button (Always in view at top of camera) -->
+                    <button type="button" class="camera-btn-top-capture" id="btn-camera-top-capture" title="ถ่ายภาพชิ้นเนื้อ (Capture Specimen Photo)">
+                        <i class="fa-solid fa-camera"></i> <span>ถ่ายภาพ</span>
+                    </button>
+
+                    <!-- Top-Right Controls: Expand, Grid, and Flip -->
+                    <button type="button" class="camera-btn-expand" id="btn-camera-expand" title="ขยาย/ย่อ ขนาดจอกล้อง (Toggle Camera Size)">
+                        <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                    </button>
                     <button type="button" class="camera-btn-grid" id="btn-camera-grid" title="แสดง/ซ่อน ตารางการสั่งงาน (Toggle Gesture Grid)">
                         <i class="fa-solid fa-table-cells"></i>
                     </button>
-                    <button type="button" class="camera-btn-flip" id="btn-camera-flip" title="Switch Camera">
+                    <button type="button" class="camera-btn-flip" id="btn-camera-flip" title="Switch Camera (กล้องหน้า/หลัง)">
                         <i class="fa-solid fa-camera-rotate"></i>
                     </button>
 
                     <!-- Gesture Action Overlay Grid (10 Gestures for Hands-Free Interaction) -->
                     <div class="gesture-controls">
-                        <div class="gesture-box" id="box-clear" data-action="CLEAR">CLEAR</div>
-                        <div class="gesture-box" id="box-scroll-up" data-action="SCROLL_UP">SCROLL UP</div>
-                        <div class="gesture-box" id="box-prev-row" data-action="PREV_ROW">PREV ROW</div>
-                        <div class="gesture-box" id="box-next-row" data-action="NEXT_ROW">NEXT ROW</div>
-                        <div class="gesture-box" id="box-prev" data-action="PREV">PREV BOX</div>
-                        <div class="gesture-box" id="box-next" data-action="NEXT">NEXT BOX</div>
-                        <div class="gesture-box" id="box-select" data-action="SELECT">SELECT</div>
-                        <div class="gesture-box" id="box-scroll-down" data-action="SCROLL_DOWN">SCROLL DOWN</div>
-                        <div class="gesture-box" id="box-save" data-action="SAVE">SAVE / PDF</div>
-                        <div class="gesture-box" id="box-mic" data-action="MIC_TOGGLE">MIC ON/OFF</div>
+                        <div class="gesture-box" id="box-clear" data-action="CLEAR">
+                            <i class="fa-solid fa-eraser box-icon"></i>
+                            <span class="box-label">CLEAR</span>
+                            <span class="box-sub">ล้างค่า</span>
+                        </div>
+                        <div class="gesture-box" id="box-scroll-up" data-action="SCROLL_UP">
+                            <i class="fa-solid fa-chevron-up box-icon"></i>
+                            <span class="box-label">SCROLL UP</span>
+                            <span class="box-sub">เลื่อนขึ้น</span>
+                        </div>
+                        <div class="gesture-box" id="box-prev-row" data-action="PREV_ROW">
+                            <i class="fa-solid fa-angles-up box-icon"></i>
+                            <span class="box-label">PREV ROW</span>
+                            <span class="box-sub">แถวก่อนหน้า</span>
+                        </div>
+                        <div class="gesture-box" id="box-next-row" data-action="NEXT_ROW">
+                            <i class="fa-solid fa-angles-down box-icon"></i>
+                            <span class="box-label">NEXT ROW</span>
+                            <span class="box-sub">แถวถัดไป</span>
+                        </div>
+                        <div class="gesture-box" id="box-prev" data-action="PREV">
+                            <i class="fa-solid fa-arrow-left box-icon"></i>
+                            <span class="box-label">PREV BOX</span>
+                            <span class="box-sub">ช่องก่อนหน้า</span>
+                        </div>
+                        <div class="gesture-box" id="box-next" data-action="NEXT">
+                            <i class="fa-solid fa-arrow-right box-icon"></i>
+                            <span class="box-label">NEXT BOX</span>
+                            <span class="box-sub">ช่องถัดไป</span>
+                        </div>
+                        <div class="gesture-box" id="box-select" data-action="SELECT">
+                            <i class="fa-solid fa-check box-icon"></i>
+                            <span class="box-label">SELECT</span>
+                            <span class="box-sub">เลือก</span>
+                        </div>
+                        <div class="gesture-box" id="box-scroll-down" data-action="SCROLL_DOWN">
+                            <i class="fa-solid fa-chevron-down box-icon"></i>
+                            <span class="box-label">SCROLL DOWN</span>
+                            <span class="box-sub">เลื่อนลง</span>
+                        </div>
+                        <div class="gesture-box" id="box-save" data-action="SAVE">
+                            <i class="fa-solid fa-floppy-disk box-icon"></i>
+                            <span class="box-label">SAVE / PDF</span>
+                            <span class="box-sub">บันทึกฟอร์ม</span>
+                        </div>
+                        <div class="gesture-box" id="box-mic" data-action="MIC_TOGGLE">
+                            <i class="fa-solid fa-microphone box-icon"></i>
+                            <span class="box-label">MIC ON/OFF</span>
+                            <span class="box-sub">เปิด/ปิด ไมค์</span>
+                        </div>
                     </div>
+
+                    <!-- Floating Shutter Button directly inside camera preview (Always visible, zero scroll) -->
+                    <button type="button" class="camera-btn-capture" id="btn-camera-capture" title="ถ่ายภาพชิ้นเนื้อ (Capture Specimen Photo)">
+                        <i class="fa-solid fa-camera"></i> <span>ถ่ายภาพ</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Specimen Photo Preview Card (Stored directly in database) -->
+            <div id="specimen-photo-container" class="specimen-photo-card" style="{% if not photo_data %}display: none;{% else %}display: block;{% endif %} margin-top: 8px;">
+                <div class="specimen-card-header">
+                    <span class="specimen-card-title"><i class="fa-solid fa-image" style="color: #2563eb;"></i> ภาพชิ้นเนื้อ (Specimen Photo)</span>
+                    <button type="button" id="btn-clear-photo" class="btn-clear-photo" title="ลบภาพถ่ายชิ้นเนื้อ">
+                        <i class="fa-solid fa-trash-can"></i> ลบรูป
+                    </button>
+                </div>
+                <div class="specimen-card-preview" onclick="openFormPhotoModal();" title="คลิกเพื่อดูรูปขนาดใหญ่">
+                    <img id="specimen-preview-img" src="{{ photo_data if photo_data else '' }}" alt="Specimen Preview" />
+                    <div class="specimen-zoom-hint"><i class="fa-solid fa-magnifying-glass-plus"></i> คลิกเพื่อดูรูปใหญ่</div>
                 </div>
             </div>
 
@@ -802,7 +929,7 @@
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
         crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(10000, 99999) | random }}"></script>
 
@@ -828,10 +955,161 @@
                         el.classList.add('low-confidence-highlight');
                     }
                 });
-            });
-        }
+            }
         });
     </script>
+
+    <!-- Revision History Modal -->
+    <div id="revision-history-modal" class="modal-backdrop-custom" style="display: none;" onclick="if(event.target===this) closeRevisionModal();">
+        <div class="modal-dialog-revision">
+            <div class="modal-header-revision">
+                <div class="modal-title-revision">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i> ประวัติการแก้ไขเคส (Case Revision History)
+                    <span id="modal-case-surgno" class="modal-surgno-pill">--</span>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="closeRevisionModal()">&times;</button>
+            </div>
+            <div class="modal-body-revision" id="modal-revision-content">
+                <div style="text-align: center; padding: 30px; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: #3b82f6;"></i>
+                    <p style="margin-top: 10px; font-size: 13px;">กำลังโหลดประวัติการแก้ไข...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openRevisionModal(historyId) {
+            const modal = document.getElementById('revision-history-modal');
+            const content = document.getElementById('modal-revision-content');
+            const surgNoPill = document.getElementById('modal-case-surgno');
+            if (!modal) return;
+            
+            modal.style.display = 'flex';
+            content.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: #3b82f6;"></i>
+                    <p style="margin-top: 10px; font-size: 13px;">กำลังโหลดประวัติการแก้ไข...</p>
+                </div>`;
+            
+            fetch('/api/case/' + historyId + '/revisions')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status !== 'success' || !data.revisions) {
+                        content.innerHTML = '<div style="padding: 20px; color: #dc2626; text-align: center;">ไม่สามารถโหลดประวัติการแก้ไขได้</div>';
+                        return;
+                    }
+                    if (surgNoPill) {
+                        surgNoPill.textContent = data.surgical_number || ('Case #' + historyId);
+                    }
+                    
+                    if (data.revisions.length === 0) {
+                        content.innerHTML = '<div style="padding: 20px; color: #64748b; text-align: center;">ไม่มีบันทึกการแก้ไข</div>';
+                        return;
+                    }
+                    
+                    let html = '<div class="rev-timeline">';
+                    data.revisions.forEach((rev, idx) => {
+                        const isInitial = rev.revision_number === 1;
+                        html += `
+                            <div class="rev-timeline-item">
+                                <div class="rev-timeline-dot ${isInitial ? 'initial' : ''}"></div>
+                                <div class="rev-card">
+                                    <div class="rev-card-header">
+                                        <div class="rev-card-version">
+                                            <span class="badge-rev-num" style="background: ${isInitial ? '#10b981' : '#2563eb'};">v${rev.revision_number}</span>
+                                            <span>${isInitial ? 'สร้างเอกสารฉบับแรก (Initial Report)' : 'แก้ไขข้อมูล (Revision ' + rev.revision_label + ')'}</span>
+                                        </div>
+                                        <div class="rev-card-meta">
+                                            <span><i class="fa-solid fa-user"></i> ${rev.author}</span>
+                                            <span>&bull;</span>
+                                            <span><i class="fa-regular fa-clock"></i> ${rev.timestamp}</span>
+                                        </div>
+                                    </div>
+                        `;
+                        
+                        if (isInitial) {
+                            html += `<div class="rev-initial-note"><i class="fa-solid fa-check"></i> สร้างและบันทึกข้อมูลเคสครั้งแรกเข้าระบบ</div>`;
+                        } else if (rev.changes && rev.changes.length > 0) {
+                            html += `
+                                <div style="font-size: 12px; font-weight: 600; color: #475569; margin-top: 6px;">
+                                    มีการแก้ไข ${rev.changes.length} รายการ:
+                                </div>
+                                <ul class="rev-changes-list">
+                            `;
+                            rev.changes.forEach(ch => {
+                                html += `
+                                    <li class="rev-change-row">
+                                        <strong style="color: #0f172a;">${ch.label}:</strong>
+                                        <span class="diff-val-old"><del>${ch.old}</del></span>
+                                        <i class="fa-solid fa-arrow-right diff-arrow"></i>
+                                        <span class="diff-val-new">${ch.new}</span>
+                                    </li>
+                                `;
+                            });
+                            html += `</ul>`;
+                        } else {
+                            html += `<div style="font-size: 12px; color: #64748b; margin-top: 4px;">ไม่มีการเปลี่ยนแปลงข้อมูลในฟอร์ม</div>`;
+                        }
+                        
+                        html += `</div></div>`;
+                    });
+                    html += '</div>';
+                    content.innerHTML = html;
+                })
+                .catch(err => {
+                    content.innerHTML = '<div style="padding: 20px; color: #dc2626; text-align: center;">เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err + '</div>';
+                });
+        }
+
+        function closeRevisionModal() {
+            const modal = document.getElementById('revision-history-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function openFormPhotoModal() {
+            const previewImg = document.getElementById('specimen-preview-img');
+            const modal = document.getElementById('formPhotoModal');
+            const modalImg = document.getElementById('formPhotoModalImg');
+            const downloadBtn = document.getElementById('formPhotoModalDownload');
+            if (!previewImg || !previewImg.src || !modal || !modalImg) return;
+
+            modalImg.src = previewImg.src;
+            if (downloadBtn) {
+                downloadBtn.href = previewImg.src;
+                const sNo = document.querySelector('input[name="s0_surgical_no"]')?.value?.trim() || 'case';
+                downloadBtn.download = `specimen_${sNo}.jpg`;
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeFormPhotoModal() {
+            const modal = document.getElementById('formPhotoModal');
+            if (modal) modal.style.display = 'none';
+        }
+    </script>
+
+    <!-- Specimen Photo Lightbox Modal for Form -->
+    <div id="formPhotoModal" class="photo-modal-overlay" onclick="if(event.target===this) closeFormPhotoModal();" style="display: none;">
+        <div class="photo-modal-content">
+            <div class="photo-modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-camera" style="color: #2563eb; font-size: 16px;"></i>
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">ภาพถ่ายชิ้นเนื้อ (Specimen Photo)</h3>
+                </div>
+                <button type="button" class="photo-modal-close-btn" onclick="closeFormPhotoModal();" title="Close">&times;</button>
+            </div>
+            <div class="photo-modal-body">
+                <img id="formPhotoModalImg" src="" alt="Specimen Photo" />
+            </div>
+            <div class="photo-modal-footer">
+                <a id="formPhotoModalDownload" href="" download="specimen_photo.jpg" class="btn-photo-download">
+                    <i class="fa-solid fa-download"></i> ดาวน์โหลดรูปภาพ
+                </a>
+                <button type="button" class="btn-photo-close" onclick="closeFormPhotoModal();">ปิด</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
