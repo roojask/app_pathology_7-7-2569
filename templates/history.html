@@ -124,9 +124,13 @@
                         <td><strong style="color: var(--text-main); font-size: 14px;">{{ h.surgical_number or "-" }}</strong></td>
                         <td onclick="event.stopPropagation();" style="text-align: center;">
                             {% if h.has_photo %}
-                            <button type="button" class="table-photo-thumb-btn" onclick="openPhotoModal('{{ h.photo_url }}', '{{ h.surgical_number or h.id }}');" title="คลิกดูภาพชิ้นเนื้อขนาดใหญ่">
+                            <button type="button" class="table-photo-thumb-btn" onclick="openPhotoModal('{{ h.photo_url }}', '{{ h.surgical_number or h.id }}', {{ h.id }}, {{ h.photo_count }});" title="คลิกดูภาพชิ้นเนื้อขนาดใหญ่ ({{ h.photo_count }} รูป)" style="position: relative;">
                                 <img src="{{ h.photo_url }}" alt="Specimen" class="table-photo-thumb" loading="lazy">
+                                {% if h.photo_count > 1 %}
+                                <span style="position: absolute; top: -5px; right: -5px; background: #2563eb; color: #ffffff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 10px; line-height: 1.2; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">{{ h.photo_count }}</span>
+                                {% else %}
                                 <span class="photo-thumb-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+                                {% endif %}
                             </button>
                             {% else %}
                             <span style="color: #cbd5e1; font-size: 11px;" title="ไม่มีภาพถ่าย"><i class="fa-regular fa-image" style="opacity: 0.35; font-size: 14px;"></i></span>
@@ -140,11 +144,20 @@
                         <td style="color: var(--text-muted);"><i class="fa-solid fa-user-pen" style="font-size: 11px; margin-right: 4px;"></i> {{ current_user.username }}</td>
                         <td style="color: var(--text-muted);">{{ h.timestamp.strftime('%Y-%m-%d %H:%M:%S') if h.timestamp else "-" }}</td>
                         <td onclick="event.stopPropagation();">
-                            {% if h.audio_filename %}
+                            {% if h.audio_clip_list and h.audio_clip_list|length > 0 %}
+                            {% set active_clip = h.audio_clip_list[-1] %}
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <audio controls style="height: 26px; width: 115px; vertical-align: middle;">
+                                    <source src="{{ active_clip.url }}">
+                                </audio>
+                                {% if h.audio_clip_list|length > 1 %}
+                                <span title="{{ h.audio_clip_list|length }} คลิปเสียง" style="font-size: 10px; font-weight: 700; background: #e0e7ff; color: #3730a3; padding: 2px 4px; border-radius: 4px; white-space: nowrap;">{{ h.audio_clip_list|length }} คลิป</span>
+                                {% endif %}
+                            </div>
+                            {% elif h.audio_filename %}
                             {% set audio_src = h.audio_filename if (h.audio_filename.startswith('http://') or h.audio_filename.startswith('https://')) else url_for('get_upload', filename=h.audio_filename) %}
-                            {% set audio_mime = 'audio/mpeg' if h.audio_filename.lower().endswith('.mp3') else 'audio/wav' %}
-                            <audio controls style="height: 26px; width: 130px; vertical-align: middle;">
-                                <source src="{{ audio_src }}" type="{{ audio_mime }}">
+                            <audio controls style="height: 26px; width: 120px; vertical-align: middle;">
+                                <source src="{{ audio_src }}">
                             </audio>
                             {% else %}
                             <span style="color: #cbd5e1; font-size: 12px;">None</span>
@@ -296,26 +309,85 @@
             if (modal) modal.style.display = 'none';
         }
 
-        function openPhotoModal(imgSrc, surgNo) {
+        let histModalCaseId = null;
+        let histModalIndex = 0;
+        let histModalTotal = 1;
+        let histModalSurgNo = '';
+
+        function openPhotoModal(imgSrc, surgNo, caseId = null, total = 1) {
             const modal = document.getElementById('photoLightboxModal');
+            const img = document.getElementById('photoModalImg');
+            if (!modal || !img) return;
+
+            histModalCaseId = caseId;
+            histModalIndex = 0;
+            histModalTotal = total || 1;
+            histModalSurgNo = surgNo || '';
+
+            updateHistPhotoModal(imgSrc);
+            modal.style.display = 'flex';
+        }
+
+        function updateHistPhotoModal(defaultSrc) {
             const img = document.getElementById('photoModalImg');
             const title = document.getElementById('photoModalTitle');
             const downloadBtn = document.getElementById('photoModalDownload');
-            if (!modal || !img) return;
+            const counter = document.getElementById('histPhotoCounter');
+            const btnPrev = document.getElementById('btnHistModalPrev');
+            const btnNext = document.getElementById('btnHistModalNext');
 
-            img.src = imgSrc;
-            if (title) title.textContent = 'ภาพชิ้นเนื้อ ' + (surgNo ? '(' + surgNo + ')' : '');
-            if (downloadBtn) {
-                downloadBtn.href = imgSrc;
-                downloadBtn.download = 'specimen_' + (surgNo || 'photo') + '.jpg';
+            let src = defaultSrc || '';
+            if (histModalCaseId) {
+                src = `/api/case/${histModalCaseId}/photo?index=${histModalIndex}`;
             }
-            modal.style.display = 'flex';
+            if (img && src) img.src = src;
+
+            if (title) {
+                title.textContent = 'ภาพชิ้นเนื้อ ' + (histModalSurgNo ? '(' + histModalSurgNo + ')' : '');
+            }
+            if (counter) {
+                if (histModalTotal > 1) {
+                    counter.textContent = `(รูปที่ ${histModalIndex + 1} จาก ${histModalTotal})`;
+                    counter.style.display = 'inline';
+                } else {
+                    counter.style.display = 'none';
+                }
+            }
+            if (btnPrev) {
+                btnPrev.style.display = histModalTotal > 1 ? 'flex' : 'none';
+                btnPrev.disabled = histModalIndex <= 0;
+            }
+            if (btnNext) {
+                btnNext.style.display = histModalTotal > 1 ? 'flex' : 'none';
+                btnNext.disabled = histModalIndex >= histModalTotal - 1;
+            }
+            if (downloadBtn && src) {
+                downloadBtn.href = src;
+                downloadBtn.download = 'specimen_' + (histModalSurgNo || 'photo') + `_${histModalIndex + 1}.jpg`;
+            }
+        }
+
+        function navigateHistPhoto(step) {
+            const nextIdx = histModalIndex + step;
+            if (nextIdx >= 0 && nextIdx < histModalTotal) {
+                histModalIndex = nextIdx;
+                updateHistPhotoModal();
+            }
         }
 
         function closePhotoModal() {
             const modal = document.getElementById('photoLightboxModal');
             if (modal) modal.style.display = 'none';
         }
+
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('photoLightboxModal');
+            if (modal && modal.style.display === 'flex') {
+                if (e.key === 'ArrowLeft') navigateHistPhoto(-1);
+                else if (e.key === 'ArrowRight') navigateHistPhoto(1);
+                else if (e.key === 'Escape') closePhotoModal();
+            }
+        });
     </script>
 
     <!-- Specimen Photo Lightbox Modal -->
@@ -325,11 +397,14 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-camera" style="color: #2563eb; font-size: 16px;"></i>
                     <h3 id="photoModalTitle" style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">ภาพถ่ายชิ้นเนื้อ (Specimen Photo)</h3>
+                    <span id="histPhotoCounter" style="margin-left: 8px; font-size: 13px; color: #64748b; font-weight: 600; display: none;"></span>
                 </div>
                 <button type="button" class="photo-modal-close-btn" onclick="closePhotoModal();" title="Close">&times;</button>
             </div>
-            <div class="photo-modal-body">
+            <div class="photo-modal-body" style="position: relative;">
+                <button type="button" class="photo-modal-nav-btn prev" id="btnHistModalPrev" onclick="navigateHistPhoto(-1);" title="รูปก่อนหน้า (ลูกศรซ้าย)">&#10094;</button>
                 <img id="photoModalImg" src="" alt="Specimen Photo" />
+                <button type="button" class="photo-modal-nav-btn next" id="btnHistModalNext" onclick="navigateHistPhoto(1);" title="รูปถัดไป (ลูกศรขวา)">&#10095;</button>
             </div>
             <div class="photo-modal-footer">
                 <a id="photoModalDownload" href="" download="specimen_photo.jpg" class="btn-photo-download">

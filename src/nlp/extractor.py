@@ -39,8 +39,8 @@ def extract_data_15_sections(text):
     if right_idx != -1 or left_idx != -1:
         data["s1_side"] = "right" if right_idx > left_idx else "left"
 
-    if "modified radical" in t: data["s2_proc"] = "modified"
-    elif "simple mastectomy" in t: data["s2_proc"] = "simple"
+    if "modified" in t: data["s2_proc"] = "modified"
+    elif "simple" in t: data["s2_proc"] = "simple"
     else:
         m = re.search(r"\b(quadrantectomy|lumpectomy|wide excision|excisional biopsy|re-excision|segmentectomy)\b(?:\s+specimen)?", t, re.IGNORECASE)
         if not m:
@@ -50,13 +50,13 @@ def extract_data_15_sections(text):
             data["s2_other_text"] = m.group(1).strip()
      
     # 3. Specimen Overall Dimensions (Measuring X x Y x Z cm) - Extracted FIRST!
-    m_specs = list(re.finditer(r"(?:mastectomy|specimen|overall size|specimen size|total specimen|measuring|dimensions are)[\s\S]{0,60}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)", t, re.IGNORECASE))
+    m_specs = list(re.finditer(r"(?:mastectomy|specimen|overall size|specimen size|total specimen|measuring|dimensions are)[\s\S]{0,60}?([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE))
     if m_specs:
         m = m_specs[0] 
         data["s3_dims"] = [m.group(1).rstrip('.'), m.group(2).rstrip('.'), m.group(3).rstrip('.')]
         t = t[:m.start()] + " [SPECIMEN_DIMS] " + t[m.end():]
     else:
-        generic_matches = list(re.finditer(r"(?<!-)(?<!\d)([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)", t, re.IGNORECASE))
+        generic_matches = list(re.finditer(r"(?<!-)(?<!\d)([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE))
         if generic_matches:
             m = generic_matches[0]
             data["s3_dims"] = [m.group(1).rstrip('.'), m.group(2).rstrip('.'), m.group(3).rstrip('.')]
@@ -72,12 +72,12 @@ def extract_data_15_sections(text):
         mass_count += 1
         mass_types.append("residual mass")
         
-        m_cavity = re.search(r"(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)", t, re.IGNORECASE)
+        m_cavity = re.search(r"(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE)
         if m_cavity:
             data["s10_prev2_cavity_dims"] = [m_cavity.group(1).rstrip('.'), m_cavity.group(2).rstrip('.'), m_cavity.group(3).rstrip('.')]
             t = t[:m_cavity.start()] + " [PREV2_CAVITY_DIMS] " + t[m_cavity.end():]
             
-        m_res = re.search(r"(?:residual mass|residual)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)", t, re.IGNORECASE)
+        m_res = re.search(r"(?:residual mass|residual)[\s\S]{0,50}?([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE)
         if m_res:
             data["s10_prev2_mass_dims"] = [m_res.group(1).rstrip('.'), m_res.group(2).rstrip('.'), m_res.group(3).rstrip('.')]
             t = t[:m_res.start()] + " [PREV2_MASS_DIMS] " + t[m_res.end():]
@@ -87,7 +87,7 @@ def extract_data_15_sections(text):
         data["s10_prev1"] = True
         mass_count += 1
         mass_types.append("previous cavity")
-        m_cavity = re.search(r"(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)", t, re.IGNORECASE)
+        m_cavity = re.search(r"(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE)
         if m_cavity:
             data["s10_prev1_dims"] = [m_cavity.group(1).rstrip('.'), m_cavity.group(2).rstrip('.'), m_cavity.group(3).rstrip('.')]
             t = t[:m_cavity.start()] + " [PREV1_DIMS] " + t[m_cavity.end():]
@@ -97,7 +97,7 @@ def extract_data_15_sections(text):
         data["s10_well"] = True
         mass_count += 1
         mass_types.append("well-defined mass")
-        m_well = re.search(r"(?:well-defined|well defined|slit like|slit-like)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)", t, re.IGNORECASE)
+        m_well = re.search(r"(?:well-defined|well defined|slit like|slit-like)[\s\S]{0,50}?([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE)
         if m_well:
             data["s10_well_dims"] = [m_well.group(1).rstrip('.'), m_well.group(2).rstrip('.'), m_well.group(3).rstrip('.')]
             t = t[:m_well.start()] + " [WELL_DIMS] " + t[m_well.end():]
@@ -110,7 +110,7 @@ def extract_data_15_sections(text):
         mass_count += 1
         mass_types.append("infiltrative")
         
-        all_3d_dims = list(re.finditer(r"([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)", t))
+        all_3d_dims = list(re.finditer(r"([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t))
         mass_dim_match = None
         
         for m in reversed(all_3d_dims):
@@ -151,29 +151,82 @@ def extract_data_15_sections(text):
         data["s5_appears_normal"] = True
 
     # 6. Scars & Nipple
-    if "scar" in t:
+    scar_idx = t.find("scar")
+    end_scar = -1
+    if scar_idx != -1:
         data["s6_check"] = True 
-        m = re.search(r"scar\s+([\d.]+)\s*cm", t)
+        m = re.search(r"scar.*?\b([\d.]+)\s*(?:cm)?", t)
         if m: data["s7_len"] = m.group(1).rstrip('.')
+
+        dot_m = re.search(r"(?<!\d)\.(?!\d)", t[scar_idx:])
+        end_scar = scar_idx + dot_m.start() if dot_m else len(t)
+        end_scar = min(end_scar, scar_idx + 80)
+        u_next = t.find("ulceration", scar_idx)
+        if u_next != -1 and u_next < end_scar:
+            end_scar = u_next
+        scar_clause = t[scar_idx:end_scar]
+        scar_locs = []
+        for loc in ["areola", "upper", "lower", "inner", "outer"]:
+            if re.search(rf"\b{loc}\b", scar_clause):
+                scar_locs.append(loc)
+        if scar_locs:
+            data["s7_locs"] = scar_locs
         
-    ulcer_match = re.search(r"ulceration", t)
-    if ulcer_match:
+    ulcer_idx = t.find("ulceration")
+    end_ulcer = -1
+    if ulcer_idx != -1:
         data["s8_check"] = True
-        m = re.search(r"ulceration\s+([\d.]+)\s*x\s*([\d.]+)", t)
+        m = re.search(r"ulceration.*?\b([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t)
         if m: data["s8_dims"] = [m.group(1).rstrip('.'), m.group(2).rstrip('.')]
+
+        dot_m = re.search(r"(?<!\d)\.(?!\d)", t[ulcer_idx:])
+        end_ulcer = ulcer_idx + dot_m.start() if dot_m else len(t)
+        end_ulcer = min(end_ulcer, ulcer_idx + 80)
+        m_next = t.find("mass", ulcer_idx)
+        if m_next != -1 and m_next < end_ulcer:
+            end_ulcer = m_next
+        ulcer_clause = t[ulcer_idx:end_ulcer]
+        ulcer_locs = []
+        for loc in ["areola", "upper", "lower", "inner", "outer"]:
+            if re.search(rf"\b{loc}\b", ulcer_clause):
+                ulcer_locs.append(loc)
+        if ulcer_locs:
+            data["s8_locs"] = ulcer_locs
 
     s9_vals = []
     if "everted" in t: s9_vals.append("everted")
     if "inverted" in t: s9_vals.append("inverted")
     if "retracted" in t: s9_vals.append("retracted")
+    if re.search(r"(?:nipple[^\.\n]{0,50}(?:ulcer|ulceration)|(?:ulcer|ulceration)[^\.\n]{0,50}nipple)", t):
+        s9_vals.append("ulceration")
     if s9_vals: data["s9_val"] = s9_vals
 
     # 7. Quadrants & Other Locations (Section 10.5)
-    tumor_loc_matches = list(re.finditer(r"(?:(?:in|at)\s+(?:the\s+)?)?(upper|lower|central)\s*(inner|outer)?\s*quadrant", t))
+    tumor_text = t
+    if scar_idx != -1:
+        tumor_text = tumor_text[:scar_idx] + " " + tumor_text[end_scar:]
+    u_pos = tumor_text.find("ulceration")
+    if u_pos != -1:
+        dot_u = re.search(r"(?<!\d)\.(?!\d)", tumor_text[u_pos:])
+        end_u = u_pos + dot_u.start() if dot_u else min(len(tumor_text), u_pos + 80)
+        m_next = tumor_text.find("mass", u_pos)
+        if m_next != -1 and m_next < end_u:
+            end_u = m_next
+        tumor_text = tumor_text[:u_pos] + " " + tumor_text[end_u:]
+
+    if "beneath the nipple" in tumor_text or "beneath nipple" in tumor_text:
+        data["s10_5_nipple"] = True
+    if "beneath the scar" in tumor_text or "beneath scar" in tumor_text:
+        data["s10_5_scar"] = True
+    if "subareola" in tumor_text or "central portion" in tumor_text or "in central" in tumor_text:
+        data["s10_5_central"] = True
+
+    tumor_loc_matches = list(re.finditer(r"(?:(?:in|at)\s+(?:the\s+)?)?(upper|lower|central)\s*(inner|outer)?(?:\s*quadrant)?", tumor_text))
     if tumor_loc_matches:
         loc_text = tumor_loc_matches[-1].group(0)
         locs = []
-        if "central" in loc_text: locs.append("central")
+        if "central" in loc_text:
+            data["s10_5_central"] = True
         else:
             if "upper" in loc_text: locs.append("upper")
             if "lower" in loc_text: locs.append("lower")
@@ -183,7 +236,7 @@ def extract_data_15_sections(text):
             data["s10_5_quadrant_check"] = True
             data["s10_5_quadrant_vals"] = locs
     else:
-        other_loc_m = re.search(r"(?:located\s+(?:in|at)|tumor\s+is\s+in|location\s+is)\s+(?:the\s+)?(axillary\s+tail(?:\s+of\s+spence)?|retroareolar|subareolar|chest\s+wall|deep\s+fascia|[a-zA-Z\s]+?(?:region|plane|tail))", t, re.IGNORECASE)
+        other_loc_m = re.search(r"(?:located\s+(?:in|at)|tumor\s+is\s+in|location\s+is)\s+(?:the\s+)?(axillary\s+tail(?:\s+of\s+spence)?|retroareolar|subareolar|chest\s+wall|deep\s+fascia|[a-zA-Z\s]+?(?:region|plane|tail))", tumor_text, re.IGNORECASE)
         if other_loc_m:
             data["s10_5_other_check"] = True
             data["s10_5_other"] = other_loc_m.group(1).strip()
@@ -191,13 +244,15 @@ def extract_data_15_sections(text):
     # 8. Margins (Section 11)
     margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"]
     for m_name in margins:
-        regex = rf"([\d.]+)\s*cm\s*(?:from|at)?\s*{m_name}\s*margin"
+        # Pattern A: Name first (e.g. "superior margin 2 cm", "superior margin is 2", "superior 2 cm")
+        regex = rf"(?:{m_name}\s*margin|\b{m_name}\b)\s*(?:is|at|=|:)?\s*([\d.]+)(?:\s*(?:cm|mm))?"
         m = re.search(regex, t, re.IGNORECASE)
-        if not m: regex = rf"{m_name}\s*margin\s*(?:is)?\s*([\d.]+)\s*cm"
-        m = re.search(regex, t, re.IGNORECASE)
-        if not m: regex = rf"([\d.]+)\s*cm\s*from\s*{m_name}"
-        m = re.search(regex, t, re.IGNORECASE)
-        if m: data[f"s11_{m_name}"] = m.group(1).rstrip('.')
+        # Pattern B: Value first with required 'from' or 'at' (e.g. "2 cm from superior margin")
+        if not m:
+            regex = rf"([\d.]+)(?:\s*(?:cm|mm))?\s*(?:cm\s*)?(?:from|at)\s*(?:the\s*)?{m_name}(?:\s*margin)?"
+            m = re.search(regex, t, re.IGNORECASE)
+        if m:
+            data[f"s11_{m_name}"] = m.group(1).rstrip('.')
 
     # 8.4 Fat to Fibrous Ratio (Section 12)
     ratio_match = re.search(r"(?:fat to fibrous|fat to fiber|parenchyma|ratio).*?(\d+)\s*(?::|to)\s*(\d+)", t, re.IGNORECASE)
@@ -221,11 +276,11 @@ def extract_data_15_sections(text):
     # 9. Lymph Nodes (Section 14)
     if ("lymph node" in t or "nodes" in t or "ต่อมน้ำเหลือง" in t or "ต่อม" in t) and "not found" not in t and "no lymph" not in t:
         data["s14_check"] = True
-        num_matches = list(re.finditer(r"(\d+)\s+(?:lymph\s+)?node", t)) or list(re.finditer(r"จำนวน\s*(\d+)", t)) or list(re.finditer(r"(\d+)\s*ต่อม", t))
+        num_matches = list(re.finditer(r"(\d+)\s+(?:lymph\s+)?nodes?", t)) or list(re.finditer(r"จำนวน\s*(\d+)", t)) or list(re.finditer(r"(\d+)\s*ต่อม", t)) or list(re.finditer(r"(?:lymph\s*nodes?|ต่อมน้ำเหลือง)[\s\S]{0,25}?(?:จำนวน\s*)?(\d+)", t))
         if num_matches:
             data["s14_num"] = num_matches[-1].group(1) 
 
-        range_m = re.search(r"ranging\s+from\s+([\d.]+)\s*(?:cm\s*)?(?:to|-)\s*([\d.]+)\s*cm", t, re.IGNORECASE)
+        range_m = re.search(r"(?:ranging\s+from|measuring|size|ขนาด(?:ตั้งแต่)?)\s+([\d.]+)\s*(?:cm|mm)?\s*(?:to|-)\s*([\d.]+)\s*(?:cm|mm)?", t, re.IGNORECASE)
         if range_m:
             data["s14_min"] = range_m.group(1).rstrip('.')
             data["s14_max"] = range_m.group(2).rstrip('.')
@@ -234,8 +289,9 @@ def extract_data_15_sections(text):
             if node_idx != -1:
                 node_context = t[node_idx:]
                 sizes = re.findall(r"\b(\d+(?:\.\d+)?)\b", node_context)
-                if len(sizes) >= 2:
-                    sizes_float = [float(s) for s in sizes]
+                node_count = float(data.get("s14_num", -999))
+                sizes_float = [float(s) for s in sizes if float(s) <= 10.0 and float(s) != node_count]
+                if len(sizes_float) >= 2:
                     data["s14_min"] = str(min(sizes_float))
                     data["s14_max"] = str(max(sizes_float))
     elif "not found" in t or "no lymph" in t:

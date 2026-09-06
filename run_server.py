@@ -16,6 +16,13 @@ def start_server():
     except Exception as e:
         print(f" Automated backup warning: {e}")
 
+    # Auto-healing database integrity verification
+    try:
+        from scripts.sync_databases import auto_self_healing_db_check
+        auto_self_healing_db_check()
+    except Exception as e:
+        print(f" Database integrity check warning: {e}")
+
     cert_path = Path("configs") / "cert.pem"
     key_path = Path("configs") / "key.pem"
     

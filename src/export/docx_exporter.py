@@ -150,9 +150,58 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     """
     Populates data into Breast_Gross_Template.docx matching the official pathology form layout.
     """
+    # 0. Enforce strict single-page geometry (Standard A4 with balanced margins matching official layout)
+    for sec in doc.sections:
+        sec.page_width = Inches(8.27)
+        sec.page_height = Inches(11.69)
+        sec.top_margin = Inches(0.40)
+        sec.bottom_margin = Inches(0.35)
+        sec.left_margin = Inches(0.50)
+        sec.right_margin = Inches(0.50)
+
     p = doc.paragraphs
     FONT_NAME = "Arial"
     BODY_SIZE = Pt(9)
+
+    # Balanced, natural line and paragraph spacing distributed across the entire A4 page
+    p[0].paragraph_format.space_before = Pt(0)
+    p[0].paragraph_format.space_after = Pt(12)
+    p[0].paragraph_format.line_spacing = 1.15
+
+    p[1].paragraph_format.space_before = Pt(0)
+    p[1].paragraph_format.space_after = Pt(14)
+    p[1].paragraph_format.line_spacing = 1.15
+
+    for i in range(2, 16):
+        p[i].paragraph_format.space_before = Pt(0)
+        p[i].paragraph_format.space_after = Pt(5.5)
+        p[i].paragraph_format.line_spacing = 1.20
+
+    p[14].paragraph_format.space_before = Pt(2.5)
+    p[16].paragraph_format.space_before = Pt(4.0)
+    p[16].paragraph_format.space_after = Pt(5.0)
+    p[16].paragraph_format.line_spacing = 1.20
+
+    p[17].paragraph_format.space_before = Pt(6.0)
+    p[17].paragraph_format.space_after = Pt(5.0)
+    p[17].paragraph_format.line_spacing = 1.20
+
+    p[18].paragraph_format.space_before = Pt(0)
+    p[18].paragraph_format.space_after = Pt(5.5)
+    p[18].paragraph_format.line_spacing = 1.20
+
+    p[19].paragraph_format.space_before = Pt(0)
+    p[19].paragraph_format.space_after = Pt(5.5)
+    p[19].paragraph_format.line_spacing = 1.20
+
+    p[20].paragraph_format.space_before = Pt(5.0)
+    p[20].paragraph_format.space_after = Pt(5.0)
+    p[20].paragraph_format.line_spacing = 1.20
+
+    for i in range(21, 27):
+        p[i].paragraph_format.space_before = Pt(0)
+        p[i].paragraph_format.space_after = Pt(4.5)
+        p[i].paragraph_format.line_spacing = 1.15
 
     # Helper to add standard body run
     def add_run(para, text, bold=False, size=BODY_SIZE):
@@ -229,7 +278,7 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     if oth_txt:
         add_run(p[3], oth_txt, bold=True)
     else:
-        add_run(p[3], "…………………………………………………………………………………………….")
+        add_run(p[3], "....................................................")
 
     # 4. Specimen Dimensions and Axillary content
     s3_dims = data.get("s3_dims", [])
@@ -268,7 +317,7 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
         add_run(p[5], f" {sd0} x {sd1} cm.", bold=True)
     else:
         add_run(p[5], "............. x ............. cm.")
-    add_run(p[5], f"  and    {app_norm}  appears normal…………………………………………………………………….")
+    add_run(p[5], f"  and    {app_norm}  appears normal ....................................................")
 
     # 6. Surgical Scar
     has_scar = data.get("s6_check") or bool(data.get("s7_len")) or bool(data.get("s7_locs"))
@@ -328,7 +377,7 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     p[9].text = ""
     add_run(p[9], "There  ", bold=True)
     add_choice_group(p[9], ["is a", "is an", "are two", "are multiple"], [grammar_val] if grammar_val else [], prefix="( ", suffix=" )")
-    add_run(p[9], " …………………………………………………………………………………………………")
+    add_run(p[9], " .................................................................")
 
     # 10. Infiltrative Mass
     is_inf = data.get("s10_infiltrative")
@@ -416,13 +465,13 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     other_txt = data.get("s10_5_other", "").strip()
 
     p[15].text = ""
-    add_run(p[15], f"           {q_chk}   in ")
+    add_run(p[15], f"       {q_chk}   in ")
     add_choice_group(p[15], ["upper", "lower", "inner", "outer"], q_vals, prefix="( ", suffix=" )")
-    add_run(p[15], f"  quadrant .       {other_chk}    ")
+    add_run(p[15], f"  quadrant .     {other_chk}   ")
     if other_txt:
         add_run(p[15], other_txt, bold=True)
     else:
-        add_run(p[15], "……………………………………………………………………")
+        add_run(p[15], "............................................")
 
     # 16. Header: Tumor is located
     p[16].text = ""
@@ -434,6 +483,9 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     def format_margin_cell(cell, prefix, val, suffix):
         cell.paragraphs[0].text = ""
         p_cell = cell.paragraphs[0]
+        p_cell.paragraph_format.line_spacing = 1.1
+        p_cell.paragraph_format.space_before = Pt(2)
+        p_cell.paragraph_format.space_after = Pt(2)
         if val:
             if prefix:
                 add_run(p_cell, prefix)
@@ -441,7 +493,7 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
             if suffix:
                 add_run(p_cell, suffix)
         else:
-            full_txt = f"{prefix}.................................... {suffix}".strip()
+            full_txt = f"{prefix}.................... {suffix}".strip()
             add_run(p_cell, full_txt)
 
     format_margin_cell(t.rows[0].cells[0], "", data.get("s11_deep"), "cm. from deep margin ,")
@@ -457,6 +509,9 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     chk_par = "☑" if (data.get("s12_check") or bool(v_left) or bool(v_right)) else "☐"
 
     p[17].text = ""
+    p[17].paragraph_format.space_before = Pt(6)
+    p[17].paragraph_format.space_after = Pt(5)
+    p[17].paragraph_format.line_spacing = 1.20
     add_run(p[17], f"{chk_par}  The uninvolved breast parenchyma has a fat to fibrous tissue ratio of approximately  ")
     if v_left or v_right:
         add_run(p[17], f" {v_left} ", bold=True)
@@ -467,14 +522,17 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
 
     # 18. Remaining breast tissue
     p[18].text = ""
+    p[18].paragraph_format.space_before = Pt(0)
+    p[18].paragraph_format.space_after = Pt(5.5)
+    p[18].paragraph_format.line_spacing = 1.20
     add_run(p[18], "The remaining of breast tissue   ", bold=True)
     if data.get("s13_unremarkable"):
-        add_run(p[18], "☑  is unremarkable .  ☐ .....................................................................................................................")
+        add_run(p[18], "☑  is unremarkable .  ☐ .....................................................")
     elif data.get("s13_text"):
         add_run(p[18], "☐  is unremarkable .  ☑ ")
         add_run(p[18], f" {data['s13_text']}", bold=True)
     else:
-        add_run(p[18], "☑  is unremarkable .  ☐ .....................................................................................................................")
+        add_run(p[18], "☑  is unremarkable .  ☐ .....................................................")
 
     # 19. Lymph nodes
     has_ln = data.get("s14_check") or bool(data.get("s14_min")) or bool(data.get("s14_max"))
@@ -483,35 +541,44 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     max_ln = data.get("s14_max", "").strip()
 
     p[19].text = ""
+    p[19].paragraph_format.space_before = Pt(0)
+    p[19].paragraph_format.space_after = Pt(5.5)
+    p[19].paragraph_format.line_spacing = 1.20
     add_run(p[19], f"{chk_ln}  There are multiple lymph nodes ranging from ")
     if min_ln:
         add_run(p[19], f" {min_ln} ", bold=True)
         add_run(p[19], "cm . to ")
     else:
-        add_run(p[19], ".................................... cm . to ")
+        add_run(p[19], "............. cm . to ")
     if max_ln:
         add_run(p[19], f" {max_ln} ", bold=True)
         add_run(p[19], "cm . in diameter.")
     else:
-        add_run(p[19], ".................................... cm . in diameter.")
+        add_run(p[19], "............. cm . in diameter.")
 
     # 20. Header: Representative sections
     p[20].text = ""
+    p[20].paragraph_format.space_before = Pt(5)
+    p[20].paragraph_format.space_after = Pt(5)
+    p[20].paragraph_format.line_spacing = 1.20
     add_run(p[20], "Representative sections are submitted as", bold=True)
 
-    # 21-26. Representative sections rows (2-column layout with tab stop at 3.8 inches)
+    # 21-26. Representative sections rows (2-column layout with tab stop at 3.6 inches)
     def format_sec_para(para, code1, label1, code2, label2):
         para.text = ""
-        para.paragraph_format.tab_stops.add_tab_stop(Inches(3.8), WD_TAB_ALIGNMENT.LEFT)
+        para.paragraph_format.line_spacing = 1.15
+        para.paragraph_format.space_after = Pt(4.5)
+        para.paragraph_format.space_before = Pt(0)
+        para.paragraph_format.tab_stops.add_tab_stop(Inches(3.6), WD_TAB_ALIGNMENT.LEFT)
         if code1:
             add_run(para, f"    {code1}", bold=True)
         else:
-            add_run(para, "....................................")
+            add_run(para, "....................")
         add_run(para, f" = {label1}\t")
         if code2:
             add_run(para, f" {code2}", bold=True)
         else:
-            add_run(para, "....................................")
+            add_run(para, "....................")
         add_run(para, f" = {label2}")
 
     sec = data.get("sections", {})
@@ -532,15 +599,18 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
 
     c_nr, extra_nr = get_sec("= nearest resected margin")
     p[23].text = ""
+    p[23].paragraph_format.line_spacing = 1.15
+    p[23].paragraph_format.space_after = Pt(4.5)
+    p[23].paragraph_format.space_before = Pt(0)
     if c_nr:
         add_run(p[23], f"    {c_nr}", bold=True)
     else:
-        add_run(p[23], "....................................")
+        add_run(p[23], "....................")
     add_run(p[23], " = nearest resected margin  ,  ")
     if extra_nr:
         add_run(p[23], extra_nr, bold=True)
     else:
-        add_run(p[23], ".......................................................")
+        add_run(p[23], "........................................")
 
     c_ui, _ = get_sec("= sampling upper inner quadrant")
     c_uo, _ = get_sec("= sampling upper outer quadrant")
@@ -557,24 +627,42 @@ def populate_template_doc(doc: docx.Document, data: Dict[str, Any]):
     # 28. Prosecutor Footer
     prosecutor = data.get("footer_prosecutor", "").strip()
     p[28].text = ""
+    p[28].paragraph_format.space_before = Pt(45)
+    p[28].paragraph_format.space_after = Pt(3)
+    p[28].paragraph_format.line_spacing = 1.15
     if prosecutor:
-        add_run(p[28], f"{prosecutor} ", bold=True)
+        add_run(p[28], f"{prosecutor}  ", bold=True)
     else:
         add_run(p[28], ".................................................")
     add_run(p[28], "Prosecutor")
     p[28].alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
     # 29. Date Footer
-    date_val = data.get("footer_date", "").strip() or datetime.datetime.now().strftime("%d/%m/%Y")
+    date_val = data.get("footer_date", "").strip() or datetime.datetime.now().strftime("%d / %m / %Y")
+    if "/" in date_val and " / " not in date_val:
+        dparts = date_val.split("/")
+        if len(dparts) == 3:
+            date_val = f"{dparts[0].strip()} / {dparts[1].strip()} / {dparts[2].strip()}"
     p[29].text = ""
-    add_run(p[29], "Date ")
+    p[29].paragraph_format.space_before = Pt(0)
+    p[29].paragraph_format.space_after = Pt(22)
+    p[29].paragraph_format.line_spacing = 1.15
+    add_run(p[29], "Date  ")
     add_run(p[29], date_val, bold=True)
     p[29].alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
     # 31. Approved in conference
     p[31].text = ""
-    add_run(p[31], "Approved in conference        2/10/2014", size=Pt(8))
+    p[31].paragraph_format.space_before = Pt(16)
+    p[31].paragraph_format.space_after = Pt(0)
+    p[31].paragraph_format.line_spacing = 1.0
+    add_run(p[31], "Approved in conference        2/10/2014", size=Pt(8.5))
     p[31].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # Clean up empty blank spacer paragraphs so document fits strictly on 1 single page
+    for p_item in list(doc.paragraphs):
+        if not p_item.text.strip() and len(p_item.runs) == 0:
+            p_item._element.getparent().remove(p_item._element)
 
 
 def generate_docx_document(source_data: Any) -> BytesIO:

@@ -1,6 +1,12 @@
 import psycopg2
 
 def clean():
+    try:
+        from scripts.backup_db import backup_database
+        backup_database()
+    except Exception as be:
+        print(f"Safety backup note: {be}")
+
     conn = psycopg2.connect(dbname='pathology_db', user='postgres', password='rooj282026', host='localhost', port='5432')
     cur = conn.cursor()
 

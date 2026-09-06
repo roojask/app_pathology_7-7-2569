@@ -52,15 +52,45 @@ class FormHistory(db.Model):
         return 1
 
     @property
-    def has_photo(self):
-        if self.photo_data and len(self.photo_data.strip()) > 20:
-            return True
+    def photo_list(self):
+        photos = []
         try:
             import json
-            d = json.loads(self.form_data)
-            return bool(d.get("photo_data"))
+            d = json.loads(self.form_data) if self.form_data else {}
+            if isinstance(d.get("photos"), list) and len(d["photos"]) > 0:
+                photos = [p for p in d["photos"] if p and len(str(p).strip()) > 20]
         except Exception:
-            return False
+            pass
+        if not photos and self.photo_data and len(self.photo_data.strip()) > 20:
+            photos = [self.photo_data]
+        return photos
+
+    @property
+    def photo_count(self):
+        return len(self.photo_list)
+
+    @property
+    def audio_clip_list(self):
+        clips = []
+        try:
+            import json
+            d = json.loads(self.form_data) if self.form_data else {}
+            if isinstance(d.get("audio_clips"), list) and len(d["audio_clips"]) > 0:
+                clips = d["audio_clips"]
+        except Exception:
+            pass
+        if not clips and self.audio_filename and self.audio_filename.strip():
+            clips = [{
+                "filename": self.audio_filename,
+                "url": self.audio_filename if (self.audio_filename.startswith("http://") or self.audio_filename.startswith("https://")) else f"/audio/{self.audio_filename}",
+                "label": "Clip 1",
+                "timestamp": self.timestamp.strftime("%H:%M") if self.timestamp else ""
+            }]
+        return clips
+
+    @property
+    def has_photo(self):
+        return bool(self.photo_list)
 
     @property
     def photo_url(self):
@@ -81,7 +111,7 @@ class CaseRevision(db.Model):
     comment = db.Column(db.String(255), nullable=True)
     timestamp = db.Column(db.DateTime, default=get_thai_time)
 
-    case = db.relationship('FormHistory', backref=db.backref('revisions', lazy=True, order_by='CaseRevision.revision_number.asc()'))
+    case = db.relationship('FormHistory', backref=db.backref('revisions', lazy=True, cascade="all, delete-orphan", order_by='CaseRevision.revision_number.asc()'))
     author = db.relationship('User', backref=db.backref('case_revisions', lazy=True))
 
     @property

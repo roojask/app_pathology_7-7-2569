@@ -73,9 +73,12 @@
 
                 <input type="hidden" name="transcription" id="hidden-transcription" value="{{ transcription }}">
                 <input type="hidden" name="audio_filename" id="hidden-audio-filename" value="{{ audio_filename if audio_filename else '' }}">
+                <input type="hidden" name="audio_cleared" id="hidden-audio-cleared" value="false">
+                <input type="hidden" name="audio_clips_json" id="hidden-audio-clips-json" value="{{ audio_clips_json if audio_clips_json else '[]' }}">
                 <input type="hidden" name="loaded_history_id" id="loaded-history-id" value="{{ loaded_history_id or '' }}">
                 <input type="hidden" name="photo_data" id="hidden-photo-data" value="{{ photo_data if photo_data else '' }}">
                 <input type="hidden" name="photo_cleared" id="hidden-photo-cleared" value="false">
+                <input type="hidden" name="photos_json" id="hidden-photos-json" value="{{ photos_json if photos_json else '[]' }}">
 
                 {% if diff_list and diff_list|length > 0 %}
                 <div class="diff-summary-card" id="diff-summary-alert">
@@ -698,8 +701,8 @@
                     <span class="dictation-label">DICTATING</span>
                     <h2 class="dictation-main-status" id="sidebar-dictation-state">Ready</h2>
                 </div>
-                <button type="button" class="btn-lang-badge lang-th" id="btn-mic-lang-toggle" title="สลับภาษาพูด (Switch Speech Language: ไทย / English)">
-                    <i class="fa-solid fa-language"></i> <span id="mic-lang-label">TH (ไทย)</span>
+                <button type="button" class="btn-lang-badge lang-en" id="btn-mic-lang-toggle" title="Speech Language: English (en-US) - Click to toggle">
+                    <i class="fa-solid fa-language"></i> <span id="mic-lang-label">EN (Eng)</span>
                 </button>
             </div>
 
@@ -715,18 +718,50 @@
                 </button>
             </div>
 
-            <!-- 3. Recorded Audio Player Widget (Right below buttons, matching user reference) -->
-            <div id="sidebar-audio-playback-container" class="sidebar-audio-box" style="{% if not audio_filename %}display:none;{% else %}display:flex;{% endif %}">
-                <audio controls id="sidebar-audio-player" preload="metadata" style="flex: 1; height: 36px; border-radius: 6px; outline: none;">
-                    {% if audio_filename %}
-                        {% set audio_src = audio_filename if (audio_filename.startswith('http://') or audio_filename.startswith('https://')) else url_for('get_upload', filename=audio_filename) %}
-                        {% set audio_mime = 'audio/mpeg' if audio_filename.lower().endswith('.mp3') else 'audio/wav' %}
-                        <source src="{{ audio_src }}" type="{{ audio_mime }}">
-                    {% endif %}
-                </audio>
-                <button type="button" id="btn-clear-audio" onclick="clearSidebarAudio();" title="Remove Audio" class="btn-audio-clear">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+            <!-- 3. Recorded Audio Playlist Widget (Multi-clip support) -->
+            <div id="sidebar-audio-playback-container" class="sidebar-audio-box" style="{% if not audio_filename and not (audio_clips and audio_clips|length > 0) %}display:none;{% else %}display:flex;{% endif %}">
+                <div class="sidebar-audio-header">
+                    <div class="sidebar-audio-title">
+                        <i class="fa-solid fa-volume-high" style="color: #2563eb;"></i>
+                        <span>ไฟล์เสียง (<span id="audio-clips-count">{{ audio_clips|length if audio_clips else (1 if audio_filename else 0) }}</span>)</span>
+                    </div>
+                    <div class="sidebar-audio-actions">
+                        <button type="button" id="btn-delete-active-clip" onclick="deleteActiveAudioClip();" title="ลบคลิปที่เลือก" class="btn-audio-action-sm">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="sidebar-audio-selector-row" id="audio-selector-container" style="{% if not audio_clips or audio_clips|length <= 1 %}display:none;{% else %}display:flex;{% endif %}">
+                    <select id="audio-clip-selector" class="audio-clip-select" onchange="onSelectAudioClip(parseInt(this.value, 10));">
+                        {% if audio_clips %}
+                            {% for clip in audio_clips %}
+                                <option value="{{ loop.index0 }}">{{ clip.label or ('Clip ' ~ loop.index) }} {{ ('(' ~ clip.timestamp ~ ')') if clip.timestamp else '' }}</option>
+                            {% endfor %}
+                        {% elif audio_filename %}
+                            <option value="0">Clip 1</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="sidebar-audio-player-row">
+                    <audio controls id="sidebar-audio-player" preload="metadata" style="flex: 1; height: 36px; border-radius: 6px; outline: none;">
+                        {% if audio_filename %}
+                            {% set audio_src = audio_filename if (audio_filename.startswith('http://') or audio_filename.startswith('https://')) else url_for('get_upload', filename=audio_filename) %}
+                            {% set ext = audio_filename.rsplit('.', 1)[-1].lower() if '.' in audio_filename else 'webm' %}
+                            {% if ext == 'mp3' %}
+                                {% set audio_mime = 'audio/mpeg' %}
+                            {% elif ext == 'webm' %}
+                                {% set audio_mime = 'audio/webm' %}
+                            {% elif ext in ['m4a', 'mp4'] %}
+                                {% set audio_mime = 'audio/mp4' %}
+                            {% elif ext == 'ogg' %}
+                                {% set audio_mime = 'audio/ogg' %}
+                            {% else %}
+                                {% set audio_mime = 'audio/wav' %}
+                            {% endif %}
+                            <source src="{{ audio_src }}" type="{{ audio_mime }}">
+                        {% endif %}
+                    </audio>
+                </div>
             </div>
 
             <!-- 4. Fill Again Button -->
@@ -844,17 +879,32 @@
                 </div>
             </div>
 
-            <!-- Specimen Photo Preview Card (Stored directly in database) -->
-            <div id="specimen-photo-container" class="specimen-photo-card" style="{% if not photo_data %}display: none;{% else %}display: block;{% endif %} margin-top: 8px;">
+            <!-- Specimen Photo Gallery Card (Stored directly in database, multi-photo) -->
+            <div id="specimen-photo-container" class="specimen-photo-card" style="{% if not photo_data and not (photos and photos|length > 0) %}display: none;{% else %}display: block;{% endif %} margin-top: 8px;">
                 <div class="specimen-card-header">
-                    <span class="specimen-card-title"><i class="fa-solid fa-image" style="color: #2563eb;"></i> ภาพชิ้นเนื้อ (Specimen Photo)</span>
-                    <button type="button" id="btn-clear-photo" class="btn-clear-photo" title="ลบภาพถ่ายชิ้นเนื้อ">
-                        <i class="fa-solid fa-trash-can"></i> ลบรูป
+                    <span class="specimen-card-title">
+                        <i class="fa-solid fa-images" style="color: #2563eb;"></i> ภาพชิ้นเนื้อ (<span id="photo-gallery-count">{{ photos|length if photos else (1 if photo_data else 0) }}</span>)
+                    </span>
+                    <button type="button" id="btn-clear-photo" class="btn-clear-photo" title="ลบภาพถ่ายทั้งหมด">
+                        <i class="fa-solid fa-trash-can"></i> ลบทั้งหมด
                     </button>
                 </div>
-                <div class="specimen-card-preview" onclick="openFormPhotoModal();" title="คลิกเพื่อดูรูปขนาดใหญ่">
-                    <img id="specimen-preview-img" src="{{ photo_data if photo_data else '' }}" alt="Specimen Preview" />
+                <!-- Primary preview (clicking opens modal) -->
+                <div class="specimen-card-preview" id="specimen-primary-preview" onclick="openPhotoModalByIndex(0);" title="คลิกเพื่อดูรูปขนาดใหญ่">
+                    <img id="specimen-preview-img" src="{{ photo_data if photo_data else (photos[0] if photos and photos|length > 0 else '') }}" alt="Specimen Preview" />
                     <div class="specimen-zoom-hint"><i class="fa-solid fa-magnifying-glass-plus"></i> คลิกเพื่อดูรูปใหญ่</div>
+                </div>
+                <!-- Thumbnails strip when multiple photos exist -->
+                <div id="specimen-gallery-strip" class="specimen-gallery-strip" style="{% if not photos or photos|length <= 1 %}display: none;{% else %}display: flex;{% endif %}">
+                    {% if photos %}
+                        {% for p in photos %}
+                            <div class="gallery-thumb-item {{ 'active' if loop.first else '' }}" onclick="selectGalleryThumb({{ loop.index0 }});" title="รูปที่ {{ loop.index }}">
+                                <img src="{{ p }}" alt="Thumb {{ loop.index }}" />
+                                <span class="gallery-thumb-num">{{ loop.index }}</span>
+                                <button type="button" class="gallery-thumb-del" onclick="event.stopPropagation(); deletePhotoAtIndex({{ loop.index0 }});" title="ลบรูปนี้">&times;</button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </div>
 
@@ -909,6 +959,7 @@
             const audioContainer = document.getElementById('sidebar-audio-playback-container');
             const audioPlayer = document.getElementById('sidebar-audio-player');
             const hiddenAudio = document.getElementById('hidden-audio-filename');
+            const hiddenCleared = document.getElementById('hidden-audio-cleared');
             if (audioPlayer) {
                 audioPlayer.pause();
                 audioPlayer.removeAttribute('src');
@@ -920,6 +971,12 @@
             }
             if (hiddenAudio) {
                 hiddenAudio.value = '';
+            }
+            if (hiddenCleared) {
+                hiddenCleared.value = 'true';
+            }
+            if (typeof autoSaveDraft === 'function') {
+                autoSaveDraft();
             }
         };
     </script>
@@ -1068,19 +1125,9 @@
         }
 
         function openFormPhotoModal() {
-            const previewImg = document.getElementById('specimen-preview-img');
-            const modal = document.getElementById('formPhotoModal');
-            const modalImg = document.getElementById('formPhotoModalImg');
-            const downloadBtn = document.getElementById('formPhotoModalDownload');
-            if (!previewImg || !previewImg.src || !modal || !modalImg) return;
-
-            modalImg.src = previewImg.src;
-            if (downloadBtn) {
-                downloadBtn.href = previewImg.src;
-                const sNo = document.querySelector('input[name="s0_surgical_no"]')?.value?.trim() || 'case';
-                downloadBtn.download = `specimen_${sNo}.jpg`;
+            if (typeof window.openPhotoModalByIndex === 'function') {
+                window.openPhotoModalByIndex(0);
             }
-            modal.style.display = 'flex';
         }
 
         function closeFormPhotoModal() {
@@ -1096,17 +1143,27 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-camera" style="color: #2563eb; font-size: 16px;"></i>
                     <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">ภาพถ่ายชิ้นเนื้อ (Specimen Photo)</h3>
+                    <span id="formPhotoModalCounter" style="margin-left: 8px; font-size: 13px; color: #64748b; font-weight: 600;"></span>
                 </div>
                 <button type="button" class="photo-modal-close-btn" onclick="closeFormPhotoModal();" title="Close">&times;</button>
             </div>
-            <div class="photo-modal-body">
+            <div class="photo-modal-body" style="position: relative;">
+                <button type="button" class="photo-modal-nav-btn prev" id="btnPhotoModalPrev" onclick="window.navigatePhotoModal(-1);" title="รูปก่อนหน้า (ลูกศรซ้าย)">&#10094;</button>
                 <img id="formPhotoModalImg" src="" alt="Specimen Photo" />
+                <button type="button" class="photo-modal-nav-btn next" id="btnPhotoModalNext" onclick="window.navigatePhotoModal(1);" title="รูปถัดไป (ลูกศรขวา)">&#10095;</button>
             </div>
-            <div class="photo-modal-footer">
-                <a id="formPhotoModalDownload" href="" download="specimen_photo.jpg" class="btn-photo-download">
-                    <i class="fa-solid fa-download"></i> ดาวน์โหลดรูปภาพ
-                </a>
-                <button type="button" class="btn-photo-close" onclick="closeFormPhotoModal();">ปิด</button>
+            <div class="photo-modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <button type="button" class="btn-photo-modal-del" id="btnPhotoModalDelete" onclick="window.deleteCurrentModalPhoto();" style="background:#ef4444; color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-trash-can"></i> ลบรูปนี้
+                    </button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <a id="formPhotoModalDownload" href="" download="specimen_photo.jpg" class="btn-photo-download">
+                        <i class="fa-solid fa-download"></i> ดาวน์โหลดรูปภาพ
+                    </a>
+                    <button type="button" class="btn-photo-close" onclick="closeFormPhotoModal();">ปิด</button>
+                </div>
             </div>
         </div>
     </div>

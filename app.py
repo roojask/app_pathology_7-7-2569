@@ -142,6 +142,31 @@ def index():
         transcription = None
         audio_fn = request.form.get('audio_filename')
         photo_data = request.form.get('photo_data') or ""
+        photos_json = request.form.get('photos_json') or ""
+        audio_clips_json = request.form.get('audio_clips_json') or ""
+
+        photos = []
+        if photos_json:
+            try:
+                photos = json.loads(photos_json)
+                if not isinstance(photos, list):
+                    photos = []
+            except Exception:
+                photos = []
+        if not photos and photo_data:
+            photos = [photo_data]
+
+        audio_clips = []
+        if audio_clips_json:
+            try:
+                audio_clips = json.loads(audio_clips_json)
+                if not isinstance(audio_clips, list):
+                    audio_clips = []
+            except Exception:
+                audio_clips = []
+        if not audio_clips and audio_fn:
+            audio_url = audio_fn if (audio_fn.startswith("http://") or audio_fn.startswith("https://")) else url_for('get_upload', filename=audio_fn)
+            audio_clips = [{"filename": audio_fn, "url": audio_url, "label": "Clip 1", "timestamp": ""}]
         
         if request.form.get('transcription_text'):
             transcription = request.form.get('transcription_text')
@@ -169,16 +194,98 @@ def index():
             from src.nlp.normalizer import normalize_text
             transcription = normalize_text(transcription)
 
+            audio_url = audio_fn if (audio_fn.startswith("http://") or audio_fn.startswith("https://")) else url_for('get_upload', filename=audio_fn)
+            audio_clips.append({"filename": audio_fn, "url": audio_url, "label": f"Clip {len(audio_clips)+1}", "timestamp": ""})
+
         data = {}
         flags = {}
         if transcription and "Error during transcription" not in transcription:
              data = extract_data_15_sections(transcription)
              flags = generate_confidence_flags(data) 
         
-        return render_template('index.html', transcription=transcription, data=data, flags=flags, audio_filename=audio_fn, photo_data=photo_data, is_new_case=False)
+        if photos:
+            data["photos"] = photos
+            photo_data = photos[0]
+            data["photo_data"] = photo_data
+        if audio_clips:
+            data["audio_clips"] = audio_clips
+            audio_fn = audio_clips[-1].get("filename", "")
+            data["audio_filename"] = audio_fn
+
+        return render_template('index.html', 
+                               transcription=transcription, 
+                               data=data, 
+                               flags=flags, 
+                               audio_filename=audio_fn, 
+                               audio_clips=audio_clips,
+                               audio_clips_json=json.dumps(audio_clips, ensure_ascii=False),
+                               photo_data=photo_data, 
+                               photos=photos,
+                               photos_json=json.dumps(photos, ensure_ascii=False),
+                               is_new_case=False)
 
     is_new = request.args.get("new") in ["1", "true", "True"] or request.args.get("new_case") in ["1", "true", "True"]
-    return render_template("index.html", is_new_case=is_new, photo_data="")
+    return render_template("index.html", 
+                           is_new_case=is_new, 
+                           photo_data="", 
+                           photos=[], 
+                           photos_json="[]", 
+                           audio_filename="", 
+                           audio_clips=[], 
+                           audio_clips_json="[]")
+
+@app.route("/api/extract", methods=["POST"])
+def api_extract_text():
+    try:
+        req = request.get_json(silent=True) or {}
+        text = req.get("text", "").strip()
+        if not text:
+            return jsonify({"success": False, "error": "No text provided"}), 400
+        
+        from src.nlp.extractor import extract_data_15_sections, generate_confidence_flags
+        extracted = extract_data_15_sections(text)
+        flags = generate_confidence_flags(extracted)
+        return jsonify({"success": True, "data": extracted, "flags": flags})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/upload_audio", methods=["POST"])
+def api_upload_audio():
+    try:
+        audio_file = request.files.get("audio")
+        if not audio_file or audio_file.filename == "":
+            return jsonify({"success": False, "error": "No audio file provided"}), 400
+
+        from werkzeug.utils import secure_filename
+        import uuid
+        
+        orig_name = secure_filename(audio_file.filename)
+        ext = orig_name.rsplit(".", 1)[-1].lower() if "." in orig_name else "webm"
+        if ext not in ["wav", "mp3", "webm", "ogg", "m4a"]:
+            ext = "webm"
+        
+        filename = f"{uuid.uuid4().hex}_mic_record.{ext}"
+        save_path = Config.UPLOAD_DIR / filename
+        audio_file.save(save_path)
+        
+        audio_fn = filename
+        if Config.SUPABASE_URL and Config.SUPABASE_KEY:
+            try:
+                from src.storage.supabase_client import upload_audio_to_supabase
+                public_url = upload_audio_to_supabase(save_path, filename, Config.SUPABASE_URL, Config.SUPABASE_KEY)
+                if public_url:
+                    audio_fn = public_url
+            except Exception as e:
+                print(f"[Storage Warning] Supabase upload error: {e}")
+
+        audio_url = audio_fn if (audio_fn.startswith("http://") or audio_fn.startswith("https://")) else url_for("get_upload", filename=audio_fn)
+        return jsonify({
+            "success": True,
+            "audio_filename": audio_fn,
+            "audio_url": audio_url
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/generate", methods=["GET", "POST"])
 def generate_pdf():
@@ -285,20 +392,67 @@ def generate_pdf():
     try:
         user_id = current_user.id if (hasattr(current_user, 'is_authenticated') and current_user.is_authenticated) else 1
         s_no = data.get("s0_surgical_no", "Unknown")
-        audio_fn = form_data.get("audio_filename")
+        audio_fn = form_data.get("audio_filename") or ""
+        audio_cleared = form_data.get("audio_cleared") in ["true", "1", "True"]
         photo_raw = form_data.get("photo_data") or ""
         photo_cleared = form_data.get("photo_cleared") in ["true", "1", "True"]
 
+        photos_json = form_data.get("photos_json") or ""
+        photos = []
+        if photos_json:
+            try:
+                photos = json.loads(photos_json)
+                if not isinstance(photos, list):
+                    photos = []
+            except Exception:
+                photos = []
+        if not photos and photo_raw and not photo_cleared:
+            photos = [photo_raw]
+        elif photo_cleared:
+            photos = []
+
+        audio_clips_json = form_data.get("audio_clips_json") or ""
+        audio_clips = []
+        if audio_clips_json:
+            try:
+                audio_clips = json.loads(audio_clips_json)
+                if not isinstance(audio_clips, list):
+                    audio_clips = []
+            except Exception:
+                audio_clips = []
+        if not audio_clips and audio_fn and not audio_cleared:
+            audio_url = audio_fn if (audio_fn.startswith("http://") or audio_fn.startswith("https://")) else url_for('get_upload', filename=audio_fn)
+            audio_clips = [{"filename": audio_fn, "url": audio_url, "label": "Clip 1", "timestamp": ""}]
+        elif audio_cleared:
+            audio_clips = []
+
         if photo_cleared:
             photo_raw = ""
-            if "photo_data" in data:
-                del data["photo_data"]
+            data.pop("photo_data", None)
+            data.pop("photos", None)
+        elif photos:
+            photo_raw = photos[0]
+            data["photo_data"] = photo_raw
+            data["photos"] = photos
         elif photo_raw:
             data["photo_data"] = photo_raw
+            data["photos"] = [photo_raw]
+
+        if audio_cleared:
+            audio_fn = ""
+            data.pop("audio_filename", None)
+            data.pop("audio_clips", None)
+        elif audio_clips:
+            audio_fn = audio_clips[-1].get("filename", "")
+            data["audio_filename"] = audio_fn
+            data["audio_clips"] = audio_clips
+        elif audio_fn:
+            data["audio_filename"] = audio_fn
+            audio_url = audio_fn if (audio_fn.startswith("http://") or audio_fn.startswith("https://")) else url_for('get_upload', filename=audio_fn)
+            data["audio_clips"] = [{"filename": audio_fn, "url": audio_url, "label": "Clip 1", "timestamp": ""}]
 
         # Save transcription text inside data JSON for permanent recall
         data["transcription"] = form_data.get("transcription") or form_data.get("transcription_text") or ""
-        data["audio_filename"] = audio_fn
 
         if loaded_hist_id and str(loaded_hist_id).strip().isdigit():
             history_record = FormHistory.query.get(int(loaded_hist_id))
@@ -332,16 +486,23 @@ def generate_pdf():
 
             if photo_cleared:
                 history_record.photo_data = None
+            elif photos:
+                history_record.photo_data = photos[0]
             elif photo_raw:
                 history_record.photo_data = photo_raw
+
+            if audio_cleared:
+                history_record.audio_filename = None
+            elif audio_clips:
+                history_record.audio_filename = audio_clips[-1].get("filename", "")
+            elif audio_fn:
+                history_record.audio_filename = audio_fn
 
             if diff_list:
                 current_revision = rev_count + 1
                 history_record.surgical_number = s_no
                 history_record.form_data = json.dumps(data)
                 history_record.timestamp = get_thai_time()
-                if audio_fn:
-                    history_record.audio_filename = audio_fn
 
                 new_rev = CaseRevision(
                     history_id=history_record.id,
@@ -362,13 +523,23 @@ def generate_pdf():
                 db.session.commit()
                 print(f"[REVISION] Case #{history_record.id} saved without field changes (v{current_revision})")
 
-            # Update permanent case files
+            # Update permanent case files & shadow sync
             try:
                 import shutil
                 shutil.copy(pdf_path, Config.OUTPUT_DIR / f"case_{history_record.id}.pdf")
                 shutil.copy(docx_path, Config.OUTPUT_DIR / f"case_{history_record.id}.docx")
+                from scripts.sync_databases import shadow_sync_case_to_sqlite
+                shadow_sync_case_to_sqlite(
+                    case_id=history_record.id,
+                    user_id=user_id,
+                    surgical_number=s_no,
+                    form_data=data,
+                    audio_filename=history_record.audio_filename,
+                    photo_data=history_record.photo_data,
+                    timestamp=history_record.timestamp
+                )
             except Exception as fe:
-                print(f"[REVISION FILE COPY NOTE] {fe}")
+                print(f"[REVISION FILE COPY / SHADOW SYNC NOTE] {fe}")
 
         else:
             # Brand new case
@@ -376,8 +547,8 @@ def generate_pdf():
                 user_id=user_id,
                 surgical_number=s_no,
                 form_data=json.dumps(data),
-                audio_filename=audio_fn,
-                photo_data=photo_raw if photo_raw else None,
+                audio_filename=(audio_clips[-1].get("filename") if audio_clips else audio_fn) if not audio_cleared else None,
+                photo_data=(photos[0] if photos else photo_raw) if not photo_cleared else None,
                 timestamp=get_thai_time()
             )
             db.session.add(history_record)
@@ -402,20 +573,37 @@ def generate_pdf():
                 import shutil
                 shutil.copy(pdf_path, Config.OUTPUT_DIR / f"case_{history_record.id}.pdf")
                 shutil.copy(docx_path, Config.OUTPUT_DIR / f"case_{history_record.id}.docx")
+                from scripts.sync_databases import shadow_sync_case_to_sqlite
+                shadow_sync_case_to_sqlite(
+                    case_id=history_record.id,
+                    user_id=user_id,
+                    surgical_number=s_no,
+                    form_data=data,
+                    audio_filename=history_record.audio_filename,
+                    photo_data=history_record.photo_data,
+                    timestamp=history_record.timestamp
+                )
             except Exception as fe:
-                print(f"[NEW CASE FILE COPY NOTE] {fe}")
+                print(f"[NEW CASE FILE COPY / SHADOW SYNC NOTE] {fe}")
 
     except Exception as e:
         db.session.rollback()
         print(f"[DB ERROR] Could not save history/revision: {e}")
 
     photo_to_render = (history_record.photo_data if history_record and history_record.photo_data else photo_raw) if not photo_cleared else ""
+    photos_to_render = (history_record.photo_list if history_record else photos) if not photo_cleared else []
+    audio_to_render = (history_record.audio_filename if history_record and history_record.audio_filename else audio_fn) if not audio_cleared else ""
+    audio_clips_to_render = (history_record.audio_clip_list if history_record else audio_clips) if not audio_cleared else []
     return render_template("index.html", 
                            pdf_filename=pdf_filename, 
                            docx_filename=docx_filename,
                            transcription=form_data.get("transcription"),
-                           audio_filename=form_data.get("audio_filename"),
+                           audio_filename=audio_to_render,
+                           audio_clips=audio_clips_to_render,
+                           audio_clips_json=json.dumps(audio_clips_to_render, ensure_ascii=False),
                            photo_data=photo_to_render,
+                           photos=photos_to_render,
+                           photos_json=json.dumps(photos_to_render, ensure_ascii=False),
                            data=data, flags=flags,
                            is_new_case=False,
                            loaded_history_id=history_record.id if history_record else None,
@@ -602,15 +790,10 @@ def forgot_password():
 @app.route("/history")
 @login_required
 def history():
-    user_histories = FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).all()
     is_admin = current_user.check_is_admin
-    
-    if is_admin:
-        all_histories = FormHistory.query.order_by(FormHistory.timestamp.desc()).all()
-        all_users = User.query.all()
-    else:
-        all_histories = []
-        all_users = []
+    all_histories = FormHistory.query.order_by(FormHistory.id.desc()).all()
+    user_histories = all_histories if is_admin else FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.id.desc()).all()
+    all_users = User.query.all() if is_admin else []
         
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     return render_template(
@@ -850,8 +1033,10 @@ def load_history(history_id):
             db.session.rollback()
             print(f"[load_history update_err] {update_err}")
 
-    audio_fn = history_record.audio_filename or data.get("audio_filename") or ""
-    photo_data = getattr(history_record, 'photo_data', None) or data.get("photo_data") or ""
+    photos = history_record.photo_list
+    audio_clips = history_record.audio_clip_list
+    audio_fn = audio_clips[-1]["filename"] if audio_clips else (history_record.audio_filename or data.get("audio_filename") or "")
+    photo_data = photos[0] if photos else (getattr(history_record, 'photo_data', None) or data.get("photo_data") or "")
 
     # Ensure PDF and DOCX files are present on disk for immediate viewing/downloading
     pdf_filename = f"case_{history_id}.pdf"
@@ -884,7 +1069,11 @@ def load_history(history_id):
         flags=flags,
         transcription=transcription,
         audio_filename=audio_fn,
+        audio_clips=audio_clips,
+        audio_clips_json=json.dumps(audio_clips, ensure_ascii=False),
         photo_data=photo_data,
+        photos=photos,
+        photos_json=json.dumps(photos, ensure_ascii=False),
         pdf_filename=pdf_filename,
         docx_filename=docx_filename,
         loaded_history_id=history_id,
@@ -949,8 +1138,14 @@ def get_case_photo(history_id):
     if not current_user.check_is_admin and history_record.user_id != current_user.id:
         return "Unauthorized", 403
 
-    photo_str = history_record.photo_data or ""
-    if not photo_str:
+    index = request.args.get("index", 0, type=int)
+    photos = history_record.photo_list
+    photo_str = ""
+    if photos and 0 <= index < len(photos):
+        photo_str = photos[index]
+    elif not photos and history_record.photo_data:
+        photo_str = history_record.photo_data
+    elif not photos:
         try:
             d = json.loads(history_record.form_data)
             photo_str = d.get("photo_data", "")

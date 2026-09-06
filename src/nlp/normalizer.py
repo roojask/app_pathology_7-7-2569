@@ -13,12 +13,32 @@ def normalize_text(text):
     t = re.sub(r"([\d.]+\s*x\s*[\d.]+(?:\s*x\s*[\d.]+)?)(?:[\s\.,]*(?:cm|centimeters|mm))?[\s\.,]*(?:sorry|wait|weight|correction|actually|no wait|แก้เป็น|ขอแก้|ไม่ใช่|เปลี่ยนเป็น)+[\s\.,]*(?:measuring|size is|it is|actually)?\s*", "", t)
     
     # 2.5. แปลงคำอ่านภาษาไทย-อังกฤษ (Thai-English Phonetic Normalization)
+    t = t.replace("×", " x ").replace("*", " x ").replace("คูณ", " x ")
+    t = t.replace("เซนติเมตร", " cm ").replace("เซน", " cm ").replace("ซม.", " cm ").replace("ซม", " cm ")
+    t = t.replace("มิลลิเมตร", " mm ").replace("มิล", " mm ").replace("มม.", " mm ").replace("มม", " mm ")
+    t = t.replace("จุด", ".")
+
+    thai_nums = [
+        ("ยี่สิบเก้า", "29"), ("ยี่สิบแปด", "28"), ("ยี่สิบเจ็ด", "27"), ("ยี่สิบหก", "26"), ("ยี่สิบห้า", "25"),
+        ("ยี่สิบสี่", "24"), ("ยี่สิบสาม", "23"), ("ยี่สิบสอง", "22"), ("ยี่สิบเอ็ด", "21"), ("ยี่สิบ", "20"),
+        ("สิบเก้า", "19"), ("สิบแปด", "18"), ("สิบเจ็ด", "17"), ("สิบหก", "16"), ("สิบห้า", "15"),
+        ("สิบสี่", "14"), ("สิบสาม", "13"), ("สิบสอง", "12"), ("สิบเอ็ด", "11"), ("สิบ", "10"),
+        ("เก้าสิบ", "90"), ("แปดสิบ", "80"), ("เจ็ดสิบ", "70"), ("หกสิบ", "60"), ("ห้าสิบ", "50"),
+        ("สี่สิบ", "40"), ("สามสิบ", "30"), ("หนึ่งร้อย", "100"), ("ร้อย", "100"),
+        ("ศูนย์", "0"), ("หนึ่ง", "1"), ("สอง", "2"), ("สาม", "3"), ("สี่", "4"),
+        ("ห้า", "5"), ("หก", "6"), ("เจ็ด", "7"), ("แปด", "8"), ("เก้า", "9")
+    ]
+    for w, v in thai_nums:
+        t = t.replace(w, v)
+    t = re.sub(r"(\d+)\s*\.\s*(\d+)", r"\1.\2", t)
+
     t = t.replace("ข้างขวา", " right ").replace("เต้าขวา", " right ").replace("ขวา", " right ")
     t = t.replace("ข้างซ้าย", " left ").replace("เต้าซ้าย", " left ").replace("ซ้าย", " left ")
     t = t.replace("ตัดเต้านม", " mastectomy ").replace("มาสเทค", " mastectomy ")
     t = t.replace("มอดิฟายด์", "modified").replace("มอดิฟาย", "modified")
+    t = t.replace("โมดิฟายด์", "modified").replace("โมดิฟาย", "modified")
     t = t.replace("แรดิคัล", "radical").replace("เรดิคัล", "radical")
-    t = t.replace("ซิมเปิล", "simple")
+    t = t.replace("ซิมเปิล", "simple").replace("ซิมเปิ้ล", "simple")
     t = t.replace("ก้อนเนื้อ", " mass ").replace("ก้อน", " mass ").replace("แมส", " mass ")
     t = t.replace("ต่อมน้ำเหลือง", " lymph nodes ").replace("รักแร้", " axillary ")
     t = t.replace("ขอบตัด", " margin ").replace("ขอบลึก", " deep margin ")
@@ -28,7 +48,10 @@ def normalize_text(text):
     t = t.replace("ล่างนอก", " lower outer ").replace("ล่างใน", " lower inner ")
     t = t.replace("กึ่งกลาง", " central ")
     t = t.replace("ขนาด", " measuring ")
-    t = t.replace("คูณ", " x ")
+    t = t.replace("ผิวหนัง", " skin ").replace("ปกติ", " appears normal ")
+    t = t.replace("หัวนม", " nipple ").replace("นูน", " everted ").replace("ดึงรั้ง", " inverted ").replace("บอด", " inverted ")
+    t = t.replace("แผลเป็น", " scar ").replace("แผลเปื่อย", " ulceration ")
+    t = t.replace("ถึง", " to ").replace("ตั้งแต่", " ranging from ")
     
     # 3. แปลงหน่วยและคำพ้องความหมาย (Synonyms)
     t = t.replace("centimeters", "cm").replace("centimeter", "cm")

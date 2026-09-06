@@ -2,10 +2,10 @@ import sqlite3
 import psycopg2
 from pathlib import Path
 
-def migrate():
+def sync():
     sqlite_path = Path('data/instance/local_pathology.db')
     if not sqlite_path.exists():
-        print(f"[-] SQLite database not found at {sqlite_path}")
+        print(f"Error: {sqlite_path} does not exist!")
         return
 
     # 1. Update SQLite schema if needed (add is_admin to user if missing)
@@ -19,6 +19,8 @@ def migrate():
         sq_cur.execute("UPDATE user SET is_admin = 1 WHERE username IN ('roojask', 'test1');")
         sq_conn.commit()
         print("[SQLite] is_admin added and admin users updated.")
+    else:
+        print("[SQLite] is_admin column already exists.")
 
     sq_cur.execute("SELECT id, username, email, password_hash, name, is_admin FROM user")
     users = sq_cur.fetchall()
@@ -44,48 +46,6 @@ def migrate():
         port='5432'
     )
     pg_cur = pg_conn.cursor()
-
-    # Create tables if not exist matching models.py
-    pg_cur.execute('''
-    CREATE TABLE IF NOT EXISTS "user" (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        email VARCHAR(120) UNIQUE NOT NULL,
-        password_hash VARCHAR(200) NOT NULL,
-        name VARCHAR(150),
-        is_admin BOOLEAN DEFAULT FALSE
-    );
-    CREATE TABLE IF NOT EXISTS "form_history" (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES "user"(id),
-        surgical_number VARCHAR(100),
-        form_data TEXT NOT NULL,
-        audio_filename VARCHAR(200),
-        photo_data TEXT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS "case_revision" (
-        id SERIAL PRIMARY KEY,
-        history_id INTEGER NOT NULL REFERENCES "form_history"(id),
-        user_id INTEGER REFERENCES "user"(id),
-        revision_number INTEGER DEFAULT 1,
-        action VARCHAR(50) DEFAULT 'update',
-        changes_summary TEXT,
-        full_snapshot TEXT,
-        comment VARCHAR(255),
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS "audio_task" (
-        id VARCHAR(36) PRIMARY KEY,
-        user_id INTEGER REFERENCES "user"(id),
-        file_path VARCHAR(255) NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending',
-        result_text TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    ''')
-    pg_conn.commit()
 
     # 3. Insert users into PostgreSQL "user" table
     for u in users:
@@ -156,7 +116,7 @@ def migrate():
 
     pg_conn.close()
     sq_conn.close()
-    print("=== MIGRATION COMPLETED SUCCESSFULLY ===")
+    print("=== SYNC COMPLETED SUCCESSFULLY ===")
 
 if __name__ == '__main__':
-    migrate()
+    sync()

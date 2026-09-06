@@ -5,12 +5,47 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let recognition;
     let isRecording = false;
+    let accumulatedTranscript = '';
+    let currentSessionFinal = '';
+    let serverExtractDebounceTimer = null;
+    let lastExtractedText = '';
+
+    if (txtTranscription) {
+        txtTranscription.addEventListener('input', function () {
+            accumulatedTranscript = txtTranscription.value;
+            currentSessionFinal = '';
+        });
+    }
+
+    // Debounced Backend NLP Extractor fallback (/api/extract)
+    function requestBackendExtraction(textToExtract) {
+        if (!textToExtract || textToExtract.trim().length < 5) return;
+        clearTimeout(serverExtractDebounceTimer);
+        serverExtractDebounceTimer = setTimeout(() => {
+            fetch('/api/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: textToExtract })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result && result.success && result.data) {
+                    applyLocalDataToForm(result.data);
+                    if (typeof validateFormData === 'function') validateFormData();
+                }
+            })
+            .catch(err => {
+                console.log("Backend extraction notice:", err);
+            });
+        }, 750);
+    }
 
     // --- New System Variables ---
     let isCameraRunning = false;
     let cameraInstance = null;
     let mediaRecorder = null;
     let audioChunks = [];
+    let activeAudioStream = null;
     let recordingTimerInterval = null;
     let recordingStartTime = 0;
 
@@ -29,8 +64,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // --- Speech Recognition Language Engine (Default to th-TH bilingual with persistent memory) ---
-    let currentMicLang = localStorage.getItem('patho_mic_lang') || 'th-TH';
+    // --- Speech Recognition Language Engine (Default to English en-US per user instruction) ---
+    let currentMicLang = 'en-US';
+    localStorage.setItem('patho_mic_lang', 'en-US');
 
     function updateMicLangUI() {
         const btn = document.getElementById('btn-mic-lang-toggle');
@@ -178,8 +214,11 @@ document.addEventListener('DOMContentLoaded', function () {
         recognition.lang = currentMicLang;
 
         recognition.onstart = function () {
+            const wasAlreadyRecording = isRecording;
             isRecording = true;
-            playAudioChime('start');
+            if (!wasAlreadyRecording) {
+                playAudioChime('start');
+            }
             updateHandsFreeBadge('Mic: Listening...', '#22c55e', true);
 
             if (btnMicToggle) {
@@ -190,10 +229,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const micCircle = document.getElementById('mic-pulse-circle');
             if (micCircle) micCircle.classList.add('recording');
 
+            const statusLabel = document.getElementById('sidebar-dictation-state');
+            if (statusLabel) statusLabel.innerText = 'Dictating...';
             if (micStatusContainer) micStatusContainer.innerText = 'Dictating...';
         };
 
         recognition.onend = function () {
+            if (currentSessionFinal) {
+                accumulatedTranscript = accumulatedTranscript 
+                    ? (accumulatedTranscript + ' ' + currentSessionFinal) 
+                    : currentSessionFinal;
+                currentSessionFinal = '';
+            }
+
             if (isRecording) {
                 // If it ended but isRecording is still true, it was a silence timeout.
                 // Use a short delay for iPadOS/Safari audio engine cleanup before auto-restart
@@ -227,27 +275,35 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         recognition.onresult = function (event) {
-            let finalTranscript = '';
-            let interimTranscript = '';
+            let sessionFinal = '';
+            let sessionInterim = '';
 
             for (let i = 0; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
+                    sessionFinal += event.results[i][0].transcript + ' ';
                 } else {
-                    interimTranscript += event.results[i][0].transcript;
+                    sessionInterim += event.results[i][0].transcript;
                 }
             }
+            currentSessionFinal = sessionFinal.trim();
 
-            const totalText = finalTranscript + interimTranscript;
+            let combinedBase = accumulatedTranscript;
+            if (currentSessionFinal) {
+                combinedBase = combinedBase ? (combinedBase + ' ' + currentSessionFinal) : currentSessionFinal;
+            }
+            const totalText = (combinedBase + (sessionInterim ? ' ' + sessionInterim : '')).trim();
 
             // Check for voice commands
             const checkText = totalText.toLowerCase().trim();
 
             // 1. Voice Command: Reset / Clear Form
             if (checkText.endsWith("clear all") || checkText.endsWith("reset form") || checkText.endsWith("ล้างข้อมูล") || checkText.endsWith("เริ่มเคสใหม่") || checkText.endsWith("ล้างฟอร์ม")) {
+                accumulatedTranscript = '';
+                currentSessionFinal = '';
+                lastExtractedText = '';
                 playAudioChime('stop');
                 updateHandsFreeBadge('Form Reset', '#f39c12', true);
-                txtTranscription.value = "";
+                if (txtTranscription) txtTranscription.value = "";
                 if (typeof unlockAllFields === 'function') unlockAllFields();
                 document.querySelectorAll('.patho-form input[type="text"], .patho-form textarea').forEach(el => {
                     el.value = '';
@@ -317,10 +373,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // 5. Voice Command: Stop Recording
             if (checkText.endsWith("stop record") || checkText.endsWith("หยุดบันทึก") || checkText.endsWith("หยุดอัดเสียง")) {
-                isRecording = false;
-                playAudioChime('stop');
-                updateHandsFreeBadge('Mic Stopped', '#95a5a6', false);
-                recognition.stop();
+                if (typeof stopRecordingSession === 'function') {
+                    stopRecordingSession();
+                } else {
+                    isRecording = false;
+                    try { recognition.stop(); } catch(e) {}
+                }
                 speakFeedback("หยุดบันทึกเสียงแล้ว");
                 return;
             }
@@ -345,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const normText = normalizeText(totalText);
-            const latestSpokenChunk = normalizeText(interimTranscript || finalTranscript);
+            const latestSpokenChunk = normalizeText(sessionInterim || sessionFinal);
 
             if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl !== txtTranscription) {
                 const targetText = latestSpokenChunk.trim() || normText.trim();
@@ -365,15 +423,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // If text hasn't changed, don't re-extract
-            if (normText === lastExtractedText) return;
-            lastExtractedText = normText;
-            const extracted = parseTextLocally(normText);
-            applyLocalDataToForm(extracted);
+            // Instant Client-Side Extraction on text change
+            if (normText !== lastExtractedText) {
+                lastExtractedText = normText;
+                const extracted = parseTextLocally(normText);
+                applyLocalDataToForm(extracted);
+                if (typeof validateFormData === 'function') validateFormData();
+            }
+
+            // Debounced Backend NLP Extraction Fallback for complete parity
+            requestBackendExtraction(totalText);
 
             if (micStatusContainer) {
-                if (interimTranscript) {
-                    micStatusContainer.innerHTML = '<i class="fas fa-wave-square" style="color:#e67e22;"></i> กำลังพูด: <span style="color:#333;">' + interimTranscript + '</span>';
+                if (sessionInterim) {
+                    micStatusContainer.innerHTML = '<i class="fas fa-wave-square" style="color:#e67e22;"></i> กำลังพูด: <span style="color:#333;">' + sessionInterim + '</span>';
                 } else {
                     micStatusContainer.innerHTML = '<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-check-circle"></i> ถอดเสียงเรียลไทม์...</span>';
                 }
@@ -387,14 +450,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            isRecording = false;
-            if (btnMicToggle) {
-                btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Record';
-                btnMicToggle.classList.remove('active');
-                btnMicToggle.style.backgroundColor = '';
-            }
-            const micCircle = document.getElementById('mic-pulse-circle');
-            if (micCircle) micCircle.classList.remove('recording');
+            stopRecordingSession();
 
             if (event.error === 'not-allowed') {
                 showError("ไม่อนุญาตให้ใช้ไมโครโฟน (Not Allowed). กรุณากด 'Allow' ที่แถบ URL หรือตรวจสอบการตั้งค่า");
@@ -405,40 +461,185 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
 
-        btnMicToggle.addEventListener('click', async function () {
-            if (isRecording) {
-                isRecording = false; // Set to false first to tell onend not to auto-restart
-                try { recognition.stop(); } catch(e) {}
-                playAudioChime('stop');
-                updateHandsFreeBadge('Mic: Ready', '#22c55e', false);
+        async function stopRecordingSession() {
+            if (!isRecording && (!mediaRecorder || mediaRecorder.state === 'inactive')) return;
+            isRecording = false; // Set to false first to tell onend not to auto-restart
+            if (currentSessionFinal) {
+                accumulatedTranscript = accumulatedTranscript 
+                    ? (accumulatedTranscript + ' ' + currentSessionFinal) 
+                    : currentSessionFinal;
+                currentSessionFinal = '';
+            }
+            try { recognition.stop(); } catch(e) {}
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                try { mediaRecorder.stop(); } catch(e) {}
+            }
+            if (typeof stopAudioWaveformVisualizer === 'function') {
+                stopAudioWaveformVisualizer();
+            }
+            playAudioChime('stop');
+            updateHandsFreeBadge('Mic: Ready', '#22c55e', false);
+            if (btnMicToggle) {
                 btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Record';
                 btnMicToggle.classList.remove('active');
                 btnMicToggle.style.backgroundColor = '';
-                const micCircle = document.getElementById('mic-pulse-circle');
-                if (micCircle) micCircle.classList.remove('recording');
-                if (micStatusContainer) micStatusContainer.innerText = 'Ready';
-            } else {
-                // Request microphone permission if needed
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    try {
-                        const testAudio = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        testAudio.getTracks().forEach(t => t.stop());
-                    } catch(micErr) {
-                        showError("กรุณากด 'อนุญาต (Allow)' ไมโครโฟนในป๊อปอัปของเบราว์เซอร์");
-                        return;
-                    }
-                }
+            }
+            const micCircle = document.getElementById('mic-pulse-circle');
+            if (micCircle) micCircle.classList.remove('recording');
+            const statusLabel = document.getElementById('sidebar-dictation-state');
+            if (statusLabel) statusLabel.innerText = 'Ready';
+            if (micStatusContainer) micStatusContainer.innerText = 'Ready';
+        }
+        window.stopRecordingSession = stopRecordingSession;
 
-                isRecording = true;
-                if (micStatusContainer) micStatusContainer.innerText = 'Dictating...';
+        async function startRecordingSession() {
+            // 1. Acquire active microphone audio stream
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 try {
-                    recognition.lang = currentMicLang;
-                    recognition.start();
-                } catch (e) {
-                    console.warn("Speech recognition error, trying Whisper fallback:", e);
-                    // Fallback to Whisper recording
-                    if (btnRecordAudio) btnRecordAudio.click();
+                    activeAudioStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+                } catch(micErr) {
+                    showError("กรุณากด 'อนุญาต (Allow)' ไมโครโฟนในป๊อปอัปของเบราว์เซอร์");
+                    return;
                 }
+            }
+
+            // 2. Setup simultaneous physical MediaRecorder
+            if (activeAudioStream && typeof MediaRecorder !== 'undefined') {
+                try {
+                    audioChunks = [];
+                    let mimeType = 'audio/webm;codecs=opus';
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
+                        else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+                        else mimeType = '';
+                    }
+
+                    mediaRecorder = mimeType ? new MediaRecorder(activeAudioStream, { mimeType }) : new MediaRecorder(activeAudioStream);
+                    
+                    mediaRecorder.ondataavailable = function(e) {
+                        if (e.data && e.data.size > 0) {
+                            audioChunks.push(e.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = async function() {
+                        try {
+                            if (activeAudioStream) {
+                                activeAudioStream.getTracks().forEach(t => t.stop());
+                                activeAudioStream = null;
+                            }
+
+                            if (audioChunks.length > 0) {
+                                const finalMime = mediaRecorder.mimeType || 'audio/webm';
+                                const audioBlob = new Blob(audioChunks, { type: finalMime });
+                                const localAudioUrl = URL.createObjectURL(audioBlob);
+
+                                // Immediately show and update sidebar audio player
+                                const sidebarAudioBox = document.getElementById('sidebar-audio-playback-container');
+                                const sidebarPlayer = document.getElementById('sidebar-audio-player');
+                                if (sidebarPlayer) {
+                                    sidebarPlayer.src = localAudioUrl;
+                                    sidebarPlayer.load();
+                                }
+                                if (sidebarAudioBox) {
+                                    sidebarAudioBox.style.display = 'flex';
+                                }
+
+                                if (micStatusContainer) {
+                                    micStatusContainer.innerHTML = '<span style="color:#2563eb;"><i class="fas fa-spinner fa-spin"></i> กำลังบันทึกไฟล์เสียง...</span>';
+                                }
+
+                                const formData = new FormData();
+                                let ext = 'webm';
+                                if (finalMime.includes('mp4')) ext = 'm4a';
+                                else if (finalMime.includes('ogg')) ext = 'ogg';
+                                else if (finalMime.includes('wav')) ext = 'wav';
+
+                                formData.append('audio', audioBlob, `mic_record_${Date.now()}.${ext}`);
+
+                                const uploadRes = await fetch('/api/upload_audio', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                const uploadData = await uploadRes.json();
+                                if (uploadData.success && uploadData.audio_filename) {
+                                    const now = new Date();
+                                    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                                    const clipNumber = currentAudioClips.length + 1;
+                                    const audioUrl = uploadData.audio_url || (uploadData.audio_filename.startsWith('http') ? uploadData.audio_filename : `/uploads/${encodeURIComponent(uploadData.audio_filename)}`);
+
+                                    currentAudioClips.push({
+                                        filename: uploadData.audio_filename,
+                                        url: audioUrl,
+                                        label: `คลิปที่ ${clipNumber}`,
+                                        timestamp: timeStr
+                                    });
+
+                                    syncAudioInputs();
+                                    renderAudioPlaylist(currentAudioClips.length - 1);
+
+                                    if (micStatusContainer) {
+                                        micStatusContainer.innerHTML = '<span style="color:#16a34a; font-weight:bold;"><i class="fas fa-check-circle"></i> บันทึกเสียงและถอดข้อความเรียบร้อย</span>';
+                                    }
+                                    if (typeof autoSaveDraft === 'function') autoSaveDraft();
+                                }
+                            }
+                        } catch (err) {
+                            console.error('[Dual-Engine Audio Save Error]', err);
+                        }
+                    };
+
+                    mediaRecorder.start(1000); // Record in 1s timeslices
+                    if (typeof startAudioWaveformVisualizer === 'function') {
+                        startAudioWaveformVisualizer(activeAudioStream);
+                    }
+                } catch(recErr) {
+                    console.warn("MediaRecorder init warning:", recErr);
+                }
+            }
+
+            // 3. Preserve accumulated text
+            if (!accumulatedTranscript && txtTranscription && txtTranscription.value.trim()) {
+                accumulatedTranscript = txtTranscription.value.trim();
+            }
+            currentSessionFinal = '';
+
+            // 4. Start Speech Recognition
+            isRecording = true;
+            playAudioChime('start');
+            updateHandsFreeBadge('Mic: Listening...', '#22c55e', true);
+            if (btnMicToggle) {
+                btnMicToggle.innerHTML = '<span class="btn-dot-red"></span> Stop';
+                btnMicToggle.classList.add('active');
+            }
+            const micCircle = document.getElementById('mic-pulse-circle');
+            if (micCircle) micCircle.classList.add('recording');
+
+            const statusLabel = document.getElementById('sidebar-dictation-state');
+            if (statusLabel) statusLabel.innerText = 'Dictating...';
+            if (micStatusContainer) micStatusContainer.innerText = 'Dictating...';
+
+            try {
+                recognition.lang = currentMicLang;
+                recognition.start();
+            } catch (e) {
+                console.warn("Speech recognition start warning:", e);
+                if (btnRecordAudio) btnRecordAudio.click();
+            }
+        }
+        window.startRecordingSession = startRecordingSession;
+
+        btnMicToggle.addEventListener('click', async function () {
+            if (isRecording || (mediaRecorder && mediaRecorder.state === 'recording')) {
+                await stopRecordingSession();
+            } else {
+                await startRecordingSession();
             }
         });
 
@@ -534,6 +735,8 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('resize', updateCachedGeometry, { passive: true });
     window.addEventListener('orientationchange', updateCachedGeometry, { passive: true });
 
+    let validHandFrameCount = 0;
+
     function onResults(results) {
         if (!canvasCtx || !canvasElement) return;
 
@@ -546,7 +749,35 @@ document.addEventListener('DOMContentLoaded', function () {
             updateCachedGeometry();
         }
 
+        // Strict Hand Validation:
+        // Filter out false positives caused by clothing folds, wrinkles, face/neck skin, or background clutter.
+        let validLandmarks = null;
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const candidateLandmarks = results.multiHandLandmarks[0];
+            const handedness = (results.multiHandedness && results.multiHandedness[0]) || null;
+            const handConfidence = handedness ? handedness.score : 1.0;
+
+            // 1. Hand Scale Check: Measure span from wrist (0) to middle finger knuckle (9)
+            const wrist = candidateLandmarks[0];
+            const middleMCP = candidateLandmarks[9];
+            const handScale = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y);
+
+            // 2. Reject noise:
+            // - Reject if confidence score is low (< 0.70)
+            // - Reject if hand scale is tiny (< 0.085 of frame, representing distant objects or clothing folds)
+            if (handConfidence >= 0.70 && handScale >= 0.085) {
+                validLandmarks = candidateLandmarks;
+            }
+        }
+
+        if (validLandmarks) {
+            validHandFrameCount++;
+        } else {
+            validHandFrameCount = 0;
+        }
+
+        // Require at least 2 consecutive valid frames to eliminate 1-frame transient noise/flicker
+        if (validLandmarks && validHandFrameCount >= 2) {
             lastHandDetectedTime = Date.now();
             updateGestureBadge('Gesture: Active', '#22c55e');
             if (gestureOverlay) {
@@ -560,17 +791,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 canvasCtx.translate(canvasElement.width, 0);
                 canvasCtx.scale(-1, 1);
             }
-            for (const landmarks of results.multiHandLandmarks) {
-                if (typeof drawConnectors === 'function' && typeof HAND_CONNECTIONS !== 'undefined') {
-                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00f0ff', lineWidth: 3 });
-                }
-                if (typeof drawLandmarks === 'function') {
-                    drawLandmarks(canvasCtx, landmarks, { color: '#ffffff', fillColor: '#00f0ff', lineWidth: 1, radius: 4 });
-                }
+            if (typeof drawConnectors === 'function' && typeof HAND_CONNECTIONS !== 'undefined') {
+                drawConnectors(canvasCtx, validLandmarks, HAND_CONNECTIONS, { color: '#00f0ff', lineWidth: 3 });
             }
-            if (results.multiHandLandmarks[0]) {
-                detectGesture(results.multiHandLandmarks[0]);
+            if (typeof drawLandmarks === 'function') {
+                drawLandmarks(canvasCtx, validLandmarks, { color: '#ffffff', fillColor: '#00f0ff', lineWidth: 1, radius: 4 });
             }
+            detectGesture(validLandmarks);
             canvasCtx.restore();
         } else {
             // Hand not detected: clean up hover states immediately
@@ -1259,11 +1486,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function startAudioWaveformVisualizer(mediaStream) {
         const canvas = document.getElementById('audio-waveform-canvas');
-        const container = document.getElementById('live-waveform-container');
-        const vuBar = document.getElementById('audio-vu-bar');
+        const container = document.getElementById('live-waveform-container') || document.getElementById('active-recording-waveform');
+        const vuBar = document.getElementById('audio-vu-bar') || document.getElementById('audio-vu-meter');
+        const dbText = document.getElementById('audio-db-text');
         if (!canvas || !mediaStream) return;
 
-        if (container) container.style.display = 'flex';
+        if (container) container.style.display = 'block';
         const ctx = canvas.getContext('2d');
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         try {
@@ -1298,6 +1526,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     const avgVol = Math.min(100, Math.round((totalVolume / (bufferLength * 160)) * 100));
                     vuBar.style.width = `${avgVol}%`;
                 }
+
+                if (dbText) {
+                    const rms = Math.sqrt(totalVolume / bufferLength);
+                    const db = Math.round(20 * Math.log10(Math.max(1, rms)));
+                    dbText.textContent = `${db} dB`;
+                }
             }
             drawWaveform();
         } catch(e) {
@@ -1310,10 +1544,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (audioVisualizerCtx && audioVisualizerCtx.state !== 'closed') {
             try { audioVisualizerCtx.close(); } catch(e) {}
         }
-        const container = document.getElementById('live-waveform-container');
+        const container = document.getElementById('live-waveform-container') || document.getElementById('active-recording-waveform');
         if (container) container.style.display = 'none';
-        const vuBar = document.getElementById('audio-vu-bar');
+        const vuBar = document.getElementById('audio-vu-bar') || document.getElementById('audio-vu-meter');
         if (vuBar) vuBar.style.width = '0%';
+        const dbText = document.getElementById('audio-db-text');
+        if (dbText) dbText.textContent = '0 dB';
     }
 
     // --- Audio Recording MediaRecorder Implementation ---
@@ -1437,8 +1673,8 @@ document.addEventListener('DOMContentLoaded', function () {
             handsInstance.setOptions({
                 maxNumHands: 1,
                 modelComplexity: 0, // 0 = Lite (Optimized for iPad & Mobile WebKit Wasm)
-                minDetectionConfidence: 0.5, // 0.5 is optimal for iPad cameras & varying lighting
-                minTrackingConfidence: 0.5
+                minDetectionConfidence: 0.70, // 0.70 rejects background noise, clothing folds and distant artifacts
+                minTrackingConfidence: 0.65  // 0.65 ensures hand remains locked on genuine hands only
             });
             handsInstance.onResults(onResults);
             console.log("MediaPipe Hands initialized successfully with Lite model.");
@@ -1728,9 +1964,212 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- Specimen Photo Gallery Engine (Multi-Photo) ---
+    let currentPhotos = [];
+    let currentModalPhotoIndex = 0;
+
+    function initPhotos() {
+        const hiddenPhotos = document.getElementById('hidden-photos-json');
+        const hiddenPhotoData = document.getElementById('hidden-photo-data');
+        if (hiddenPhotos && hiddenPhotos.value && hiddenPhotos.value.trim().startsWith('[')) {
+            try {
+                currentPhotos = JSON.parse(hiddenPhotos.value);
+                if (!Array.isArray(currentPhotos)) currentPhotos = [];
+            } catch(e) {
+                currentPhotos = [];
+            }
+        }
+        if (currentPhotos.length === 0 && hiddenPhotoData && hiddenPhotoData.value && hiddenPhotoData.value.trim().length > 20) {
+            currentPhotos = [hiddenPhotoData.value.trim()];
+        }
+        renderPhotoGallery(0);
+    }
+
+    function syncPhotoInputs() {
+        const hiddenPhotos = document.getElementById('hidden-photos-json');
+        const hiddenPhotoData = document.getElementById('hidden-photo-data');
+        const hiddenPhotoCleared = document.getElementById('hidden-photo-cleared');
+
+        if (hiddenPhotos) {
+            hiddenPhotos.value = JSON.stringify(currentPhotos);
+        }
+        if (currentPhotos.length > 0) {
+            if (hiddenPhotoData) hiddenPhotoData.value = currentPhotos[0];
+            if (hiddenPhotoCleared) hiddenPhotoCleared.value = 'false';
+        } else {
+            if (hiddenPhotoData) hiddenPhotoData.value = '';
+            if (hiddenPhotoCleared) hiddenPhotoCleared.value = 'true';
+        }
+    }
+
+    function renderPhotoGallery(activeIdx = 0) {
+        const photoContainer = document.getElementById('specimen-photo-container');
+        const countBadge = document.getElementById('photo-gallery-count');
+        const previewImg = document.getElementById('specimen-preview-img');
+        const galleryStrip = document.getElementById('specimen-gallery-strip');
+
+        if (!photoContainer) return;
+
+        if (currentPhotos.length === 0) {
+            photoContainer.style.display = 'none';
+            if (previewImg) previewImg.src = '';
+            if (countBadge) countBadge.textContent = '0 รูป';
+            if (galleryStrip) {
+                galleryStrip.innerHTML = '';
+                galleryStrip.style.display = 'none';
+            }
+            return;
+        }
+
+        photoContainer.style.display = 'block';
+        if (countBadge) countBadge.textContent = `${currentPhotos.length} รูป`;
+
+        const safeIdx = Math.max(0, Math.min(activeIdx, currentPhotos.length - 1));
+        if (previewImg) {
+            previewImg.src = currentPhotos[safeIdx];
+        }
+
+        const primaryPreview = document.getElementById('specimen-primary-preview');
+        if (primaryPreview) {
+            primaryPreview.onclick = () => openPhotoModalByIndex(safeIdx);
+        }
+
+        if (galleryStrip) {
+            if (currentPhotos.length > 1) {
+                galleryStrip.style.display = 'flex';
+                galleryStrip.innerHTML = '';
+                currentPhotos.forEach((p, idx) => {
+                    const thumbItem = document.createElement('div');
+                    thumbItem.className = `gallery-thumb-item ${idx === safeIdx ? 'active' : ''}`;
+                    thumbItem.title = `รูปที่ ${idx + 1} (คลิกเพื่อสลับดู)`;
+                    thumbItem.onclick = () => selectGalleryThumb(idx);
+
+                    const img = document.createElement('img');
+                    img.src = p;
+                    img.alt = `Thumb ${idx + 1}`;
+
+                    const badge = document.createElement('span');
+                    badge.className = 'gallery-thumb-num';
+                    badge.textContent = idx === 0 ? 'หลัก' : (idx + 1);
+
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'gallery-thumb-del';
+                    delBtn.title = 'ลบรูปนี้';
+                    delBtn.innerHTML = '&times;';
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        deletePhotoAtIndex(idx);
+                    };
+
+                    thumbItem.appendChild(img);
+                    thumbItem.appendChild(badge);
+                    thumbItem.appendChild(delBtn);
+                    galleryStrip.appendChild(thumbItem);
+                });
+            } else {
+                galleryStrip.style.display = 'none';
+                galleryStrip.innerHTML = '';
+            }
+        }
+    }
+
+    function selectGalleryThumb(index) {
+        renderPhotoGallery(index);
+    }
+    window.selectGalleryThumb = selectGalleryThumb;
+
+    function deletePhotoAtIndex(index) {
+        if (index < 0 || index >= currentPhotos.length) return;
+        if (confirm(`ต้องการลบรูปที่ ${index + 1} หรือไม่?`)) {
+            currentPhotos.splice(index, 1);
+            syncPhotoInputs();
+            renderPhotoGallery(Math.max(0, index - 1));
+            if (typeof autoSaveDraft === 'function') autoSaveDraft();
+            showAppToast("ลบภาพถ่ายเรียบร้อยแล้ว");
+        }
+    }
+    window.deletePhotoAtIndex = deletePhotoAtIndex;
+
+    function openPhotoModalByIndex(index) {
+        if (currentPhotos.length === 0) return;
+        currentModalPhotoIndex = Math.max(0, Math.min(index, currentPhotos.length - 1));
+        const modal = document.getElementById('formPhotoModal');
+        const modalImg = document.getElementById('formPhotoModalImg');
+        const counter = document.getElementById('formPhotoModalCounter');
+        const btnPrev = document.getElementById('btnPhotoModalPrev');
+        const btnNext = document.getElementById('btnPhotoModalNext');
+        const downloadBtn = document.getElementById('formPhotoModalDownload');
+
+        if (!modal || !modalImg) return;
+
+        modalImg.src = currentPhotos[currentModalPhotoIndex];
+        if (counter) {
+            counter.textContent = `(รูปที่ ${currentModalPhotoIndex + 1} จาก ${currentPhotos.length})`;
+        }
+        if (btnPrev) {
+            btnPrev.disabled = currentModalPhotoIndex <= 0;
+        }
+        if (btnNext) {
+            btnNext.disabled = currentModalPhotoIndex >= currentPhotos.length - 1;
+        }
+        if (downloadBtn) {
+            downloadBtn.href = currentPhotos[currentModalPhotoIndex];
+            const sNo = document.querySelector('input[name="s0_surgical_no"]')?.value?.trim() || 'case';
+            downloadBtn.download = `specimen_${sNo}_photo${currentModalPhotoIndex + 1}.jpg`;
+        }
+        modal.style.display = 'flex';
+    }
+    window.openPhotoModalByIndex = openPhotoModalByIndex;
+
+    function navigatePhotoModal(step) {
+        const nextIdx = currentModalPhotoIndex + step;
+        if (nextIdx >= 0 && nextIdx < currentPhotos.length) {
+            openPhotoModalByIndex(nextIdx);
+        }
+    }
+    window.navigatePhotoModal = navigatePhotoModal;
+
+    function deleteCurrentModalPhoto() {
+        if (currentPhotos.length === 0) return;
+        if (confirm(`ต้องการลบรูปที่ ${currentModalPhotoIndex + 1} หรือไม่?`)) {
+            currentPhotos.splice(currentModalPhotoIndex, 1);
+            syncPhotoInputs();
+            if (currentPhotos.length === 0) {
+                closeFormPhotoModal();
+                renderPhotoGallery(0);
+            } else {
+                const nextIdx = Math.min(currentModalPhotoIndex, currentPhotos.length - 1);
+                renderPhotoGallery(nextIdx);
+                openPhotoModalByIndex(nextIdx);
+            }
+            if (typeof autoSaveDraft === 'function') autoSaveDraft();
+            showAppToast("ลบภาพถ่ายเรียบร้อยแล้ว");
+        }
+    }
+    window.deleteCurrentModalPhoto = deleteCurrentModalPhoto;
+
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('formPhotoModal');
+        if (modal && modal.style.display === 'flex') {
+            if (e.key === 'ArrowLeft') {
+                navigatePhotoModal(-1);
+            } else if (e.key === 'ArrowRight') {
+                navigatePhotoModal(1);
+            } else if (e.key === 'Escape') {
+                closeFormPhotoModal();
+            }
+        }
+    });
+
     function captureSpecimenPhoto() {
         if (!isCameraRunning || !videoElement || videoElement.readyState < 2) {
             showError("กรุณาเปิดกล้องก่อนทำการถ่ายภาพ");
+            return;
+        }
+
+        if (currentPhotos.length >= 8) {
+            showAppToast("สามารถบันทึกได้สูงสุด 8 รูป (โปรดลบรูปเดิมก่อนถ่ายใหม่)");
             return;
         }
 
@@ -1757,7 +2196,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const sCtx = snapCanvas.getContext('2d');
 
             if (currentFacingMode === 'user') {
-                // Mirror for front camera so user gets what they see
                 sCtx.translate(targetW, 0);
                 sCtx.scale(-1, 1);
             }
@@ -1766,21 +2204,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const photoDataUrl = snapCanvas.toDataURL('image/jpeg', 0.85);
 
-            const hiddenPhotoInput = document.getElementById('hidden-photo-data');
-            const hiddenClearedInput = document.getElementById('hidden-photo-cleared');
-            if (hiddenPhotoInput) hiddenPhotoInput.value = photoDataUrl;
-            if (hiddenClearedInput) hiddenClearedInput.value = 'false';
+            currentPhotos.push(photoDataUrl);
+            syncPhotoInputs();
+            renderPhotoGallery(currentPhotos.length - 1);
 
             const photoContainer = document.getElementById('specimen-photo-container');
-            const previewImg = document.getElementById('specimen-preview-img');
-            if (previewImg) previewImg.src = photoDataUrl;
             if (photoContainer) {
-                photoContainer.style.display = 'block';
                 photoContainer.classList.add('photo-flash-anim');
                 setTimeout(() => photoContainer.classList.remove('photo-flash-anim'), 600);
             }
 
-            showAppToast("📸 ถ่ายภาพชิ้นเนื้อสำเร็จ พร้อมบันทึกลงฐานข้อมูล");
+            if (typeof autoSaveDraft === 'function') autoSaveDraft();
+
+            showAppToast(`📸 ถ่ายภาพชิ้นเนื้อสำเร็จ (รูปที่ ${currentPhotos.length})`);
         } catch (err) {
             console.error("Photo capture error:", err);
             showError("เกิดข้อผิดพลาดในการถ่ายภาพ: " + (err.message || err));
@@ -1791,18 +2227,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnClearPhoto) {
         btnClearPhoto.addEventListener('click', function(e) {
             e.stopPropagation();
-            if (confirm("ต้องการลบภาพถ่ายชิ้นเนื้อนี้หรือไม่?")) {
-                const hiddenPhotoInput = document.getElementById('hidden-photo-data');
-                const hiddenClearedInput = document.getElementById('hidden-photo-cleared');
-                if (hiddenPhotoInput) hiddenPhotoInput.value = '';
-                if (hiddenClearedInput) hiddenClearedInput.value = 'true';
-
-                const photoContainer = document.getElementById('specimen-photo-container');
-                const previewImg = document.getElementById('specimen-preview-img');
-                if (previewImg) previewImg.src = '';
-                if (photoContainer) photoContainer.style.display = 'none';
-
-                showAppToast("ลบภาพถ่ายชิ้นเนื้อเรียบร้อยแล้ว");
+            if (currentPhotos.length === 0) return;
+            if (confirm("ต้องการลบภาพถ่ายชิ้นเนื้อทั้งหมดหรือไม่?")) {
+                currentPhotos = [];
+                syncPhotoInputs();
+                renderPhotoGallery(0);
+                if (typeof autoSaveDraft === 'function') autoSaveDraft();
+                showAppToast("ลบภาพถ่ายชิ้นเนื้อทั้งหมดเรียบร้อยแล้ว");
             }
         });
     }
@@ -1919,58 +2350,120 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Client-Side Local JS Processing Engine ---
     function normalizeText(text) {
+        if (!text) return "";
         let t = text.toLowerCase();
         
         t = t.replace(/,/g, ' ');
         // Clean dots only when NOT between digits (preserves decimal numbers like 11.4 x 14.9 x 7.8)
         t = t.replace(/(?<!\d)\.|\.(?!\d)/g, ' ');
         
+        // 1. Convert multiplication words and symbols
+        t = t.replace(/[×*]/g, ' x ');
+        t = t.replace(/คูณ/g, ' x ');
+        t = t.replace(/\bby\b/gi, ' x ');
+        t = t.replace(/\btimes\b/gi, ' x ');
+
+        // 2. Normalize units & punctuation
+        t = t.replace(/เซนติเมตร/g, ' cm ');
+        t = t.replace(/เซน/g, ' cm ');
+        t = t.replace(/ซม\.?/g, ' cm ');
+        t = t.replace(/มิลลิเมตร/g, ' mm ');
+        t = t.replace(/มิล/g, ' mm ');
+        t = t.replace(/มม\.?/g, ' mm ');
+        t = t.replace(/จุด/g, '.');
+
+        // 3. Thai numbers (ordered replacement to handle compound numbers like สิบห้า before สิบ)
+        const thaiNums = [
+            ["ยี่สิบเก้า", "29"], ["ยี่สิบแปด", "28"], ["ยี่สิบเจ็ด", "27"], ["ยี่สิบหก", "26"], ["ยี่สิบห้า", "25"],
+            ["ยี่สิบสี่", "24"], ["ยี่สิบสาม", "23"], ["ยี่สิบสอง", "22"], ["ยี่สิบเอ็ด", "21"], ["ยี่สิบ", "20"],
+            ["สิบเก้า", "19"], ["สิบแปด", "18"], ["สิบเจ็ด", "17"], ["สิบหก", "16"], ["สิบห้า", "15"],
+            ["สิบสี่", "14"], ["สิบสาม", "13"], ["สิบสอง", "12"], ["สิบเอ็ด", "11"], ["สิบ", "10"],
+            ["เก้าสิบ", "90"], ["แปดสิบ", "80"], ["เจ็ดสิบ", "70"], ["หกสิบ", "60"], ["ห้าสิบ", "50"],
+            ["สี่สิบ", "40"], ["สามสิบ", "30"], ["หนึ่งร้อย", "100"], ["ร้อย", "100"],
+            ["ศูนย์", "0"], ["หนึ่ง", "1"], ["สอง", "2"], ["สาม", "3"], ["สี่", "4"],
+            ["ห้า", "5"], ["หก", "6"], ["เจ็ด", "7"], ["แปด", "8"], ["เก้า", "9"]
+        ];
+        for (const [w, v] of thaiNums) {
+            t = t.replaceAll(w, v);
+        }
+        t = t.replace(/(\d+)\s*\.\s*(\d+)/g, (m, g1, g2) => g1 + '.' + g2);
+
+        // English number words
+        const numWords = {
+            "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+            "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10"
+        };
+        for (const [word, val] of Object.entries(numWords)) {
+            t = t.replace(new RegExp(`\\b${word}\\b`, 'g'), val);
+        }
+
         // Thai dictation translation mapping
         const thaiToEnglish = {
-            "ข้างขวา": "right",
-            "เต้าขวา": "right",
-            "ขวา": "right",
-            "ข้างซ้าย": "left",
-            "เต้าซ้าย": "left",
-            "ซ้าย": "left",
-            "ตัดเต้านม": "mastectomy",
-            "มาสเทค": "mastectomy",
+            "ข้างขวา": " right ",
+            "เต้าขวา": " right ",
+            "ขวา": " right ",
+            "ข้างซ้าย": " left ",
+            "เต้าซ้าย": " left ",
+            "ซ้าย": " left ",
+            "ตัดเต้านม": " mastectomy ",
+            "มาสเทค": " mastectomy ",
             "มอดิฟายด์": "modified",
             "มอดิฟาย": "modified",
+            "โมดิฟายด์": "modified",
+            "โมดิฟาย": "modified",
             "เรดิคัล": "radical",
             "แรดิคัล": "radical",
             "ซิมเปิล": "simple",
-            "รักแร้": "axillary",
-            "ต่อมน้ำเหลือง": "lymph node",
+            "ซิมเปิ้ล": "simple",
+            "รักแร้": " axillary ",
+            "หางรักแร้": " axillary tail ",
+            "ต่อมน้ำเหลือง": " lymph node ",
+            "ต่อม": " nodes ",
             "เซนติเนล": "sentinel",
-            "ก้อนเนื้อ": "mass",
-            "ก้อน": "mass",
-            "แมส": "mass",
-            "บนนอก": "upper outer",
-            "บนใน": "upper inner",
-            "ล่างนอก": "lower outer",
-            "ล่างใน": "lower inner",
-            "กึ่งกลาง": "central",
-            "ขอบตัด": "margin",
-            "ขอบลึก": "deep margin",
-            "ขอบบน": "superior margin",
-            "ขอบล่าง": "inferior margin",
-            "ขอบใน": "medial margin",
-            "ขอบนอก": "lateral margin",
-            "ขนาด": "",
-            "คูณ": "x",
-            "ผิวหนัง": "skin",
-            "ปกติ": "normal",
-            "หัวนม": "nipple",
-            "ดึงรั้ง": "inverted",
-            "บอด": "inverted",
-            "แผลเป็น": "scar",
-            "แผลเปื่อย": "ulceration",
-            "จุด": ".",
-            "เซนติเมตร": "cm",
-            "เซน": "cm",
-            "มิลลิเมตร": "mm",
-            "มิล": "mm"
+            "ก้อนเนื้อ": " mass ",
+            "ก้อน": " mass ",
+            "แมส": " mass ",
+            "รอยโรค": " mass ",
+            "บนนอก": " upper outer ",
+            "บนใน": " upper inner ",
+            "ล่างนอก": " lower outer ",
+            "ล่างใน": " lower inner ",
+            "กึ่งกลาง": " central ",
+            "ส่วนกลาง": " central ",
+            "ใต้ลานนม": "subareolar",
+            "หลังลานนม": "retroareolar",
+            "ขอบตัด": " margin ",
+            "ขอบลึก": " deep margin ",
+            "ขอบบน": " superior margin ",
+            "ขอบล่าง": " inferior margin ",
+            "ขอบใน": " medial margin ",
+            "ขอบนอก": " lateral margin ",
+            "ขอบผิวหนัง": " skin margin ",
+            "ห่างจาก": " from ",
+            "ขนาด": " measuring ",
+            "ผิวหนัง": " skin ",
+            "ปกติ": " appears normal ",
+            "เรียบปกติ": " appears normal ",
+            "หัวนม": " nipple ",
+            "ดึงรั้ง": " inverted ",
+            "บอด": " inverted ",
+            "นูน": " everted ",
+            "คว่ำ": " inverted ",
+            "แผลเป็น": " scar ",
+            "แผลผ่าตัด": " scar ",
+            "แผลเปื่อย": " ulceration ",
+            "มีแผล": " ulceration ",
+            "เนื้อเต้านมที่เหลือ": "remaining breast tissue",
+            "เนื้อเต้านมส่วนที่เหลือ": "remaining breast tissue",
+            "เนื้อนมที่เหลือ": "remaining breast tissue",
+            "ไม่พบความผิดปกติ": "unremarkable",
+            "ปกติไม่มีอะไร": "unremarkable",
+            "ถึง": " to ",
+            "ตั้งแต่": " ranging from ",
+            "เท่ากับ": "=",
+            "คือ": "=",
+            "โพรงผ่าตัดเดิม": "previous surgical cavity",
+            "โพรงแผลเดิม": "previous surgical cavity"
         };
         for (const [thai, eng] of Object.entries(thaiToEnglish)) {
             t = t.replace(new RegExp(thai, 'g'), eng);
@@ -1999,25 +2492,16 @@ document.addEventListener('DOMContentLoaded', function () {
             t = t.replace(new RegExp(typo, 'g'), correct);
         }
 
-        const numWords = {
-            "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
-            "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
-            "by": "x", "times": "x", "point": ".",
-            "หนึ่ง": "1", "สอง": "2", "สาม": "3", "สี่": "4", "ห้า": "5",
-            "หก": "6", "เจ็ด": "7", "แปด": "8", "เก้า": "9", "สิบ": "10"
-        };
-        for (const [word, val] of Object.entries(numWords)) {
-            t = t.replace(new RegExp(`\\b${word}\\b`, 'g'), val);
-        }
         return t;
     }
 
     function parseTextLocally(text) {
+        if (!text) return {};
         const t = text;
         const data = {};
 
         // 1. Surgical Number
-        const surgMatch = t.match(/(?:surgical number|specimen|s-)?\s*(?:is\s+)?([sS]?\s*-?\s*\d{2}\s*-?\s*\d+)/i);
+        const surgMatch = t.match(/(?:surgical number|specimen|เคส|รหัสเคส|รหัสสิ่งส่งตรวจ|s-)?\s*(?:is\s+)?([sS]?\s*-?\s*\d{2}\s*[-\s]?\s*\d+)/i);
         if (surgMatch) {
             let rawS = surgMatch[1].replace(/\s+/g, '').toUpperCase();
             if (!rawS.startsWith("S-")) {
@@ -2039,9 +2523,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // 3. Procedure
-        if (t.includes("modified radical")) {
+        if (t.includes("modified")) {
             data["s2_proc"] = "modified";
-        } else if (t.includes("simple mastectomy")) {
+        } else if (t.includes("simple")) {
             data["s2_proc"] = "simple";
         } else {
             const procMatch = t.match(/\b(quadrantectomy|lumpectomy|wide excision|excisional biopsy|re-excision|segmentectomy)\b(?:\s+specimen)?/i) || t.match(/procedure\s+is\s+([a-zA-Z\s]+)/i);
@@ -2051,119 +2535,230 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // 4. Dimensions (3D)
-        const dims3d = [];
-        const dimRegex = /([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/g;
+        // 4. Dimensions (3D) Context-Aware Extraction
+        const dim3dRegex = /([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)/gi;
+        const all3D = [];
         let match;
-        while ((match = dimRegex.exec(t)) !== null) {
-            dims3d.push([match[1], match[2], match[3]]);
+        while ((match = dim3dRegex.exec(t)) !== null) {
+            all3D.push({
+                dims: [match[1].replace(/\.$/, ''), match[2].replace(/\.$/, ''), match[3].replace(/\.$/, '')],
+                start: match.index,
+                end: match.index + match[0].length,
+                assigned: false
+            });
         }
-        
-        if (dims3d.length > 0) {
-            data["s3_dims"] = dims3d[0];
-            if (dims3d.length > 1 && (t.includes("axillary") || t.includes("tail"))) {
-                data["s4_check"] = true;
-                data["s4_dims"] = dims3d[1];
+
+        if (all3D.length > 0) {
+            // STEP 4A: Specimen Overall Dimensions (FIRST)
+            for (const item of all3D) {
+                const pre = t.slice(Math.max(0, item.start - 60), item.start).toLowerCase();
+                if (pre.includes("specimen") || pre.includes("mastectomy") || pre.includes("measuring") || pre.includes("overall") || pre.includes("ชิ้นเนื้อ") || pre.includes("เต้านม")) {
+                    const lastSpecKw = Math.max(pre.lastIndexOf("specimen"), pre.lastIndexOf("mastectomy"), pre.lastIndexOf("measuring"), pre.lastIndexOf("overall"), pre.lastIndexOf("ชิ้นเนื้อ"), pre.lastIndexOf("เต้านม"));
+                    const lastMassKw = Math.max(pre.lastIndexOf("mass"), pre.lastIndexOf("tumor"), pre.lastIndexOf("infiltrative"), pre.lastIndexOf("ก้อน"));
+                    if (lastSpecKw > lastMassKw) {
+                        data["s3_dims"] = item.dims;
+                        item.assigned = true;
+                        break;
+                    }
+                }
             }
-            // 4A. Previous surgical cavity with residual mass (s10_prev2)
+
+            // STEP 4B: Previous surgical cavity
             if (t.includes("previous surgical cavity") && (t.includes("residual") || t.includes("residual mass"))) {
                 data["s10_prev2"] = true;
                 data["s10_grammar"] = "is a";
-                const mCavity = /(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
-                if (mCavity) {
-                    data["s10_prev2_cavity_dims"] = [mCavity[1].replace(/\.$/, ''), mCavity[2].replace(/\.$/, ''), mCavity[3].replace(/\.$/, '')];
+                for (const item of all3D) {
+                    if (item.assigned) continue;
+                    const pre = t.slice(Math.max(0, item.start - 50), item.start).toLowerCase();
+                    const post = t.slice(item.end, Math.min(t.length, item.end + 50)).toLowerCase();
+                    if ((pre.includes("cavity") || pre.includes("fibrous") || post.includes("cavity")) && !data["s10_prev2_cavity_dims"]) {
+                        data["s10_prev2_cavity_dims"] = item.dims;
+                        item.assigned = true;
+                    } else if ((pre.includes("residual") || post.includes("residual")) && !data["s10_prev2_mass_dims"]) {
+                        data["s10_prev2_mass_dims"] = item.dims;
+                        item.assigned = true;
+                    }
                 }
-                const mRes = /(?:residual mass|residual)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
-                if (mRes) {
-                    data["s10_prev2_mass_dims"] = [mRes[1].replace(/\.$/, ''), mRes[2].replace(/\.$/, ''), mRes[3].replace(/\.$/, '')];
-                }
-            }
-            // 4B. Previous surgical cavity without residual mass (s10_prev1)
-            else if (t.includes("previous surgical cavity")) {
+            } else if (t.includes("previous surgical cavity")) {
                 data["s10_prev1"] = true;
                 data["s10_grammar"] = "is a";
-                const mCavity = /(?:previous surgical cavity|adjacent fibrous tissue)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
-                if (mCavity) {
-                    data["s10_prev1_dims"] = [mCavity[1].replace(/\.$/, ''), mCavity[2].replace(/\.$/, ''), mCavity[3].replace(/\.$/, '')];
+                for (const item of all3D) {
+                    if (item.assigned) continue;
+                    const pre = t.slice(Math.max(0, item.start - 50), item.start).toLowerCase();
+                    if (pre.includes("cavity") || pre.includes("fibrous")) {
+                        data["s10_prev1_dims"] = item.dims;
+                        item.assigned = true;
+                        break;
+                    }
                 }
-            }
-            // 4C. Well-defined firm white mass with slit-like appearance (s10_well)
-            else if (t.includes("well defined") || t.includes("well-defined") || t.includes("slit like") || t.includes("slit-like")) {
+            } else if (t.includes("well defined") || t.includes("well-defined") || t.includes("slit like") || t.includes("slit-like")) {
                 data["s10_well"] = true;
                 data["s10_grammar"] = "is a";
-                const mWell = /(?:well-defined|well defined|slit like|slit-like)[\s\S]{0,50}?([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/i.exec(t);
-                if (mWell) {
-                    data["s10_well_dims"] = [mWell[1].replace(/\.$/, ''), mWell[2].replace(/\.$/, ''), mWell[3].replace(/\.$/, '')];
+                for (const item of all3D) {
+                    if (item.assigned) continue;
+                    const pre = t.slice(Math.max(0, item.start - 50), item.start).toLowerCase();
+                    if (pre.includes("well") || pre.includes("slit")) {
+                        data["s10_well_dims"] = item.dims;
+                        item.assigned = true;
+                        break;
+                    }
                 }
             }
-            // 4D. Infiltrative mass (s10_infiltrative)
-            else if (t.includes("mass") || t.includes("infiltrative") || t.includes("tumor") || t.includes("lesion")) {
+
+            // STEP 4C: Axillary tail dimension
+            if (t.includes("axillary") || t.includes("tail") || t.includes("รักแร้")) {
+                for (const item of all3D) {
+                    if (item.assigned) continue;
+                    const pre = t.slice(Math.max(0, item.start - 50), item.start).toLowerCase();
+                    if (pre.includes("axillary") || pre.includes("tail") || pre.includes("รักแร้")) {
+                        data["s4_check"] = true;
+                        data["s4_dims"] = item.dims;
+                        item.assigned = true;
+                        break;
+                    }
+                }
+            }
+
+            // STEP 4D: Infiltrative mass
+            if (t.includes("infiltrative") || t.includes("mass") || t.includes("tumor") || t.includes("lesion") || t.includes("ก้อน")) {
                 data["s10_infiltrative"] = true;
                 data["s10_grammar"] = t.includes("infiltrative") ? "is an" : "is a";
-
-                if (dims3d.length > 1) {
-                    data["s10_inf_dims"] = dims3d[dims3d.length - 1];
-                } else if (dims3d.length === 1) {
-                    const isWithoutDims = t.includes("without dimension") || t.includes("no dimension");
-                    const isSpecimenMeasuring = t.includes("mastectomy") || t.includes("specimen") || t.includes("measuring");
-                    if (!isWithoutDims && !isSpecimenMeasuring) {
-                        const massKwIdx = Math.max(t.indexOf("mass"), t.indexOf("infiltrative"), t.indexOf("tumor"));
-                        const dimRegexSingle = /([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)/;
-                        const singleMatch = dimRegexSingle.exec(t);
-                        if (singleMatch && massKwIdx !== -1 && Math.abs(massKwIdx - singleMatch.index) < 50) {
-                            data["s10_inf_dims"] = dims3d[0];
-                        }
+                for (const item of all3D) {
+                    if (item.assigned) continue;
+                    const pre = t.slice(Math.max(0, item.start - 50), item.start).toLowerCase();
+                    const post = t.slice(item.end, Math.min(t.length, item.end + 50)).toLowerCase();
+                    if (pre.includes("mass") || pre.includes("infiltrative") || pre.includes("tumor") || pre.includes("lesion") || pre.includes("ก้อน") ||
+                        post.includes("mass") || post.includes("infiltrative") || post.includes("tumor") || post.includes("lesion") || post.includes("ก้อน")) {
+                        data["s10_inf_dims"] = item.dims;
+                        item.assigned = true;
+                        break;
                     }
+                }
+            }
+
+            // Fallbacks for any unassigned 3D dimensions
+            if (!data["s3_dims"]) {
+                const unassigned = all3D.find(i => !i.assigned);
+                if (unassigned) {
+                    data["s3_dims"] = unassigned.dims;
+                    unassigned.assigned = true;
+                }
+            }
+            if (data["s10_infiltrative"] && !data["s10_inf_dims"]) {
+                const unassigned = all3D.find(i => !i.assigned);
+                if (unassigned) {
+                    data["s10_inf_dims"] = unassigned.dims;
+                    unassigned.assigned = true;
                 }
             }
         }
 
         // 5. Skin ellipse dimensions (2D)
-        // Strip out all 3D dimension patterns first so 20x30x40 is not partially matched as 20x3
-        const textWithout3D = t.replace(/[\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+/gi, '[3D_DIMS]');
+        const textWithout3D = t.replace(/[\d.]+\s*(?:cm|mm)?\s*x\s*[\d.]+\s*(?:cm|mm)?\s*x\s*[\d.]+/gi, '[3D_DIMS]');
         const dims2d = [];
-        const dim2dRegex = /\b([\d.]+)\s*x\s*([\d.]+)\b/g;
-        while ((match = dim2dRegex.exec(textWithout3D)) !== null) {
-            dims2d.push([match[1], match[2]]);
+        const dim2dRegex = /\b([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\b/g;
+        let m2d;
+        while ((m2d = dim2dRegex.exec(textWithout3D)) !== null) {
+            dims2d.push([m2d[1].replace(/\.$/, ''), m2d[2].replace(/\.$/, '')]);
         }
-        // Only set skin ellipse if there is a standalone 2D dimension and skin/ellipse context
         if (dims2d.length > 0 && (t.includes("skin") || t.includes("ellipse"))) {
             data["s5_dims"] = dims2d[0];
         }
-        if (t.includes("appears normal") || t.includes("skin normal")) {
+        if (t.includes("appears normal") || t.includes("skin normal") || t.includes("ปกติ")) {
             data["s5_appears_normal"] = true;
         }
 
         // 6. Scar & Ulceration
-        if (t.includes("scar")) {
+        const scarIdx = t.indexOf("scar");
+        let endScar = -1;
+        if (scarIdx !== -1) {
             data["s6_check"] = true;
-            const scarLen = t.match(/scar\s+([\d.]+)\s*cm/);
-            if (scarLen) data["s7_len"] = scarLen[1];
+            const scarLen = t.match(/scar.*?\b([\d.]+)\s*(?:cm)?/i);
+            if (scarLen) data["s7_len"] = scarLen[1].replace(/\.$/, '');
+
+            const dotM = t.substring(scarIdx).search(/(?<!\d)\.(?!\d)/);
+            endScar = dotM !== -1 ? scarIdx + dotM : t.length;
+            endScar = Math.min(endScar, scarIdx + 80);
+            const uNext = t.indexOf("ulceration", scarIdx);
+            if (uNext !== -1 && uNext < endScar) endScar = uNext;
+
+            const scarClause = t.substring(scarIdx, endScar).toLowerCase();
+            const s7_locs = [];
+            ["areola", "upper", "lower", "inner", "outer"].forEach(loc => {
+                if (new RegExp(`\\b${loc}\\b`, 'i').test(scarClause)) {
+                    s7_locs.push(loc);
+                }
+            });
+            if (s7_locs.length > 0) data["s7_locs"] = s7_locs;
         }
-        if (t.includes("ulceration")) {
+
+        const ulcerIdx = t.indexOf("ulceration");
+        let endUlcer = -1;
+        if (ulcerIdx !== -1) {
             data["s8_check"] = true;
-            const ulcerDim = t.match(/ulceration\s+([\d.]+)\s*x\s*([\d.]+)/i);
+            const ulcerDim = t.match(/ulceration.*?\b([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)/i);
             if (ulcerDim) {
-                data["s8_dims"] = [ulcerDim[1], ulcerDim[2]];
+                data["s8_dims"] = [ulcerDim[1].replace(/\.$/, ''), ulcerDim[2].replace(/\.$/, '')];
             } else if (dims2d.length > 1) {
                 data["s8_dims"] = dims2d[1];
             }
+
+            const dotM = t.substring(ulcerIdx).search(/(?<!\d)\.(?!\d)/);
+            endUlcer = dotM !== -1 ? ulcerIdx + dotM : t.length;
+            endUlcer = Math.min(endUlcer, ulcerIdx + 80);
+            const mNext = t.indexOf("mass", ulcerIdx);
+            if (mNext !== -1 && mNext < endUlcer) endUlcer = mNext;
+
+            const ulcerClause = t.substring(ulcerIdx, endUlcer).toLowerCase();
+            const s8_locs = [];
+            ["areola", "upper", "lower", "inner", "outer"].forEach(loc => {
+                if (new RegExp(`\\b${loc}\\b`, 'i').test(ulcerClause)) {
+                    s8_locs.push(loc);
+                }
+            });
+            if (s8_locs.length > 0) data["s8_locs"] = s8_locs;
         }
 
         // 7. Nipple status
         const s9_val = [];
         if (t.includes("everted")) s9_val.push("everted");
-        if (t.includes("inverted")) s9_val.push("inverted");
-        if (t.includes("ulceration")) s9_val.push("ulceration");
+        if (t.includes("inverted") || t.includes("retracted")) s9_val.push("inverted");
+        if (/(?:nipple[^\.\n]{0,50}(?:ulcer|ulceration)|(?:ulcer|ulceration)[^\.\n]{0,50}nipple)/i.test(t)) {
+            s9_val.push("ulceration");
+        }
         if (s9_val.length > 0) data["s9_val"] = s9_val;
 
-        // 7.5 Tumor Quadrants (Section 10.5)
+        // 7.5 Tumor Quadrants & Locations (Section 10.5)
+        let tumorText = t;
+        if (scarIdx !== -1) {
+            tumorText = tumorText.substring(0, scarIdx) + " " + tumorText.substring(endScar);
+        }
+        const uPos = tumorText.indexOf("ulceration");
+        if (uPos !== -1) {
+            const dotU = tumorText.substring(uPos).search(/(?<!\d)\.(?!\d)/);
+            let endU = dotU !== -1 ? uPos + dotU : Math.min(tumorText.length, uPos + 80);
+            const mNext = tumorText.indexOf("mass", uPos);
+            if (mNext !== -1 && mNext < endU) endU = mNext;
+            tumorText = tumorText.substring(0, uPos) + " " + tumorText.substring(endU);
+        }
+
+        if (tumorText.includes("beneath the nipple") || tumorText.includes("beneath nipple")) {
+            data["s10_5_nipple"] = true;
+        }
+        if (tumorText.includes("beneath the scar") || tumorText.includes("beneath scar")) {
+            data["s10_5_scar"] = true;
+        }
+        if (tumorText.includes("subareola") || tumorText.includes("central portion") || tumorText.includes("in central")) {
+            data["s10_5_central"] = true;
+        }
+
         const quadrantVals = [];
-        const locMatch = t.match(/(?:upper|lower|central)\s*(?:inner|outer)?\s*quadrant/i);
-        if (locMatch) {
-            const locText = locMatch[0].toLowerCase();
-            if (locText.includes("central")) quadrantVals.push("central");
-            else {
+        const locMatches = [...tumorText.matchAll(/(?:(?:in|at)\s+(?:the\s+)?)?(upper|lower|central)\s*(inner|outer)?(?:\s*quadrant)?/gi)];
+        if (locMatches && locMatches.length > 0) {
+            const locText = locMatches[locMatches.length - 1][0].toLowerCase();
+            if (locText.includes("central")) {
+                data["s10_5_central"] = true;
+            } else {
                 if (locText.includes("upper")) quadrantVals.push("upper");
                 if (locText.includes("lower")) quadrantVals.push("lower");
                 if (locText.includes("inner")) quadrantVals.push("inner");
@@ -2174,7 +2769,7 @@ document.addEventListener('DOMContentLoaded', function () {
             data["s10_5_quadrant_check"] = true;
             data["s10_5_quadrant_vals"] = quadrantVals;
         } else {
-            const otherLocMatch = t.match(/(?:located\s+(?:in|at)|tumor\s+is\s+in|location\s+is)\s+(?:the\s+)?(axillary\s+tail(?:\s+of\s+spence)?|retroareolar|subareolar|chest\s+wall|deep\s+fascia|[a-zA-Z\s]+?(?:region|plane|tail))/i);
+            const otherLocMatch = tumorText.match(/(?:located\s+(?:in|at)|tumor\s+is\s+in|location\s+is)\s+(?:the\s+)?(axillary\s+tail(?:\s+of\s+spence)?|retroareolar|subareolar|chest\s+wall|deep\s+fascia|[a-zA-Z\s]+?(?:region|plane|tail))/i);
             if (otherLocMatch) {
                 data["s10_5_other_check"] = true;
                 data["s10_5_other"] = otherLocMatch[1].trim();
@@ -2184,11 +2779,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // 8. Margins
         const margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"];
         margins.forEach(m => {
-            let mMatch = t.match(new RegExp(`([\\d.]+)\\s*cm\\s*(?:from|at)?\\s*${m}\\s*margin`));
-            if (!mMatch) mMatch = t.match(new RegExp(`${m}\\s*margin\\s*(?:is)?\\s*([\\d.]+)\\s*cm`));
-            if (!mMatch) mMatch = t.match(new RegExp(`([\\d.]+)\\s*cm\\s*from\\s*${m}`));
+            let mMatch = t.match(new RegExp(`(?:${m}\\s*margin|\\b${m}\\b)\\s*(?:is|at|=|:)?\\s*([\\d.]+)(?:\\s*(?:cm|mm))?`, 'i'));
+            if (!mMatch) {
+                mMatch = t.match(new RegExp(`([\\d.]+)(?:\\s*(?:cm|mm))?\\s*(?:cm\\s*)?(?:from|at)\\s*(?:the\\s*)?${m}(?:\\s*margin)?`, 'i'));
+            }
             if (mMatch) {
-                data[`s11_${m}`] = mMatch[1];
+                data[`s11_${m}`] = mMatch[1].replace(/\.$/, '');
             }
         });
 
@@ -2212,25 +2808,33 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // 9. Lymph nodes (Section 14)
-        const lymphSentence = t.match(/[^.!?]*\b(?:lymph|node|nodes)\b[^.!?]*/i);
-        if (lymphSentence && !lymphSentence[0].includes("not found") && !lymphSentence[0].includes("no lymph")) {
+        if ((t.includes("lymph node") || t.includes("nodes") || t.includes("ต่อมน้ำเหลือง") || t.includes("ต่อม")) && !t.includes("not found") && !t.includes("no lymph")) {
             data["s14_check"] = true;
-            const rangeMatch = lymphSentence[0].match(/ranging\s+from\s+([\d.]+)\s*(?:cm\s*)?(?:to|-)\s*([\d.]+)\s*cm/i);
+            const countMatch = t.match(/(\d+)\s*(?:lymph\s+)?nodes?/i) 
+                            || t.match(/(?:จำนวน\s*)?(\d+)\s*ต่อม/i)
+                            || t.match(/(?:lymph\s*nodes?|ต่อมน้ำเหลือง)[\s\S]{0,25}?(?:จำนวน\s*)?(\d+)/i);
+            if (countMatch) data["s14_num"] = countMatch[1];
+
+            const rangeMatch = t.match(/(?:ranging\s+from|measuring|size|ขนาด(?:ตั้งแต่)?)\s+([\d.]+)\s*(?:cm|mm)?\s*(?:to|-)\s*([\d.]+)\s*(?:cm|mm)?/i)
+                            || t.match(/([\d.]+)\s*(?:to|-)\s*([\d.]+)\s*(?:cm|mm)/i);
             if (rangeMatch) {
-                data["s14_min"] = rangeMatch[1];
-                data["s14_max"] = rangeMatch[2];
+                data["s14_min"] = rangeMatch[1].replace(/\.$/, '');
+                data["s14_max"] = rangeMatch[2].replace(/\.$/, '');
             } else {
-                const sizes = lymphSentence[0].match(/\b(\d+(?:\.\d+)?)\b/g);
-                if (sizes && sizes.length >= 2) {
-                    const sizesFloat = sizes.map(Number).filter(n => n <= 10.0);
-                    if (sizesFloat.length >= 2) {
-                        data["s14_min"] = Math.min(...sizesFloat).toString();
-                        data["s14_max"] = Math.max(...sizesFloat).toString();
+                const nodeIdx = Math.max(t.lastIndexOf("node"), t.lastIndexOf("ต่อม"));
+                if (nodeIdx !== -1) {
+                    const nodeContext = t.slice(nodeIdx);
+                    const sizes = nodeContext.match(/\b(\d+(?:\.\d+)?)\b/g);
+                    if (sizes && sizes.length >= 2) {
+                        const nodeNum = Number(data["s14_num"] || -999);
+                        const sizesFloat = sizes.map(Number).filter(n => n <= 10.0 && n !== nodeNum);
+                        if (sizesFloat.length >= 2) {
+                            data["s14_min"] = Math.min(...sizesFloat).toString();
+                            data["s14_max"] = Math.max(...sizesFloat).toString();
+                        }
                     }
                 }
             }
-            const countMatch = lymphSentence[0].match(/(\d+)\s+(?:lymph\s+)?node/i);
-            if (countMatch) data["s14_num"] = countMatch[1];
         }
 
         // 10. Sections Mapping
@@ -2362,10 +2966,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         // Nipple
-        if (data.s9_val) {
-            data.s9_val.forEach(v => {
-                setCheck(`[name="s9_val"][value="${v}"]`, true);
+        if (data.s9_val && Array.isArray(data.s9_val)) {
+            ['everted', 'inverted', 'ulceration'].forEach(v => {
+                setCheck(`[name="s9_val"][value="${v}"]`, data.s9_val.includes(v));
             });
+        }
+        if (data.s8_check && (!data.s9_val || !data.s9_val.includes("ulceration"))) {
+            setCheck('[name="s9_val"][value="ulceration"]', false);
         }
         // Infiltrative mass
         if (data.s10_infiltrative) {
@@ -2412,6 +3019,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 setVal('[name="s10_prev2_mass_dims_2"]', data.s10_prev2_mass_dims[2]);
             }
         }
+        // Tumor Locations (10.5)
+        if (data.s10_5_nipple) setCheck('[name="s10_5_nipple"]', true);
+        if (data.s10_5_scar) setCheck('[name="s10_5_scar"]', true);
+        if (data.s10_5_central) setCheck('[name="s10_5_central"]', true);
+
         // Tumor Quadrants (10.5)
         if (data.s10_5_quadrant_check && data.s10_5_quadrant_vals) {
             setCheck('[name="s10_5_quadrant_check"]', true);
@@ -2706,6 +3318,144 @@ document.addEventListener('DOMContentLoaded', function () {
     const DRAFT_STORAGE_KEY = 'patho_form_draft_v1';
     let draftSaveTimeout = null;
 
+    // --- Audio Playlist Engine (Multi-Clip) ---
+    let currentAudioClips = [];
+
+    function initAudioClips() {
+        const hiddenClips = document.getElementById('hidden-audio-clips-json');
+        const hiddenAudio = document.getElementById('hidden-audio-filename');
+        if (hiddenClips && hiddenClips.value && hiddenClips.value.trim().startsWith('[')) {
+            try {
+                currentAudioClips = JSON.parse(hiddenClips.value);
+                if (!Array.isArray(currentAudioClips)) currentAudioClips = [];
+            } catch(e) {
+                currentAudioClips = [];
+            }
+        }
+        if (currentAudioClips.length === 0 && hiddenAudio && hiddenAudio.value && hiddenAudio.value.trim()) {
+            const fn = hiddenAudio.value.trim();
+            const audioUrl = (fn.startsWith('http://') || fn.startsWith('https://')) ? fn : `/uploads/${encodeURIComponent(fn)}`;
+            currentAudioClips = [{
+                filename: fn,
+                url: audioUrl,
+                label: 'คลิปที่ 1',
+                timestamp: ''
+            }];
+        }
+        renderAudioPlaylist(currentAudioClips.length > 0 ? currentAudioClips.length - 1 : 0);
+    }
+
+    function syncAudioInputs() {
+        const hiddenClips = document.getElementById('hidden-audio-clips-json');
+        const hiddenAudio = document.getElementById('hidden-audio-filename');
+        const hiddenCleared = document.getElementById('hidden-audio-cleared');
+        if (hiddenClips) {
+            hiddenClips.value = JSON.stringify(currentAudioClips);
+        }
+        if (currentAudioClips.length > 0) {
+            if (hiddenAudio) hiddenAudio.value = currentAudioClips[currentAudioClips.length - 1].filename || '';
+            if (hiddenCleared) hiddenCleared.value = 'false';
+        } else {
+            if (hiddenAudio) hiddenAudio.value = '';
+            if (hiddenCleared) hiddenCleared.value = 'true';
+        }
+    }
+
+    function renderAudioPlaylist(selectedIdx = 0) {
+        const audioContainer = document.getElementById('sidebar-audio-playback-container');
+        const audioPlayer = document.getElementById('sidebar-audio-player');
+        const countBadge = document.getElementById('audio-clips-count');
+        const selectorContainer = document.getElementById('audio-selector-container');
+        const selector = document.getElementById('audio-clip-selector');
+
+        if (!audioContainer) return;
+
+        if (currentAudioClips.length === 0) {
+            audioContainer.style.display = 'none';
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.removeAttribute('src');
+                audioPlayer.innerHTML = '';
+                audioPlayer.load();
+            }
+            if (countBadge) countBadge.textContent = '0';
+            return;
+        }
+
+        audioContainer.style.display = 'flex';
+        if (countBadge) countBadge.textContent = currentAudioClips.length;
+
+        if (selectorContainer && selector) {
+            if (currentAudioClips.length > 1) {
+                selectorContainer.style.display = 'flex';
+                selector.innerHTML = '';
+                currentAudioClips.forEach((clip, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = idx;
+                    const timeStr = clip.timestamp ? ` (${clip.timestamp})` : '';
+                    opt.textContent = `${clip.label || ('คลิปที่ ' + (idx + 1))}${timeStr}`;
+                    if (idx === selectedIdx) opt.selected = true;
+                    selector.appendChild(opt);
+                });
+            } else {
+                selectorContainer.style.display = 'none';
+            }
+        }
+
+        const safeIdx = Math.max(0, Math.min(selectedIdx, currentAudioClips.length - 1));
+        const activeClip = currentAudioClips[safeIdx];
+        if (activeClip && audioPlayer) {
+            const audioSrc = activeClip.url || (activeClip.filename.startsWith('http') ? activeClip.filename : `/uploads/${encodeURIComponent(activeClip.filename)}`);
+            audioPlayer.src = audioSrc;
+            audioPlayer.load();
+        }
+    }
+
+    function onSelectAudioClip(index) {
+        const idx = parseInt(index, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < currentAudioClips.length) {
+            const activeClip = currentAudioClips[idx];
+            const audioPlayer = document.getElementById('sidebar-audio-player');
+            if (activeClip && audioPlayer) {
+                const audioSrc = activeClip.url || (activeClip.filename.startsWith('http') ? activeClip.filename : `/uploads/${encodeURIComponent(activeClip.filename)}`);
+                audioPlayer.src = audioSrc;
+                audioPlayer.load();
+                audioPlayer.play().catch(() => {});
+            }
+        }
+    }
+    window.onSelectAudioClip = onSelectAudioClip;
+
+    function deleteActiveAudioClip() {
+        if (currentAudioClips.length === 0) return;
+        const selector = document.getElementById('audio-clip-selector');
+        let activeIdx = 0;
+        if (selector && currentAudioClips.length > 1) {
+            activeIdx = parseInt(selector.value, 10) || 0;
+        }
+        const clipLabel = currentAudioClips[activeIdx]?.label || `คลิปที่ ${activeIdx + 1}`;
+        if (confirm(`ต้องการลบ ${clipLabel} หรือไม่?`)) {
+            currentAudioClips.splice(activeIdx, 1);
+            syncAudioInputs();
+            renderAudioPlaylist(Math.max(0, activeIdx - 1));
+            if (typeof autoSaveDraft === 'function') autoSaveDraft();
+            showAppToast("ลบคลิปเสียงเรียบร้อยแล้ว");
+        }
+    }
+    window.deleteActiveAudioClip = deleteActiveAudioClip;
+
+    function clearSidebarAudio() {
+        if (currentAudioClips.length === 0) return;
+        if (confirm("ต้องการลบคลิปเสียงทั้งหมดหรือไม่?")) {
+            currentAudioClips = [];
+            syncAudioInputs();
+            renderAudioPlaylist(0);
+            if (typeof autoSaveDraft === 'function') autoSaveDraft();
+            showAppToast("ลบคลิปเสียงทั้งหมดแล้ว");
+        }
+    }
+    window.clearSidebarAudio = clearSidebarAudio;
+
     function resetFormToBlank() {
         clearLocalDraft();
         const form = document.querySelector('.patho-form');
@@ -2729,26 +3479,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (txtTranscription) txtTranscription.value = '';
         if (sidebarTranscriptionBox) sidebarTranscriptionBox.value = '';
 
-        if (typeof window.clearSidebarAudio === 'function') {
-            window.clearSidebarAudio();
-        }
+        // Reset multi-audio
+        currentAudioClips = [];
+        syncAudioInputs();
+        renderAudioPlaylist(0);
+
+        // Reset multi-photo
+        currentPhotos = [];
+        syncPhotoInputs();
+        renderPhotoGallery(0);
 
         const warnBox = document.getElementById('clinical-warning-box');
         if (warnBox) warnBox.style.display = 'none';
 
         const draftBar = document.getElementById('draft-recovery-bar');
         if (draftBar) draftBar.style.display = 'none';
-
-        // Clear specimen photo capture and preview
-        const hiddenPhotoInput = document.getElementById('hidden-photo-data');
-        const hiddenClearedInput = document.getElementById('hidden-photo-cleared');
-        if (hiddenPhotoInput) hiddenPhotoInput.value = '';
-        if (hiddenClearedInput) hiddenClearedInput.value = 'false';
-
-        const photoContainer = document.getElementById('specimen-photo-container');
-        const previewImg = document.getElementById('specimen-preview-img');
-        if (previewImg) previewImg.src = '';
-        if (photoContainer) photoContainer.style.display = 'none';
 
         validateFormData();
     }
@@ -2839,6 +3584,39 @@ document.addEventListener('DOMContentLoaded', function () {
                                     inputs[0].value = val;
                                 }
                             });
+
+                            if (parsed.data && parsed.data.photos_json) {
+                                try {
+                                    currentPhotos = JSON.parse(parsed.data.photos_json);
+                                    if (!Array.isArray(currentPhotos)) currentPhotos = [];
+                                    syncPhotoInputs();
+                                    renderPhotoGallery(0);
+                                } catch(e) {}
+                            } else if (parsed.data && parsed.data.photo_data) {
+                                currentPhotos = [parsed.data.photo_data];
+                                syncPhotoInputs();
+                                renderPhotoGallery(0);
+                            }
+
+                            if (parsed.data && parsed.data.audio_clips_json) {
+                                try {
+                                    currentAudioClips = JSON.parse(parsed.data.audio_clips_json);
+                                    if (!Array.isArray(currentAudioClips)) currentAudioClips = [];
+                                    syncAudioInputs();
+                                    renderAudioPlaylist(currentAudioClips.length - 1);
+                                } catch(e) {}
+                            } else if (parsed.data && parsed.data.audio_filename) {
+                                const afn = parsed.data.audio_filename;
+                                currentAudioClips = [{
+                                    filename: afn,
+                                    url: (afn.startsWith('http://') || afn.startsWith('https://')) ? afn : `/uploads/${encodeURIComponent(afn)}`,
+                                    label: 'คลิปที่ 1',
+                                    timestamp: ''
+                                }];
+                                syncAudioInputs();
+                                renderAudioPlaylist(0);
+                            }
+
                             validateFormData();
                             draftBar.style.display = 'none';
                             if (micStatusContainer) {
@@ -2927,6 +3705,10 @@ document.addEventListener('DOMContentLoaded', function () {
             window.setPaperZoom(1.0);
         });
     }
+
+    // Initialize multi-photo gallery and multi-audio playlist
+    initPhotos();
+    initAudioClips();
 
     // Restore draft on load
     restoreDraftIfAvailable();
