@@ -53,6 +53,8 @@ models/pathowhisper_lora/*.bin
 # Clinical Dataset & Large Experiments
 data/clinical_dataset/audio/
 data/clinical_dataset/exports/
+data/clinical_dataset/*.jsonl
+data/clinical_dataset/*.json
 experiments/
 
 # IDEs & OS

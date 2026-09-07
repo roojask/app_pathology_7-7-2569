@@ -774,11 +774,19 @@ def dashboard():
     recent_cases = FormHistory.query.order_by(FormHistory.timestamp.desc()).limit(6).all() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).limit(6).all()
     total_count = FormHistory.query.count() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).count()
     
+    flywheel_stats = None
+    try:
+        from src.flywheel.collector import get_flywheel_stats
+        flywheel_stats = get_flywheel_stats()
+    except Exception as e:
+        logger.warning(f"Error fetching flywheel stats: {e}")
+
     return render_template(
         "dashboard.html",
         recent_cases=recent_cases,
         total_count=total_count,
         user=current_user,
+        flywheel_stats=flywheel_stats,
         active_tab="dashboard"
     )
 
