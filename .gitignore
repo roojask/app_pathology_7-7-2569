@@ -50,8 +50,14 @@ benchmarks/datasets/*.mp3
 models/pathowhisper_lora/*.safetensors
 models/pathowhisper_lora/*.bin
 
+# Clinical Dataset & Large Experiments
+data/clinical_dataset/audio/
+data/clinical_dataset/exports/
+experiments/
+
 # IDEs & OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+

@@ -65,8 +65,14 @@ class Config:
         "Representative sections are submitted as. Nipple, mass, old biopsy cavity."
     )
     
+    # Clinical Audio Data Flywheel settings
+    ENABLE_DATA_FLYWHEEL = os.environ.get("ENABLE_DATA_FLYWHEEL", "True").lower() in ("true", "1", "yes")
+    CLINICAL_DATASET_DIR = DATA_DIR / "clinical_dataset"
+    CLINICAL_AUDIO_DIR = CLINICAL_DATASET_DIR / "audio"
+    
     @staticmethod
     def init_app(app):
         # Create required directories if they don't exist
-        for p in [Config.UPLOAD_DIR, Config.OUTPUT_DIR, Config.ASSETS_DIR, DATA_DIR / "instance"]:
+        for p in [Config.UPLOAD_DIR, Config.OUTPUT_DIR, Config.ASSETS_DIR, Config.CLINICAL_DATASET_DIR, Config.CLINICAL_AUDIO_DIR, DATA_DIR / "instance"]:
             p.mkdir(parents=True, exist_ok=True)
+

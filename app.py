@@ -586,9 +586,26 @@ def generate_pdf():
             except Exception as fe:
                 print(f"[NEW CASE FILE COPY / SHADOW SYNC NOTE] {fe}")
 
+        # Trigger Clinical Audio Data Flywheel in background
+        if history_record:
+            try:
+                from src.flywheel.collector import capture_audio_training_pair
+                initial_stt = form_data.get("transcription") or form_data.get("transcription_text") or ""
+                capture_audio_training_pair(
+                    app=app,
+                    history_id=history_record.id,
+                    surgical_number=s_no,
+                    audio_clips=audio_clips or ([{"filename": audio_fn}] if audio_fn else []),
+                    form_data=data,
+                    initial_stt_text=initial_stt
+                )
+            except Exception as fwe:
+                print(f"[Flywheel Trigger Note] {fwe}")
+
     except Exception as e:
         db.session.rollback()
         print(f"[DB ERROR] Could not save history/revision: {e}")
+
 
     photo_to_render = (history_record.photo_data if history_record and history_record.photo_data else photo_raw) if not photo_cleared else ""
     photos_to_render = (history_record.photo_list if history_record else photos) if not photo_cleared else []
@@ -1177,7 +1194,33 @@ def get_case_photo(history_id):
     return resp
 
 
+# --- Data Flywheel Endpoints ---
+
+@app.route("/api/flywheel/stats", methods=["GET"])
+def api_flywheel_stats():
+    """Returns clinical audio flywheel collection statistics."""
+    try:
+        from src.flywheel.collector import get_flywheel_stats
+        stats = get_flywheel_stats()
+        return jsonify({"success": True, "stats": stats})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/flywheel/export", methods=["GET"])
+def api_flywheel_export():
+    """Exports collected dataset manifest as JSON or CSV."""
+    try:
+        fmt = request.args.get("format", "jsonl")
+        from src.flywheel.exporter import export_clinical_dataset
+        res = export_clinical_dataset(output_format=fmt)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 if __name__ == "__main__":
+
     if Config.USE_HTTPS and Config.SSL_CERT_PATH.exists() and Config.SSL_KEY_PATH.exists():
         print(f" Starting production SSL/HTTPS server at https://0.0.0.0:7860")
         # Flask's built-in server is multithreaded by default in Flask 1.0+ and handles SSL natively

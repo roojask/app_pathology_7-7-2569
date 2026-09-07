@@ -131,3 +131,27 @@ class AudioTask(db.Model):
     updated_at = db.Column(db.DateTime, default=get_thai_time, onupdate=get_thai_time)
 
 
+class AudioTrainingPair(db.Model):
+    """
+    Stores verified real clinical speech paired with verified ground truth text
+    for continuous AI model adaptation (Clinical Audio Data Flywheel).
+    """
+    __tablename__ = 'audio_training_pair'
+    id = db.Column(db.Integer, primary_key=True)
+    history_id = db.Column(db.Integer, db.ForeignKey('form_history.id'), nullable=True)
+    surgical_number = db.Column(db.String(100), nullable=True)
+    audio_filename = db.Column(db.String(255), nullable=False)
+    standardized_wav_path = db.Column(db.String(255), nullable=True)
+    duration_seconds = db.Column(db.Float, default=0.0)
+    initial_stt_text = db.Column(db.Text, nullable=True)
+    verified_ground_truth = db.Column(db.Text, nullable=False)
+    initial_wer = db.Column(db.Float, nullable=True)
+    initial_cer = db.Column(db.Float, nullable=True)
+    organ_type = db.Column(db.String(100), default="Breast")
+    is_qualified = db.Column(db.Boolean, default=True)
+    timestamp = db.Column(db.DateTime, default=get_thai_time)
+
+    case = db.relationship('FormHistory', backref=db.backref('training_pairs', lazy=True, cascade="all, delete-orphan"))
+
+
+
