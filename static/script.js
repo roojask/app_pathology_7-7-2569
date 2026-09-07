@@ -1968,6 +1968,18 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentPhotos = [];
     let currentModalPhotoIndex = 0;
 
+    function isValidPhotoEntry(p) {
+        if (!p || typeof p !== 'string') return false;
+        const trimmed = p.trim();
+        if (trimmed.startsWith('data:image/')) {
+            const commaIdx = trimmed.indexOf(',');
+            if (commaIdx === -1) return false;
+            // Real camera JPEG base64 strings have at least 500+ characters. Dummy mock test strings have <100 chars.
+            return trimmed.length > 500;
+        }
+        return trimmed.length > 5;
+    }
+
     function initPhotos() {
         const hiddenPhotos = document.getElementById('hidden-photos-json');
         const hiddenPhotoData = document.getElementById('hidden-photo-data');
@@ -1979,9 +1991,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentPhotos = [];
             }
         }
-        if (currentPhotos.length === 0 && hiddenPhotoData && hiddenPhotoData.value && hiddenPhotoData.value.trim().length > 20) {
+        if (currentPhotos.length === 0 && hiddenPhotoData && hiddenPhotoData.value && isValidPhotoEntry(hiddenPhotoData.value)) {
             currentPhotos = [hiddenPhotoData.value.trim()];
         }
+        currentPhotos = currentPhotos.filter(isValidPhotoEntry);
+        syncPhotoInputs();
         renderPhotoGallery(0);
     }
 
@@ -3342,6 +3356,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 timestamp: ''
             }];
         }
+        currentAudioClips = currentAudioClips.filter(c => c && c.filename && !c.filename.startsWith('clip_test_'));
+        syncAudioInputs();
         renderAudioPlaylist(currentAudioClips.length > 0 ? currentAudioClips.length - 1 : 0);
     }
 

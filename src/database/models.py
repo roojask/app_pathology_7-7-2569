@@ -82,7 +82,7 @@ class FormHistory(db.Model):
         if not clips and self.audio_filename and self.audio_filename.strip():
             clips = [{
                 "filename": self.audio_filename,
-                "url": self.audio_filename if (self.audio_filename.startswith("http://") or self.audio_filename.startswith("https://")) else f"/audio/{self.audio_filename}",
+                "url": self.audio_filename if (self.audio_filename.startswith("http://") or self.audio_filename.startswith("https://")) else f"/uploads/{self.audio_filename}",
                 "label": "Clip 1",
                 "timestamp": self.timestamp.strftime("%H:%M") if self.timestamp else ""
             }]

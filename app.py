@@ -657,6 +657,7 @@ def view_pdf_file(filename):
     return response
 
 @app.route('/uploads/<filename>')
+@app.route('/audio/<filename>')
 def get_upload(filename):
     return send_from_directory(Config.UPLOAD_DIR, filename)
 
