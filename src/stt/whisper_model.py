@@ -60,6 +60,7 @@ def transcribe_via_groq(audio_path, api_key):
             }
             data = {
                 "model": Config.GROQ_MODEL,
+                "language": "en",
                 "prompt": Config.PATHOLOGY_PROMPT,
                 "response_format": "json"
             }
@@ -79,6 +80,7 @@ def transcribe_audio(audio_path):
     """
     Transcribes audio using Groq Cloud API (if API key is present)
     with a graceful fallback to local CPU Whisper if offline or key is missing.
+    Strictly constrained to English language only.
     """
     try:
         # Denoise the audio first to remove background noise!
@@ -87,7 +89,7 @@ def transcribe_audio(audio_path):
         # Check if GROQ_API_KEY is available
         groq_key = os.environ.get("GROQ_API_KEY") or getattr(Config, "GROQ_API_KEY", None)
         if groq_key and groq_key.strip():
-            print("[STT Pipeline] GROQ_API_KEY detected. Processing via Groq Cloud Whisper...")
+            print("[STT Pipeline] GROQ_API_KEY detected. Processing via Groq Cloud Whisper (English Only)...")
             transcription = transcribe_via_groq(processed_audio_path, groq_key)
             if transcription:
                 # Clean up temporary denoised file
@@ -99,17 +101,18 @@ def transcribe_audio(audio_path):
         # Check if Faster-Whisper CTranslate2 INT8 Engine is explicitly requested
         use_faster = getattr(Config, "USE_FASTER_WHISPER_ENGINE", False)
         if use_faster:
-            print("[STT Pipeline] Processing via local CPU PathoWhisper CTranslate2 INT8 Engine (Configured Alternative)...")
+            print("[STT Pipeline] Processing via local CPU PathoWhisper CTranslate2 INT8 Engine (English Only)...")
             from src.stt.faster_whisper_engine import transcribe_faster_whisper
-            transcription_text = transcribe_faster_whisper(str(processed_audio_path), initial_prompt=Config.PATHOLOGY_PROMPT)
+            transcription_text = transcribe_faster_whisper(str(processed_audio_path), initial_prompt=Config.PATHOLOGY_PROMPT, language="en")
             result = {'text': transcription_text}
         else:
             # Default to Standard OpenAI PyTorch Whisper Small Engine
-            print("[STT Pipeline] Processing via Standard OpenAI PyTorch Whisper Small Engine (Default)...")
+            print("[STT Pipeline] Processing via Standard OpenAI PyTorch Whisper Small Engine (English Only)...")
             with whisper_lock:
                 current_model = get_model()
                 result = current_model.transcribe(
                     str(processed_audio_path), 
+                    language="en",
                     initial_prompt=Config.PATHOLOGY_PROMPT
                 )
             

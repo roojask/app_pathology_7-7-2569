@@ -46,23 +46,24 @@ class Config:
     TEMPLATE_DIR = BASE_DIR / "templates"
     PDF_TEMPLATE_PATH = ASSETS_DIR / "Breast_Gross_Template.pdf"
     
+    # Language Configuration: Strict English Mode
+    DEFAULT_LANGUAGE = "en"
+    FORCE_ENGLISH_ONLY = True
+    
     # Whisper Model settings
     WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
     USE_FASTER_WHISPER_ENGINE = os.environ.get("USE_FASTER_WHISPER_ENGINE", "False").lower() in ("true", "1", "yes")
     PATHOLOGY_PROMPT = (
-        "ชิ้นเนื้อ สิ่งส่งตรวจ รหัส Surgical number S-24-1001 เต้านม ข้างซ้าย ข้างขวา "
-        "มอดิฟายด์ แรดิคัล แมสเทคโทมี ขนาด เซนติเมตร พบก้อนเนื้อ บริเวณ อัปเปอร์ เอาเตอร์ "
-        "ควาแดรนต์ ได้ต่อมน้ำเหลือง จำนวน ต่อม "
-        "Received in formalin. Modified radical mastectomy specimen. "
-        "Simple mastectomy. Skin ellipse. The nipple is everted, inverted, shows ulceration. "
-        "Infiltrative firm yellow-white mass. Well-defined firm white mass with slit-like appearance. "
-        "Poorly circumscribed yellow-white lesion. "
+        "Surgical pathology gross examination report. Surgical number S-26-1001. "
+        "Received in formalin is a right modified radical mastectomy specimen. "
+        "Left simple mastectomy. Skin ellipse. The nipple is everted, inverted, unremarkable, shows ulceration. "
+        "Infiltrative firm yellow-white mass located at upper outer quadrant, upper inner quadrant, "
+        "lower outer quadrant, lower inner quadrant, central, subareolar. "
+        "Well-defined firm white mass with slit-like appearance. Poorly circumscribed yellow-white lesion. "
         "Previous surgical cavity with adjacent fibrous tissue. Residual mass. "
-        "Beneath the nipple, beneath the scar, subareola. "
-        "Upper inner quadrant, lower outer quadrant. "
-        "Deep margin, superior margin, inferior margin, medial margin, lateral margin. "
-        "Uninvolved breast parenchyma. Lymph nodes ranging from. "
-        "Representative sections are submitted as. Nipple, mass, old biopsy cavity."
+        "Deep surgical resection margin, superior margin, inferior margin, medial margin, lateral margin, skin margin. "
+        "Centimeters, cm, millimeters, mm. Distance from closest margin. Grossly free from tumor. "
+        "Representative sections submitted in paraffin blocks. Axillary contents, level 1, level 2, lymph nodes."
     )
     
     # Clinical Audio Data Flywheel settings

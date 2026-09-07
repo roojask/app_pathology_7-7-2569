@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // --- Speech Recognition Language Engine (Default to English en-US per user instruction) ---
+    // --- Speech Recognition Language Engine (Strictly English Only per user instruction) ---
     let currentMicLang = 'en-US';
     localStorage.setItem('patho_mic_lang', 'en-US');
 
@@ -72,33 +72,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const btn = document.getElementById('btn-mic-lang-toggle');
         const label = document.getElementById('mic-lang-label');
         if (!btn || !label) return;
-        if (currentMicLang === 'th-TH') {
-            label.textContent = 'TH (ไทย)';
-            btn.className = 'btn-lang-badge lang-th';
-            btn.title = 'ภาษาพูดปัจจุบัน: ไทย (th-TH) - แตะเพื่อสลับเป็น English';
-        } else {
-            label.textContent = 'EN (Eng)';
-            btn.className = 'btn-lang-badge lang-en';
-            btn.title = 'Current Speech Language: English (en-US) - Tap to switch to Thai';
-        }
+        label.textContent = 'EN (Eng)';
+        btn.className = 'btn-lang-badge lang-en';
+        btn.title = 'Current Speech Language: English (en-US) - Locked to English';
     }
 
     const btnMicLangToggle = document.getElementById('btn-mic-lang-toggle');
     if (btnMicLangToggle) {
         btnMicLangToggle.addEventListener('click', function () {
-            currentMicLang = (currentMicLang === 'th-TH') ? 'en-US' : 'th-TH';
-            localStorage.setItem('patho_mic_lang', currentMicLang);
+            currentMicLang = 'en-US';
+            localStorage.setItem('patho_mic_lang', 'en-US');
             updateMicLangUI();
-            if (recognition) {
-                recognition.lang = currentMicLang;
-                if (isRecording) {
-                    try { recognition.stop(); } catch(e) {}
-                    setTimeout(() => {
-                        if (isRecording) {
-                            try { recognition.start(); } catch(e) {}
-                        }
-                    }, 200);
-                }
+            if (typeof showFloatingToast === 'function') {
+                showFloatingToast('🔒 Speech language is currently locked to English only');
             }
         });
         updateMicLangUI();
@@ -108,13 +94,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let isVoiceFeedbackEnabled = true;
     const btnHandsfreeToggle = document.getElementById('btn-handsfree-toggle');
 
-    function speakFeedback(text, lang = (currentMicLang === 'th-TH' ? 'th-TH' : 'en-US')) {
+    function speakFeedback(text, lang = 'en-US') {
         if (!isVoiceFeedbackEnabled) return;
         if ('speechSynthesis' in window) {
             try {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = lang;
+                utterance.lang = 'en-US';
                 utterance.rate = 1.05;
                 utterance.pitch = 1.0;
                 window.speechSynthesis.speak(utterance);

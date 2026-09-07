@@ -26,14 +26,15 @@ def get_faster_whisper_model(model_size="small", compute_type="int8", device="cp
                 print(f"[Success] Faster-Whisper ({model_size}) loaded successfully!")
     return _faster_whisper_model
 
-def transcribe_faster_whisper(audio_path, initial_prompt=None, language=None):
+def transcribe_faster_whisper(audio_path, initial_prompt=None, language="en"):
     """
     Transcribes audio using Faster-Whisper (CTranslate2 INT8)
-    Returns transcribed string.
+    Returns transcribed string. Strictly constrained to English.
     """
     if initial_prompt is None:
         initial_prompt = getattr(Config, "PATHOLOGY_PROMPT", "")
 
+    lang = language or getattr(Config, "DEFAULT_LANGUAGE", "en")
     model_engine = get_faster_whisper_model()
     
     # Transcribe with domain prompt and greedy search (beam_size=1) for maximum CPU speedup
@@ -41,7 +42,7 @@ def transcribe_faster_whisper(audio_path, initial_prompt=None, language=None):
         str(audio_path),
         beam_size=1,
         best_of=1,
-        language=language,
+        language=lang,
         initial_prompt=initial_prompt,
         vad_filter=False
     )
