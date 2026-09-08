@@ -267,6 +267,13 @@ class TestPathoWhisperE2EPipeline(unittest.TestCase):
         res_gen = self.client.post("/generate", data=post_data)
         self.assertEqual(res_gen.status_code, 200)
         self.assertIn(b"pdf", res_gen.data.lower())
+        
+        # Track generated test case for cleanup
+        with app.app_context():
+            created_case = FormHistory.query.filter_by(surgical_number="S-26-E2E-API").first()
+            if created_case:
+                self.__class__.test_db_records.append(created_case.id)
+                
         print("  ✓ Medical Form Save & Document Export POST /generate -> HTTP 200 OK")
 
 if __name__ == "__main__":
