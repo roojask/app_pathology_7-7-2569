@@ -71,6 +71,15 @@ class TestPathoWhisperE2EPipeline(unittest.TestCase):
                 except Exception:
                     db.session.rollback()
 
+            # Resynchronize sequence counter to real MAX(id) so tests don't leave gaps
+            try:
+                from sqlalchemy import text
+                max_id = db.session.execute(text("SELECT COALESCE(MAX(id), 0) FROM form_history;")).scalar()
+                db.session.execute(text(f"SELECT setval('public.form_history_id_seq', {max_id}, true);"))
+                db.session.commit()
+            except Exception as seq_err:
+                print(f"[TEARDOWN POSTGRES SEQ NOTE] {seq_err}")
+
         # Airtight cleanup: also prune test records from SQLite shadow mirror
         try:
             import sqlite3
@@ -81,12 +90,13 @@ class TestPathoWhisperE2EPipeline(unittest.TestCase):
                 for hist_id in cls.test_db_records:
                     sq_cur.execute("DELETE FROM form_history WHERE id = ?;", (hist_id,))
                     sq_cur.execute("DELETE FROM specimen_photo WHERE history_id = ?;", (hist_id,))
+                sq_cur.execute("UPDATE sqlite_sequence SET seq = (SELECT COALESCE(MAX(id), 0) FROM form_history) WHERE name = 'form_history';")
                 sq_c.commit()
                 sq_c.close()
         except Exception as sq_e:
             print(f"[TEARDOWN SQLITE NOTE] {sq_e}")
 
-        print("✅ Cleanup complete.")
+        print("✅ Cleanup complete and database sequences resynchronized.")
         print("=" * 80)
 
     def test_01_audio_spectral_denoising(self):
