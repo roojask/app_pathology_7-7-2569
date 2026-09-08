@@ -42,8 +42,32 @@ class FormHistory(db.Model):
     surgical_number = db.Column(db.String(100), nullable=True)
     form_data = db.Column(db.Text, nullable=False) # Store JSON string of data dict
     audio_filename = db.Column(db.String(200), nullable=True) # Unique audio filename
-    photo_data = db.Column(db.Text, nullable=True) # Base64 JPEG stored directly in DB
+    photo_data = db.Column(db.Text, nullable=True) # Base64 JPEG stored directly in DB (legacy fallback)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     timestamp = db.Column(db.DateTime, default=get_thai_time)
+
+    def soft_delete(self):
+        """Medical-grade soft delete: marks record inactive without destroying audit history."""
+        self.is_deleted = True
+        self.deleted_at = get_thai_time()
+
+    def restore(self):
+        """Restores a soft-deleted record."""
+        self.is_deleted = False
+        self.deleted_at = None
+
+    @property
+    def data_dict(self):
+        if not self.form_data:
+            return {}
+        if isinstance(self.form_data, dict):
+            return self.form_data
+        try:
+            import json
+            return json.loads(self.form_data)
+        except Exception:
+            return {}
 
     @property
     def latest_revision_number(self):
@@ -53,6 +77,13 @@ class FormHistory(db.Model):
 
     @property
     def photo_list(self):
+        # Priority 1: Normalized specimen_photo table
+        if hasattr(self, 'specimen_photos') and self.specimen_photos:
+            photos = [p.photo_data for p in self.specimen_photos if p.photo_data and len(p.photo_data.strip()) > 20]
+            if photos:
+                return photos
+
+        # Priority 2: JSON form_data["photos"] fallback
         photos = []
         try:
             import json
@@ -61,9 +92,13 @@ class FormHistory(db.Model):
                 photos = [p for p in d["photos"] if p and len(str(p).strip()) > 20]
         except Exception:
             pass
-        if not photos and self.photo_data and len(self.photo_data.strip()) > 20:
-            photos = [self.photo_data]
-        return photos
+        if photos:
+            return photos
+
+        # Priority 3: Legacy direct photo_data column fallback
+        if self.photo_data and len(self.photo_data.strip()) > 20:
+            return [self.photo_data]
+        return []
 
     @property
     def photo_count(self):
@@ -117,6 +152,21 @@ class CaseRevision(db.Model):
     @property
     def revision_label(self):
         return f"v{self.revision_number}"
+
+
+class SpecimenPhoto(db.Model):
+    """
+    Stores individual macroscopic specimen photos linked to a pathology case.
+    Decouples large Base64 image payloads from form_history rows for optimal performance.
+    """
+    __tablename__ = 'specimen_photo'
+    id = db.Column(db.Integer, primary_key=True)
+    history_id = db.Column(db.Integer, db.ForeignKey('form_history.id', ondelete='CASCADE'), nullable=False, index=True)
+    photo_data = db.Column(db.Text, nullable=False) # Base64 data URI
+    photo_index = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=get_thai_time)
+
+    case = db.relationship('FormHistory', backref=db.backref('specimen_photos', lazy=True, cascade="all, delete-orphan", order_by='SpecimenPhoto.photo_index.asc()'))
 
 
 

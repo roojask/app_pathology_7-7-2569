@@ -71,6 +71,21 @@ class TestPathoWhisperE2EPipeline(unittest.TestCase):
                 except Exception:
                     db.session.rollback()
 
+        # Airtight cleanup: also prune test records from SQLite shadow mirror
+        try:
+            import sqlite3
+            sq_path = BASE_DIR / "data" / "instance" / "local_pathology.db"
+            if sq_path.exists():
+                sq_c = sqlite3.connect(sq_path)
+                sq_cur = sq_c.cursor()
+                for hist_id in cls.test_db_records:
+                    sq_cur.execute("DELETE FROM form_history WHERE id = ?;", (hist_id,))
+                    sq_cur.execute("DELETE FROM specimen_photo WHERE history_id = ?;", (hist_id,))
+                sq_c.commit()
+                sq_c.close()
+        except Exception as sq_e:
+            print(f"[TEARDOWN SQLITE NOTE] {sq_e}")
+
         print("✅ Cleanup complete.")
         print("=" * 80)
 

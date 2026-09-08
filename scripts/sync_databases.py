@@ -12,7 +12,7 @@ DATA_DIR = BASE_DIR / "data"
 SQLITE_DB = DATA_DIR / "instance" / "local_pathology.db"
 OUTPUT_DIR = DATA_DIR / "outputs"
 
-def shadow_sync_case_to_sqlite(case_id, user_id, surgical_number, form_data, audio_filename, photo_data, timestamp):
+def shadow_sync_case_to_sqlite(case_id, user_id, surgical_number, form_data, audio_filename, photo_data, timestamp, is_deleted=False, deleted_at=None, photos=None):
     """
     Guarantees Zero-Data-Loss by immediately writing every created/updated case
     to the local SQLite database and to a permanent filesystem JSON archive.
@@ -36,15 +36,22 @@ def shadow_sync_case_to_sqlite(case_id, user_id, surgical_number, form_data, aud
         sq_cur = sq_conn.cursor()
 
         ts_str = str(timestamp) if timestamp else datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        del_at_str = str(deleted_at) if deleted_at else None
 
-        # Check if photo_data column exists in SQLite
+        # Check existing columns in SQLite form_history
         sq_cur.execute("PRAGMA table_info(form_history);")
         cols = [c[1] for c in sq_cur.fetchall()]
         has_photo = 'photo_data' in cols
+        has_soft_del = 'is_deleted' in cols
 
         f_data_str = form_data if isinstance(form_data, str) else json.dumps(form_data, ensure_ascii=False)
 
-        if has_photo:
+        if has_soft_del and has_photo:
+            sq_cur.execute('''
+                INSERT OR REPLACE INTO form_history (id, user_id, surgical_number, form_data, audio_filename, photo_data, is_deleted, deleted_at, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ''', (case_id, user_id, surgical_number, f_data_str, audio_filename or "", photo_data or None, int(bool(is_deleted)), del_at_str, ts_str))
+        elif has_photo:
             sq_cur.execute('''
                 INSERT OR REPLACE INTO form_history (id, user_id, surgical_number, form_data, audio_filename, photo_data, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?);
@@ -54,6 +61,19 @@ def shadow_sync_case_to_sqlite(case_id, user_id, surgical_number, form_data, aud
                 INSERT OR REPLACE INTO form_history (id, user_id, surgical_number, form_data, audio_filename, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?);
             ''', (case_id, user_id, surgical_number, f_data_str, audio_filename or "", ts_str))
+
+        # Sync specimen photos to SQLite if provided
+        if photos is not None:
+            # Check if specimen_photo table exists in SQLite
+            sq_cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='specimen_photo';")
+            if sq_cur.fetchone():
+                sq_cur.execute("DELETE FROM specimen_photo WHERE history_id = ?;", (case_id,))
+                for p_idx, p_val in enumerate(photos):
+                    if p_val and len(str(p_val).strip()) > 20:
+                        sq_cur.execute('''
+                            INSERT INTO specimen_photo (history_id, photo_data, photo_index, created_at)
+                            VALUES (?, ?, ?, ?);
+                        ''', (case_id, str(p_val).strip(), p_idx, ts_str))
 
         sq_conn.commit()
         sq_conn.close()
@@ -100,15 +120,21 @@ def auto_self_healing_db_check():
         # Self-healing Scenario B: SQLite is missing cases that PostgreSQL has
         elif pg_count > sq_count:
             print(f"[SELF-HEALING] SQLite has {sq_count} cases while PostgreSQL has {pg_count}. Auto-syncing PostgreSQL to SQLite...")
-            pg_cur.execute('SELECT id, user_id, surgical_number, form_data, audio_filename, photo_data, timestamp FROM "form_history";')
+            pg_cur.execute('SELECT id, user_id, surgical_number, form_data, audio_filename, photo_data, timestamp, is_deleted, deleted_at FROM "form_history";')
             rows = pg_cur.fetchall()
             
             sq_cur.execute("PRAGMA table_info(form_history);")
             cols = [c[1] for c in sq_cur.fetchall()]
             has_photo = 'photo_data' in cols
+            has_soft_del = 'is_deleted' in cols
 
             for r in rows:
-                if has_photo:
+                if has_soft_del and has_photo:
+                    sq_cur.execute('''
+                        INSERT OR REPLACE INTO form_history (id, user_id, surgical_number, form_data, audio_filename, photo_data, is_deleted, deleted_at, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    ''', (r[0], r[1], r[2], r[3], r[4], r[5], int(bool(r[7])), str(r[8]) if r[8] else None, str(r[6])))
+                elif has_photo:
                     sq_cur.execute('''
                         INSERT OR REPLACE INTO form_history (id, user_id, surgical_number, form_data, audio_filename, photo_data, timestamp)
                         VALUES (?, ?, ?, ?, ?, ?, ?);

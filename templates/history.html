@@ -176,6 +176,9 @@
                             <a href="{{ url_for('export_fhir_record', history_id=h.id) }}" class="btn-action-fhir" title="Export HL7 FHIR JSON">
                                 FHIR
                             </a>
+                            <button type="button" class="btn-action-fhir" style="background-color: #ef4444; color: #ffffff; border-color: #ef4444;" onclick="confirmDeleteCase({{ h.id }}, '{{ h.surgical_number or h.id }}');" title="ลบเคสนี้ (Soft Delete)">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -388,6 +391,26 @@
                 else if (e.key === 'Escape') closePhotoModal();
             }
         });
+
+        function confirmDeleteCase(id, surgNo) {
+            if (confirm(`คุณต้องการลบเคส #${id} (${surgNo}) ใช่หรือไม่?\n\n*หมายเหตุ: เป็นการลบแบบ Soft Delete ข้อมูลและภาพจะถูกเก็บรักษาในประวัติอย่างปลอดภัยและสามารถกู้คืนได้`)) {
+                fetch(`/api/case/${id}/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        location.reload();
+                    } else {
+                        alert('เกิดข้อผิดพลาด: ' + (res.error || 'ไม่สามารถลบเคสได้'));
+                    }
+                })
+                .catch(err => {
+                    alert('การเชื่อมต่อขัดข้อง: ' + err);
+                });
+            }
+        }
     </script>
 
     <!-- Specimen Photo Lightbox Modal -->

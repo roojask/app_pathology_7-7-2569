@@ -8,7 +8,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 
 # --- Modular Imports ---
 from configs.config import Config
-from src.database.models import db, User, FormHistory, CaseRevision, get_thai_time
+from src.database.models import db, User, FormHistory, CaseRevision, SpecimenPhoto, get_thai_time
 from src.stt.whisper_model import transcribe_audio
 from src.nlp.extractor import extract_data_15_sections, generate_confidence_flags
 from src.pdf.generator import process_pdf_15_sections
@@ -486,10 +486,18 @@ def generate_pdf():
 
             if photo_cleared:
                 history_record.photo_data = None
-            elif photos:
-                history_record.photo_data = photos[0]
-            elif photo_raw:
-                history_record.photo_data = photo_raw
+                SpecimenPhoto.query.filter_by(history_id=history_record.id).delete()
+            elif photos or photo_raw:
+                target_photos = photos if photos else ([photo_raw] if photo_raw else [])
+                history_record.photo_data = target_photos[0] if target_photos else None
+                SpecimenPhoto.query.filter_by(history_id=history_record.id).delete()
+                for idx, p_str in enumerate(target_photos):
+                    if p_str and len(str(p_str).strip()) > 20:
+                        db.session.add(SpecimenPhoto(
+                            history_id=history_record.id,
+                            photo_data=str(p_str).strip(),
+                            photo_index=idx
+                        ))
 
             if audio_cleared:
                 history_record.audio_filename = None
@@ -536,7 +544,10 @@ def generate_pdf():
                     form_data=data,
                     audio_filename=history_record.audio_filename,
                     photo_data=history_record.photo_data,
-                    timestamp=history_record.timestamp
+                    timestamp=history_record.timestamp,
+                    is_deleted=history_record.is_deleted,
+                    deleted_at=history_record.deleted_at,
+                    photos=history_record.photo_list
                 )
             except Exception as fe:
                 print(f"[REVISION FILE COPY / SHADOW SYNC NOTE] {fe}")
@@ -553,6 +564,18 @@ def generate_pdf():
             )
             db.session.add(history_record)
             db.session.commit()
+
+            # Save normalized specimen photos
+            if not photo_cleared and (photos or photo_raw):
+                target_photos = photos if photos else ([photo_raw] if photo_raw else [])
+                for idx, p_str in enumerate(target_photos):
+                    if p_str and len(str(p_str).strip()) > 20:
+                        db.session.add(SpecimenPhoto(
+                            history_id=history_record.id,
+                            photo_data=str(p_str).strip(),
+                            photo_index=idx
+                        ))
+                db.session.commit()
 
             v1 = CaseRevision(
                 history_id=history_record.id,
@@ -581,7 +604,10 @@ def generate_pdf():
                     form_data=data,
                     audio_filename=history_record.audio_filename,
                     photo_data=history_record.photo_data,
-                    timestamp=history_record.timestamp
+                    timestamp=history_record.timestamp,
+                    is_deleted=history_record.is_deleted,
+                    deleted_at=history_record.deleted_at,
+                    photos=history_record.photo_list
                 )
             except Exception as fe:
                 print(f"[NEW CASE FILE COPY / SHADOW SYNC NOTE] {fe}")
@@ -772,8 +798,8 @@ def login():
 @login_required
 def dashboard():
     is_admin = current_user.check_is_admin
-    recent_cases = FormHistory.query.order_by(FormHistory.timestamp.desc()).limit(6).all() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).limit(6).all()
-    total_count = FormHistory.query.count() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).count()
+    recent_cases = FormHistory.query.filter_by(is_deleted=False).order_by(FormHistory.timestamp.desc()).limit(6).all() if is_admin else FormHistory.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(FormHistory.timestamp.desc()).limit(6).all()
+    total_count = FormHistory.query.filter_by(is_deleted=False).count() if is_admin else FormHistory.query.filter_by(user_id=current_user.id, is_deleted=False).count()
     
     flywheel_stats = None
     try:
@@ -817,8 +843,8 @@ def forgot_password():
 @login_required
 def history():
     is_admin = current_user.check_is_admin
-    all_histories = FormHistory.query.order_by(FormHistory.id.desc()).all()
-    user_histories = all_histories if is_admin else FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.id.desc()).all()
+    all_histories = FormHistory.query.filter_by(is_deleted=False).order_by(FormHistory.id.desc()).all()
+    user_histories = all_histories if is_admin else FormHistory.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(FormHistory.id.desc()).all()
     all_users = User.query.all() if is_admin else []
         
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -838,7 +864,7 @@ def export_history_csv():
     from io import StringIO
     
     is_admin = current_user.check_is_admin
-    records = FormHistory.query.order_by(FormHistory.timestamp.desc()).all() if is_admin else FormHistory.query.filter_by(user_id=current_user.id).order_by(FormHistory.timestamp.desc()).all()
+    records = FormHistory.query.filter_by(is_deleted=False).order_by(FormHistory.timestamp.desc()).all() if is_admin else FormHistory.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(FormHistory.timestamp.desc()).all()
     
     si = StringIO()
     cw = csv.writer(si)
@@ -1201,6 +1227,96 @@ def get_case_photo(history_id):
     resp.headers["Content-Type"] = mime_type
     resp.headers["Cache-Control"] = "public, max-age=86400"
     return resp
+
+
+@app.route("/api/case/<int:history_id>/delete", methods=["POST"])
+@login_required
+def api_delete_case(history_id):
+    history_record = FormHistory.query.get_or_404(history_id)
+    if not current_user.check_is_admin and history_record.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    history_record.soft_delete()
+
+    # Medical audit trail: log deletion into CaseRevision
+    rev_num = history_record.latest_revision_number + 1
+    rev = CaseRevision(
+        history_id=history_record.id,
+        user_id=current_user.id,
+        revision_number=rev_num,
+        action="delete",
+        changes_summary=json.dumps([{"field": "is_deleted", "old": False, "new": True}], ensure_ascii=False),
+        full_snapshot=history_record.form_data,
+        comment=f"ลบเคส (Soft Delete โดย {current_user.name or current_user.username})",
+        timestamp=get_thai_time()
+    )
+    db.session.add(rev)
+    db.session.commit()
+
+    # Mirror soft delete to SQLite
+    try:
+        from scripts.sync_databases import shadow_sync_case_to_sqlite
+        shadow_sync_case_to_sqlite(
+            case_id=history_record.id,
+            user_id=history_record.user_id,
+            surgical_number=history_record.surgical_number,
+            form_data=history_record.form_data,
+            audio_filename=history_record.audio_filename,
+            photo_data=history_record.photo_data,
+            timestamp=history_record.timestamp,
+            is_deleted=True,
+            deleted_at=history_record.deleted_at,
+            photos=history_record.photo_list
+        )
+    except Exception as se:
+        print(f"[SHADOW SYNC DELETE NOTE] {se}")
+
+    return jsonify({"success": True, "message": f"Case #{history_id} marked as deleted (soft delete).", "case_id": history_id})
+
+
+@app.route("/api/case/<int:history_id>/restore", methods=["POST"])
+@login_required
+def api_restore_case(history_id):
+    history_record = FormHistory.query.get_or_404(history_id)
+    if not current_user.check_is_admin and history_record.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    history_record.restore()
+
+    rev_num = history_record.latest_revision_number + 1
+    rev = CaseRevision(
+        history_id=history_record.id,
+        user_id=current_user.id,
+        revision_number=rev_num,
+        action="restore",
+        changes_summary=json.dumps([{"field": "is_deleted", "old": True, "new": False}], ensure_ascii=False),
+        full_snapshot=history_record.form_data,
+        comment=f"กู้คืนเคส (Restore โดย {current_user.name or current_user.username})",
+        timestamp=get_thai_time()
+    )
+    db.session.add(rev)
+    db.session.commit()
+
+    # Mirror restore to SQLite
+    try:
+        from scripts.sync_databases import shadow_sync_case_to_sqlite
+        shadow_sync_case_to_sqlite(
+            case_id=history_record.id,
+            user_id=history_record.user_id,
+            surgical_number=history_record.surgical_number,
+            form_data=history_record.form_data,
+            audio_filename=history_record.audio_filename,
+            photo_data=history_record.photo_data,
+            timestamp=history_record.timestamp,
+            is_deleted=False,
+            deleted_at=None,
+            photos=history_record.photo_list
+        )
+    except Exception as se:
+        print(f"[SHADOW SYNC RESTORE NOTE] {se}")
+
+    return jsonify({"success": True, "message": f"Case #{history_id} restored successfully.", "case_id": history_id})
+
 
 
 # --- Data Flywheel Endpoints ---
