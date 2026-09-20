@@ -2,7 +2,6 @@ import whisper
 import threading
 import subprocess
 import os
-import requests
 from pathlib import Path
 from configs.config import Config
 
@@ -40,66 +39,17 @@ def denoise_audio(input_path):
     except Exception as e:
         return Path(input_path)
 
-def transcribe_via_groq(audio_path, api_key):
-    """
-    Transcribes audio using Groq Cloud API (Whisper Large V3) via REST request.
-    This runs in < 0.5s and consumes 0% local CPU.
-    """
-    if not os.path.exists(audio_path) or os.path.getsize(audio_path) < 1000:
-        print("[Groq STT] Audio file is missing or empty (<1KB). Skipping Groq API request.")
-        return None
-
-    url = "https://api.groq.com/openai/v1/audio/transcriptions"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
-    try:
-        with open(audio_path, "rb") as f:
-            files = {
-                "file": (os.path.basename(audio_path), f, "audio/wav")
-            }
-            data = {
-                "model": Config.GROQ_MODEL,
-                "language": "en",
-                "prompt": Config.PATHOLOGY_PROMPT,
-                "response_format": "json"
-            }
-            response = requests.post(url, headers=headers, files=files, data=data, timeout=12)
-            if response.status_code != 200:
-                print(f"[Groq Error] HTTP {response.status_code}: {response.text}")
-                return None
-            result = response.json()
-            print("[Groq Cloud STT] Successfully transcribed using Whisper Large V3!")
-            return result.get("text", "")
-    except Exception as e:
-        print(f"[Groq Error] Failed to transcribe via Groq: {e}. Falling back to local Whisper.")
-        return None
-
-
 def transcribe_audio(audio_path):
     """
-    Transcribes audio using Groq Cloud API (if API key is present)
-    with a graceful fallback to local CPU Whisper if offline or key is missing.
-    Strictly constrained to English language only.
+    Transcribes audio strictly using local offline Whisper engine.
+    Constrained to English language only with CAP pathology vocabulary prompting.
     """
     try:
         # Denoise the audio first to remove background noise!
         processed_audio_path = denoise_audio(audio_path)
         
-        # Check if GROQ_API_KEY is available
-        groq_key = os.environ.get("GROQ_API_KEY") or getattr(Config, "GROQ_API_KEY", None)
-        if groq_key and groq_key.strip():
-            print("[STT Pipeline] GROQ_API_KEY detected. Processing via Groq Cloud Whisper (English Only)...")
-            transcription = transcribe_via_groq(processed_audio_path, groq_key)
-            if transcription:
-                # Clean up temporary denoised file
-                if processed_audio_path != audio_path and os.path.exists(processed_audio_path):
-                    try: os.remove(processed_audio_path)
-                    except: pass
-                return transcription
-        
         # Check if Faster-Whisper CTranslate2 INT8 Engine is explicitly requested
-        use_faster = getattr(Config, "USE_FASTER_WHISPER_ENGINE", False)
+        use_faster = getattr(Config, "USE_FASTER_WHISPER_ENGINE", True)
         if use_faster:
             print("[STT Pipeline] Processing via local CPU PathoWhisper CTranslate2 INT8 Engine (English Only)...")
             from src.stt.faster_whisper_engine import transcribe_faster_whisper

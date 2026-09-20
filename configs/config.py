@@ -18,15 +18,14 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "pathology-secret")
     
     # Database setting: PostgreSQL Primary
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "postgresql://postgres:rooj282026@localhost:5432/pathology_db")
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL") or "sqlite:///pathology.db"
+    #SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "postgresql://postgres:rooj282026@localhost:5432/pathology_db")
     if SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
         
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Groq Cloud API Key
-    GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-    GROQ_MODEL = os.environ.get("GROQ_MODEL", "whisper-large-v3")
+
 
     # Supabase Configuration
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -50,9 +49,9 @@ class Config:
     DEFAULT_LANGUAGE = "en"
     FORCE_ENGLISH_ONLY = True
     
-    # Whisper Model settings
+    # Whisper Model settings: 100% Local Offline Speech-to-Text Engine
     WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
-    USE_FASTER_WHISPER_ENGINE = os.environ.get("USE_FASTER_WHISPER_ENGINE", "False").lower() in ("true", "1", "yes")
+    USE_FASTER_WHISPER_ENGINE = os.environ.get("USE_FASTER_WHISPER_ENGINE", "True").lower() in ("true", "1", "yes")
     PATHOLOGY_PROMPT = (
         "Surgical pathology gross examination report. Surgical number S-26-1001. "
         "Received in formalin is a right modified radical mastectomy specimen. "
