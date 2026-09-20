@@ -244,12 +244,12 @@ def extract_data_15_sections(text):
     # 8. Margins (Section 11)
     margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"]
     for m_name in margins:
-        # Pattern A: Name first (e.g. "superior margin 2 cm", "superior margin is 2", "superior 2 cm")
-        regex = rf"(?:{m_name}\s*margin|\b{m_name}\b)\s*(?:is|at|=|:)?\s*([\d.]+)(?:\s*(?:cm|mm))?"
+        # Pattern A: Name first (e.g. "deep surgical margin is close at 0.2 cm", "deep margin is 1.2 cm")
+        regex = rf"(?:{m_name}(?:\s+(?:surgical|resection|fascial))?\s*margin|\b{m_name}\b)\s*(?:is\s+(?:close\s+(?:at|to)|free\s+(?:at|to)|measured\s+(?:at|to)|involved\s+(?:at|to))?|at|=|:|\bclose\s+at\b|\bfree\s+at\b)?\s*([\d.]+)(?:\s*(?:cm|mm))?"
         m = re.search(regex, t, re.IGNORECASE)
-        # Pattern B: Value first with required 'from' or 'at' (e.g. "2 cm from superior margin")
+        # Pattern B: Value first with required 'from' or 'at' (e.g. "2 cm from deep surgical margin")
         if not m:
-            regex = rf"([\d.]+)(?:\s*(?:cm|mm))?\s*(?:cm\s*)?(?:from|at)\s*(?:the\s*)?{m_name}(?:\s*margin)?"
+            regex = rf"([\d.]+)(?:\s*(?:cm|mm))?\s*(?:cm\s*)?(?:from|at)\s*(?:the\s*)?{m_name}(?:\s+(?:surgical|resection|fascial))?(?:\s*margin)?"
             m = re.search(regex, t, re.IGNORECASE)
         if m:
             data[f"s11_{m_name}"] = m.group(1).rstrip('.')
