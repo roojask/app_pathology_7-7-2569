@@ -1,0 +1,153 @@
+\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+% ============================
+% ภาคผนวก
+% ============================
+\setcounter{chapter}{-1}
+
+\appendiceschapter{การตั้งค่าระบบ}
+\section*{คำสั่งประมวลผลเสียง}
+
+ตัวกรองเสียงที่ใช้งานจริง (จากไฟล์ \texttt{src/stt/whisper\_model.py}) แสดงดังนี้ โดยตัดบรรทัดเพื่อให้พอดีหน้ากระดาษ ในโค้ดจริงเป็นสตริงบรรทัดเดียว การแปลงเป็น 16 kHz Mono ทำโดยฟังก์ชันโหลดเสียงของไลบรารีถอดความ จึงไม่อยู่ในคำสั่งนี้
+
+\begin{verbatim}
+ffmpeg -i input.mp3 -af "afftdn,
+  silenceremove=start_periods=1:start_duration=0.1:
+  start_threshold=-40dB:stop_periods=-1:
+  stop_duration=0.6:stop_threshold=-40dB" output.wav
+\end{verbatim}
+
+\begin{table}[H]
+\centering
+\caption{พารามิเตอร์ของตัวกรองเสียง}
+\label{tab:appfilter}
+\small
+\begin{tabular}{|l|l|p{6.0cm}|}
+\hline
+\textbf{ตัวกรอง} & \textbf{พารามิเตอร์} & \textbf{ค่า} \\
+\hline
+afftdn & nr / nf / nt & 12 dB / $-50$ dB / white (ค่าเริ่มต้นของ FFmpeg) \\
+\hline
+silenceremove & ต้นไฟล์ & ตัดเสียงเงียบที่ยาวเกิน 0.1 วินาที ต่ำกว่า $-40$ dB \\
+\hline
+silenceremove & ตลอดไฟล์ & ตัดช่วงเงียบที่ยาวเกิน 0.6 วินาที ต่ำกว่า $-40$ dB \\
+\hline
+\end{tabular}
+\end{table}
+
+\section*{ค่าตั้งค่าการถอดความ}
+
+\begin{table}[H]
+\centering
+\caption{ค่าตั้งค่าของเอนจินถอดความ}
+\label{tab:appconfig}
+\small
+\begin{tabular}{|l|l|}
+\hline
+\textbf{พารามิเตอร์} & \textbf{ค่า} \\
+\hline
+แบบจำลอง & Faster-Whisper Small \\
+\hline
+อุปกรณ์ & CPU, \texttt{cpu\_threads=8} \\
+\hline
+Compute type & INT8 \\
+\hline
+Beam size & 1 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section*{ข้อความนำ (PATHOLOGY\_PROMPT)}
+
+\begin{quote}
+\small
+Surgical pathology gross examination report. Surgical number S-26-1001. Received in formalin is a right modified radical mastectomy specimen. Left simple mastectomy. Skin ellipse. The nipple is everted, inverted, unremarkable, shows ulceration. Infiltrative firm yellow-white mass located at upper outer quadrant, upper inner quadrant, lower outer quadrant, lower inner quadrant, central, subareolar. Well-defined firm white mass with slit-like appearance. Poorly circumscribed yellow-white lesion. Previous surgical cavity with adjacent fibrous tissue. Residual mass. Deep surgical resection margin, superior margin, inferior margin, medial margin, lateral margin, skin margin. Centimeters, cm, millimeters, mm. Distance from closest margin. Grossly free from tumor. Representative sections submitted in paraffin blocks. Axillary contents, level 1, level 2, lymph nodes.
+\end{quote}
+
+\noindent ข้อความนี้มี 111 คำ และเมื่อนับด้วยตัวตัดคำของ Whisper แบบหลายภาษาได้ 198 โทเคน ซึ่งไม่เกินขีดจำกัดของข้อความนำที่ 223 โทเคน
+
+\appendiceschapter{ฟิลด์ข้อมูลที่สกัด}
+\section*{รายการฟิลด์ 15 ฟิลด์}
+
+\begin{table}[H]
+\centering
+\caption{ฟิลด์ที่ตัวสกัดข้อมูลรองรับ}
+\label{tab:appfields}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|c|p{5.6cm}|p{6.0cm}|}
+\hline
+\textbf{ที่} & \textbf{รหัสฟิลด์} & \textbf{ความหมาย} \\
+\hline
+1 & \texttt{s0\_surgical\_no} & เลขที่สิ่งส่งตรวจทางศัลยกรรม \\
+\hline
+2 & \texttt{s1\_side} & ด้านของเต้านม (Right / Left) \\
+\hline
+3 & \texttt{s2\_proc} & ประเภทหัตถการ (Mastectomy, Lumpectomy ฯลฯ) \\
+\hline
+4 & \texttt{s3\_dims} & ขนาด 3 มิติของชิ้นเนื้อ (ซม.) \\
+\hline
+5 & \texttt{s4\_skin} & มีชิ้นผิวหนังติดมาหรือไม่ \\
+\hline
+6 & \texttt{s5\_dims} & ขนาด 2 มิติของชิ้นผิวหนัง (ซม.) \\
+\hline
+7 & \texttt{s6\_nipple} & สภาพหัวนมและลานนม \\
+\hline
+8 & \texttt{s7\_biopsy\_scar} & มีรอยแผลเป็นจากการเจาะตรวจเดิมหรือไม่ \\
+\hline
+9 & \texttt{s8\_cavity} & มีโพรงจากการผ่าตัดครั้งก่อนหรือไม่ \\
+\hline
+10 & \texttt{s9\_residual\_mass} & พบก้อนหลงเหลือติดโพรงเดิมหรือไม่ \\
+\hline
+11 & \texttt{s10\_infiltrative} & ลักษณะของก้อนหลัก \\
+\hline
+12 & \texttt{s10\_inf\_dims} & ขนาด 3 มิติของก้อนหลัก \\
+\hline
+13 & \texttt{s10\_5\_quadrant\_check} & ตำแหน่งจตุภาคที่พบก้อน \\
+\hline
+14 & \texttt{s11\_deep\_margin} & ระยะห่างจากขอบตัดด้านลึก (Deep margin) ขอบตัดด้านอื่นที่พูดในหมวดที่ 4 ยังไม่ได้ประเมิน \\
+\hline
+15 & \texttt{s14\_check} & พบต่อมน้ำเหลืองรักแร้หรือไม่ (ค่าบูลีน) มีฟิลด์ย่อยเก็บจำนวนที่พบและขนาดต่ำสุด สูงสุด (\texttt{s14\_num}, \texttt{s14\_min}, \texttt{s14\_max}) ไม่มีฟิลด์จำนวนที่สงสัยการลุกลาม เพราะการตรวจด้วยตาเปล่าบอกไม่ได้ \\
+\hline
+\end{tabular}
+\end{table}
+
+\noindent เฉลยของชุดทดสอบ 1,000 กรณีมีครบ 15 ฟิลด์ (\texttt{ground\_truth\_1000\_pure.json}) ฟิลด์ที่มีการกล่าวถึงในเสียงมี 11 ฟิลด์ ส่วน \texttt{s6\_nipple}, \texttt{s7\_biopsy\_scar}, \texttt{s8\_cavity} และ \texttt{s9\_residual\_mass} ไม่ถูกกล่าวถึงในแม่แบบทั้ง 10 หมวด จึงใช้เป็นฟิลด์ควบคุมเชิงลบ (ดูบทที่ 4)
+
+\appendiceschapter{ข้อมูลและสคริปต์ที่ใช้คำนวณผล}
+\section*{ไฟล์ผลการทดลอง}
+
+\begin{table}[H]
+\centering
+\caption{ไฟล์ผลการทดลองและสคริปต์}
+\label{tab:appfiles}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|p{7.6cm}|p{5.4cm}|}
+\hline
+\textbf{ไฟล์} & \textbf{เนื้อหา} \\
+\hline
+\texttt{benchmark\_1000\_cases\_overnight.csv} & ผลรายกรณี 2,000 บรรทัด (เฉลย ผลถอด WER CER เวลา ความแม่นยำฟิลด์) \\
+\hline
+\texttt{benchmark\_1000\_category\_breakdown.csv} & สรุปรายหมวด 10 หมวด \\
+\hline
+\texttt{ground\_truth\_1000\_pure.json} & เฉลย 15 ฟิลด์ที่สร้างจากตัวแปรต้นทาง \\
+\hline
+\texttt{field\_metrics\_15\_pure\_gt.csv} & TP, FP, FN, TN, Precision, Recall, F1 ต่อฟิลด์ \\
+\hline
+\texttt{category\_errors\_15\_fields.csv} & จำนวนข้อผิดพลาดต่อฟิลด์แยกตามหมวด \\
+\hline
+\texttt{unit\_test\_results.csv} & ผลการทดสอบหน่วยของตัวปรับข้อความ \\
+\hline
+\texttt{analyze\_benchmark.py} & คำนวณ WER ทั้งสองเกณฑ์ ช่วงความเชื่อมั่น และ Wilcoxon จากไฟล์ผลรายกรณี \\
+\hline
+\texttt{compute\_metrics.py} & คำนวณ WER และ CER แบบ micro และ macro จากไฟล์ CSV ทั่วไป \\
+\hline
+\texttt{eval\_pure\_gt\_15\_fields.py}, \texttt{gt\_audit.py} & ประเมิน 15 ฟิลด์ และตรวจเฉลยเทียบข้อความที่พูด \\
+\hline
+\texttt{make\_field\_tables.py} & สร้างตารางและตัวเลขในบทที่ 4 จากไฟล์ CSV โดยตรง \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{verbatim}
+pip install pandas scipy jiwer
+python analyze_benchmark.py benchmark_1000_cases_overnight.csv
+\end{verbatim}

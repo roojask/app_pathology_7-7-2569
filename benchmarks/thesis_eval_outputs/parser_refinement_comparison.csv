@@ -1,0 +1,5 @@
+field_id,field_name,baseline_f1,pre_refinement_f1,refined_f1,pre_refinement_errors,refined_errors,resolved_issue
+s0_surgical_no,Surgical Number,97.6,93.09,97.9,70,22,Hyphen-split date format (e.g. S-24-10-27 -> S-24-1027)
+s10_inf_dims,Infiltrative Mass 3D,87.7,69.9,88.18,318,137,Pre-context check suppression when mastectomy precedes mass
+s11_deep_margin,Deep Resection Margin,99.0,91.88,96.33,84,44,Punctuation tolerance (comma/period after margin descriptor)
+macro_f1_11_fields,Macro-F1 (11 Evaluable Fields),96.26,94.47,96.97,622,360,Overall clinical slot agreement improved from 95.85% (14378/15000) to 97.60% (14640/15000)

@@ -1,0 +1,49 @@
+\begin{table}[H]
+\centering
+\caption{Precision, Recall และ F1 รายฟิลด์บน 1,000 กรณี (ตรวจสอบเทียบกับ Ground Truth บริสุทธิ์) $n$ คือจำนวนกรณีที่มีการกล่าวถึงฟิลด์นั้น}
+\label{tab:field}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|c|p{4.6cm}|c|c|c|c|c|c|}
+\hline
+\textbf{ที่} & \textbf{ฟิลด์} & \textbf{$n$} & \textbf{F1 base} & \textbf{P (PW)} & \textbf{R (PW)} & \textbf{F1 (PW)} & \textbf{$\Delta$F1} \\
+\hline
+1 & \texttt{s0\_surgical\_no} เลขที่สิ่งส่งตรวจ & 1,000 & 97.6 & 98.0 & 97.8 & 97.9 & $+$0.3 \\
+\hline
+2 & \texttt{s1\_side} ข้างของเต้านม & 1,000 & 94.6 & 99.9 & 99.9 & 99.9 & $+$5.3 \\
+\hline
+3 & \texttt{s2\_proc} ชนิดหัตถการ & 900 & 100.0 & 100.0 & 100.0 & 100.0 & 0.0 \\
+\hline
+4 & \texttt{s3\_dims} ขนาดสิ่งส่งตรวจ 3 มิติ & 1,000 & 89.6 & 89.1 & 88.5 & 88.8 & $-$0.8 \\
+\hline
+5 & \texttt{s4\_skin} มีชิ้นผิวหนังติดมา & 500 & 97.9 & 100.0 & 99.0 & 99.5 & $+$1.6 \\
+\hline
+6 & \texttt{s5\_dims} ขนาดผิวหนัง 2 มิติ & 400 & 95.9 & 98.7 & 97.5 & 98.1 & $+$2.2 \\
+\hline
+7 & \texttt{s6\_nipple} สภาพหัวนมและลานนม & 0 & \multicolumn{5}{p{7.4cm}|}{ฟิลด์ควบคุมเชิงลบ: ตัวสกัดไม่คืนค่า 1,000 จาก 1,000 กรณี (Specificity 100\%)} \\
+\hline
+8 & \texttt{s7\_biopsy\_scar} รอยแผลเป็นจากการเจาะตรวจ & 0 & \multicolumn{5}{p{7.4cm}|}{ฟิลด์ควบคุมเชิงลบ: ตัวสกัดไม่คืนค่า 1,000 จาก 1,000 กรณี (Specificity 100\%)} \\
+\hline
+9 & \texttt{s8\_cavity} โพรงจากการผ่าตัดครั้งก่อน & 0 & \multicolumn{5}{p{7.4cm}|}{ฟิลด์ควบคุมเชิงลบ: ตัวสกัดไม่คืนค่า 1,000 จาก 1,000 กรณี (Specificity 100\%)} \\
+\hline
+10 & \texttt{s9\_residual\_mass} ก้อนหลงเหลือที่โพรงเดิม & 0 & \multicolumn{5}{p{7.4cm}|}{ฟิลด์ควบคุมเชิงลบ: ตัวสกัดไม่คืนค่า 1,000 จาก 1,000 กรณี (Specificity 100\%)} \\
+\hline
+11 & \texttt{s10\_infiltrative} ก้อนลุกลาม (มี/ไม่มี) & 800 & 98.7 & 98.5 & 98.8 & 98.6 & $-$0.1 \\
+\hline
+12 & \texttt{s10\_inf\_dims} ขนาดก้อน 3 มิติ & 700 & 87.7 & 97.6 & 80.4 & 88.2 & $+$0.5 \\
+\hline
+13 & \texttt{s10\_5\_quadrant} ตำแหน่งจตุภาค & 500 & 100.0 & 99.6 & 99.6 & 99.6 & $-$0.4 \\
+\hline
+14 & \texttt{s11\_deep\_margin} ระยะห่างขอบตัดด้านลึก & 700 & 99.0 & 99.1 & 93.7 & 96.3 & $-$2.7 \\
+\hline
+15 & \texttt{s14\_check} ต่อมน้ำเหลืองรักแร้ & 600 & 97.9 & 100.0 & 99.7 & 99.8 & $+$1.9 \\
+\hline
+\hline
+\multicolumn{3}{|r|}{\textbf{Macro-F1 ฟิลด์หลักทางคลินิก (Core 6 Fields)}} & \textbf{96.40} & \multicolumn{2}{c|}{} & \textbf{97.50} & \textbf{+1.10} \\
+\hline
+\multicolumn{3}{|r|}{\textbf{ค่าเฉลี่ย (Macro-F1) ของ 11 ฟิลด์ที่มีข้อมูล}} & \textbf{96.26} & \multicolumn{2}{c|}{} & \textbf{96.97} & \textbf{+0.71} \\
+\hline
+\multicolumn{3}{|r|}{\textbf{ความสอดคล้องระดับช่องข้อมูล (15,000 ช่อง)*}} & \textbf{96.81\%} & \multicolumn{2}{c|}{(14,522 $\rightarrow$ 14,640 ช่อง)} & \textbf{97.60\%} & \textbf{+0.79\%} \\
+\hline
+\end{tabular}
+\par\vspace{2pt}\footnotesize\noindent *คำนวณจาก Exact Slot Match 1,000 กรณี $\times$ 15 ฟิลด์ (Baseline 14,522/15,000 ช่อง, PathoWhisper 14,640/15,000 ช่อง เพิ่มขึ้น +118 ช่อง หรือ +0.79\%; หากคำนวณแบบจำแนกเดี่ยวที่หัก Value Discrepancy 21 ช่องออกจาก Negative Cases จะได้ Baseline 14,501 ช่อง หรือ 96.67\% เพิ่มขึ้น +139 ช่อง / +0.93\%)
+\end{table}

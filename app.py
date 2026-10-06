@@ -73,12 +73,12 @@ app.config.from_mapping(
     SECRET_KEY=Config.SECRET_KEY,
     SQLALCHEMY_DATABASE_URI=Config.SQLALCHEMY_DATABASE_URI,
     SQLALCHEMY_TRACK_MODIFICATIONS=Config.SQLALCHEMY_TRACK_MODIFICATIONS,
-    SQLALCHEMY_ENGINE_OPTIONS={
-        "pool_size": 3,
-        "max_overflow": 5,
-        "pool_recycle": 280,
-        "pool_timeout": 10
-    }
+    #SQLALCHEMY_ENGINE_OPTIONS={
+       # "pool_size": 3,
+        #"max_overflow": 5,
+        #"pool_recycle": 280,
+        #"pool_timeout": 10
+    #}
 )
 
 Config.init_app(app)

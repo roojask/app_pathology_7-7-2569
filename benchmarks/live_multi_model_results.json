@@ -1,0 +1,418 @@
+{
+  "pathowhisper_int8": {
+    "name": "PathoWhisper INT8 (CTranslate2)",
+    "type": "faster",
+    "model_size": "small",
+    "load_time_sec": 4.06,
+    "total_inference_sec": 95.35,
+    "avg_latency_sec": 9.13,
+    "avg_wer_pct": 22.15,
+    "avg_cer_pct": 5.13,
+    "avg_mapping_acc_pct": 82.0,
+    "case_results": [
+      {
+        "case_id": "case_0001",
+        "category": "Cat 1: Standard Breast Pathology Protocol",
+        "latency_sec": 10.413,
+        "wer_pct": 21.43,
+        "cer_pct": 2.79,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1001. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0101",
+        "category": "Cat 2: Out-of-Order Reporting Sequence",
+        "latency_sec": 9.232,
+        "wer_pct": 21.74,
+        "cer_pct": 2.89,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1101. Received in formalin is a right simple mastectomy spe..."
+      },
+      {
+        "case_id": "case_0201",
+        "category": "Cat 3: Self-Correction & Hesitation Speech",
+        "latency_sec": 8.922,
+        "wer_pct": 23.53,
+        "cer_pct": 7.27,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1201. Received in formalin is a right simple mastectomy spe..."
+      },
+      {
+        "case_id": "case_0301",
+        "category": "Cat 4: Multi-Margin Complex Assessment",
+        "latency_sec": 9.597,
+        "wer_pct": 21.74,
+        "cer_pct": 5.75,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1301. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0401",
+        "category": "Cat 5: Heavy Lymph Node Count & Staging",
+        "latency_sec": 9.349,
+        "wer_pct": 21.43,
+        "cer_pct": 5.59,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1401. Received in formalin is a left modified radical maste..."
+      },
+      {
+        "case_id": "case_0501",
+        "category": "Cat 6: Fibrocystic / Benign (Negative Control)",
+        "latency_sec": 8.744,
+        "wer_pct": 21.74,
+        "cer_pct": 5.76,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1501. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0601",
+        "category": "Cat 7: High-Speed Rapid Speech (>200 wpm)",
+        "latency_sec": 8.882,
+        "wer_pct": 21.43,
+        "cer_pct": 5.6,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1601. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0701",
+        "category": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+        "latency_sec": 8.763,
+        "wer_pct": 21.74,
+        "cer_pct": 5.8,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1701. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0801",
+        "category": "Cat 9: Ductal Carcinoma / Microinvasion",
+        "latency_sec": 8.738,
+        "wer_pct": 23.19,
+        "cer_pct": 3.39,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1801. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0901",
+        "category": "Cat 10: Clinical Edge Cases & Missing Fields",
+        "latency_sec": 8.664,
+        "wer_pct": 23.53,
+        "cer_pct": 6.43,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1901. Received in formalin is a left simple mastectomy spec..."
+      }
+    ],
+    "speedup_vs_baseline": 1.42
+  },
+  "whisper_small": {
+    "name": "Whisper Small (PyTorch Baseline)",
+    "type": "pytorch",
+    "model_size": "small",
+    "load_time_sec": 11.02,
+    "total_inference_sec": 134.06,
+    "avg_latency_sec": 13.01,
+    "avg_wer_pct": 19.86,
+    "avg_cer_pct": 4.99,
+    "avg_mapping_acc_pct": 82.0,
+    "case_results": [
+      {
+        "case_id": "case_0001",
+        "category": "Cat 1: Standard Breast Pathology Protocol",
+        "latency_sec": 15.056,
+        "wer_pct": 0.0,
+        "cer_pct": 0.0,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1001. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0101",
+        "category": "Cat 2: Out-of-Order Reporting Sequence",
+        "latency_sec": 13.392,
+        "wer_pct": 21.74,
+        "cer_pct": 5.78,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1101. Received in formalin is a right simple mastectomy spe..."
+      },
+      {
+        "case_id": "case_0201",
+        "category": "Cat 3: Self-Correction & Hesitation Speech",
+        "latency_sec": 13.59,
+        "wer_pct": 23.53,
+        "cer_pct": 6.4,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1201. Received in formalin is a right simple mastectomy spe..."
+      },
+      {
+        "case_id": "case_0301",
+        "category": "Cat 4: Multi-Margin Complex Assessment",
+        "latency_sec": 12.604,
+        "wer_pct": 21.74,
+        "cer_pct": 5.75,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1301. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0401",
+        "category": "Cat 5: Heavy Lymph Node Count & Staging",
+        "latency_sec": 12.61,
+        "wer_pct": 21.43,
+        "cer_pct": 5.59,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1401. Received in formalin is a left modified radical maste..."
+      },
+      {
+        "case_id": "case_0501",
+        "category": "Cat 6: Fibrocystic / Benign (Negative Control)",
+        "latency_sec": 13.433,
+        "wer_pct": 21.74,
+        "cer_pct": 5.76,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1501. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0601",
+        "category": "Cat 7: High-Speed Rapid Speech (>200 wpm)",
+        "latency_sec": 12.264,
+        "wer_pct": 21.43,
+        "cer_pct": 5.6,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1601. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0701",
+        "category": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+        "latency_sec": 11.954,
+        "wer_pct": 21.74,
+        "cer_pct": 5.8,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1701. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0801",
+        "category": "Cat 9: Ductal Carcinoma / Microinvasion",
+        "latency_sec": 12.257,
+        "wer_pct": 23.19,
+        "cer_pct": 3.39,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1801. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0901",
+        "category": "Cat 10: Clinical Edge Cases & Missing Fields",
+        "latency_sec": 12.98,
+        "wer_pct": 22.06,
+        "cer_pct": 5.85,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1901. Received in formalin is a left simple mastectomy spec..."
+      }
+    ],
+    "speedup_vs_baseline": 1.0
+  },
+  "whisper_base": {
+    "name": "Whisper Base (PyTorch Light)",
+    "type": "pytorch",
+    "model_size": "base",
+    "load_time_sec": 2.97,
+    "total_inference_sec": 50.27,
+    "avg_latency_sec": 4.66,
+    "avg_wer_pct": 24.9,
+    "avg_cer_pct": 7.71,
+    "avg_mapping_acc_pct": 80.0,
+    "case_results": [
+      {
+        "case_id": "case_0001",
+        "category": "Cat 1: Standard Breast Pathology Protocol",
+        "latency_sec": 6.142,
+        "wer_pct": 24.29,
+        "cer_pct": 5.59,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1001. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0101",
+        "category": "Cat 2: Out-of-Order Reporting Sequence",
+        "latency_sec": 4.799,
+        "wer_pct": 21.74,
+        "cer_pct": 5.78,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1101. Received in formalin is a right simple mastectomy spe..."
+      },
+      {
+        "case_id": "case_0201",
+        "category": "Cat 3: Self-Correction & Hesitation Speech",
+        "latency_sec": 4.521,
+        "wer_pct": 22.06,
+        "cer_pct": 5.81,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1201. Received in formalin is a right simple mastectomy spe..."
+      },
+      {
+        "case_id": "case_0301",
+        "category": "Cat 4: Multi-Margin Complex Assessment",
+        "latency_sec": 5.058,
+        "wer_pct": 28.99,
+        "cer_pct": 14.37,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1301. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0401",
+        "category": "Cat 5: Heavy Lymph Node Count & Staging",
+        "latency_sec": 4.522,
+        "wer_pct": 21.43,
+        "cer_pct": 5.59,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1401. Received in formalin is a left modified radical maste..."
+      },
+      {
+        "case_id": "case_0501",
+        "category": "Cat 6: Fibrocystic / Benign (Negative Control)",
+        "latency_sec": 4.471,
+        "wer_pct": 23.19,
+        "cer_pct": 6.05,
+        "mapping_acc_pct": 73.33,
+        "transcription": "Surgical number S-24-501. Received in formalin is a left simple mastectomy speci..."
+      },
+      {
+        "case_id": "case_0601",
+        "category": "Cat 7: High-Speed Rapid Speech (>200 wpm)",
+        "latency_sec": 4.514,
+        "wer_pct": 24.29,
+        "cer_pct": 5.88,
+        "mapping_acc_pct": 73.33,
+        "transcription": "Surgical number S-24-16-01. Received in formalin is a right modified radical mas..."
+      },
+      {
+        "case_id": "case_0701",
+        "category": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+        "latency_sec": 4.419,
+        "wer_pct": 33.33,
+        "cer_pct": 14.49,
+        "mapping_acc_pct": 73.33,
+        "transcription": "Surgical number S-24-701. Received in formalin is a left simple mastectomy speci..."
+      },
+      {
+        "case_id": "case_0801",
+        "category": "Cat 9: Ductal Carcinoma / Microinvasion",
+        "latency_sec": 4.048,
+        "wer_pct": 23.19,
+        "cer_pct": 6.21,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1801. Received in formalin is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0901",
+        "category": "Cat 10: Clinical Edge Cases & Missing Fields",
+        "latency_sec": 4.131,
+        "wer_pct": 26.47,
+        "cer_pct": 7.31,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgical number S-24-1901. Received in formalin is a left simple mastectomy spec..."
+      }
+    ],
+    "speedup_vs_baseline": 2.79
+  },
+  "whisper_tiny": {
+    "name": "Whisper Tiny (PyTorch Ultra-Light)",
+    "type": "pytorch",
+    "model_size": "tiny",
+    "load_time_sec": 1.63,
+    "total_inference_sec": 35.43,
+    "avg_latency_sec": 3.12,
+    "avg_wer_pct": 26.19,
+    "avg_cer_pct": 10.04,
+    "avg_mapping_acc_pct": 80.67,
+    "case_results": [
+      {
+        "case_id": "case_0001",
+        "category": "Cat 1: Standard Breast Pathology Protocol",
+        "latency_sec": 2.727,
+        "wer_pct": 27.14,
+        "cer_pct": 11.45,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Rg. number S-24-1001 Received in formalin is a right modified radical mastectomy..."
+      },
+      {
+        "case_id": "case_0101",
+        "category": "Cat 2: Out-of-Order Reporting Sequence",
+        "latency_sec": 3.299,
+        "wer_pct": 27.54,
+        "cer_pct": 9.83,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1101. Received in formalin is a right simple mastectomy spe..."
+      },
+      {
+        "case_id": "case_0201",
+        "category": "Cat 3: Self-Correction & Hesitation Speech",
+        "latency_sec": 3.065,
+        "wer_pct": 25.0,
+        "cer_pct": 4.65,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Surgedicle number S. 24-1201. Received in formalin is a right simple mastectomy ..."
+      },
+      {
+        "case_id": "case_0301",
+        "category": "Cat 4: Multi-Margin Complex Assessment",
+        "latency_sec": 3.504,
+        "wer_pct": 21.74,
+        "cer_pct": 5.75,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1301. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0401",
+        "category": "Cat 5: Heavy Lymph Node Count & Staging",
+        "latency_sec": 3.463,
+        "wer_pct": 28.57,
+        "cer_pct": 18.16,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1401. Received in formalin is a left modified radical maste..."
+      },
+      {
+        "case_id": "case_0501",
+        "category": "Cat 6: Fibrocystic / Benign (Negative Control)",
+        "latency_sec": 2.911,
+        "wer_pct": 28.99,
+        "cer_pct": 18.73,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-1501. Received in formalin is a left simple mastectomy spec..."
+      },
+      {
+        "case_id": "case_0601",
+        "category": "Cat 7: High-Speed Rapid Speech (>200 wpm)",
+        "latency_sec": 3.181,
+        "wer_pct": 24.29,
+        "cer_pct": 5.88,
+        "mapping_acc_pct": 73.33,
+        "transcription": "Surgical number S-24-16-01. Received in formalin is a right modified radical mas..."
+      },
+      {
+        "case_id": "case_0701",
+        "category": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+        "latency_sec": 3.536,
+        "wer_pct": 30.43,
+        "cer_pct": 11.88,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Rg. number S-24-1701. Received in formalin is a left simple mastectomy specimen ..."
+      },
+      {
+        "case_id": "case_0801",
+        "category": "Cat 9: Ductal Carcinoma / Microinvasion",
+        "latency_sec": 2.899,
+        "wer_pct": 24.64,
+        "cer_pct": 6.5,
+        "mapping_acc_pct": 80.0,
+        "transcription": "Surgical number S-24-801. Received in formalin, is a right modified radical mast..."
+      },
+      {
+        "case_id": "case_0901",
+        "category": "Cat 10: Clinical Edge Cases & Missing Fields",
+        "latency_sec": 2.62,
+        "wer_pct": 23.53,
+        "cer_pct": 7.6,
+        "mapping_acc_pct": 86.67,
+        "transcription": "Rg. number S-24-1901. Received in formalin is a left simple mastectomy specimen ..."
+      }
+    ],
+    "speedup_vs_baseline": 4.17
+  }
+}

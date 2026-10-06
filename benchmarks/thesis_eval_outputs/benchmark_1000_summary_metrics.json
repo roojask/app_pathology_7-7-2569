@@ -1,0 +1,24 @@
+{
+  "total_cases_evaluated": 1000,
+  "macro_metrics": {
+    "baseline_wer": 36.27,
+    "pathowhisper_wer": 29.05,
+    "baseline_cer": 9.82,
+    "pathowhisper_cer": 6.54,
+    "baseline_acc": 88.07,
+    "pathowhisper_acc": 88.82,
+    "baseline_latency": 20.04,
+    "pathowhisper_latency": 11.5
+  },
+  "micro_metrics": {
+    "baseline_wer": 36.27,
+    "pathowhisper_wer": 29.05,
+    "baseline_cer": 9.82,
+    "pathowhisper_cer": 6.54,
+    "baseline_acc": 88.07,
+    "pathowhisper_acc": 88.82,
+    "baseline_latency": 20.04,
+    "pathowhisper_latency": 11.5
+  },
+  "overall_speedup": 1.74
+}

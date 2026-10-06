@@ -22,10 +22,15 @@ def extract_data_15_sections(text):
     data = {"_low_confidence": []}
 
     # 1. Surgical Number 
-    m = re.search(r"(?:surgical number|specimen|s-)?\s*(?:is\s+)?([sS]?\s*-?\s*\d{2}\s*-?\s*\d+)", t, re.IGNORECASE)
+    m = re.search(r"(?:surgical number|specimen|s-)?\s*(?:is\s+)?([sS]?\s*-?\s*\d{2}(?:\s*[-–\s]\s*\d{2,4})+|\b\d{2}-\d{4,}\b|[sS]?\s*-?\s*\d{2}\s*-?\s*\d+)", t, re.IGNORECASE)
     if m: 
         raw_s = m.group(1).replace(" ", "").upper()
-        if not raw_s.startswith("S-"):
+        parts = [p for p in re.split(r'[-–]', raw_s) if p]
+        if len(parts) == 3 and len(parts[0]) == 2 and len(parts[1]) == 2 and len(parts[2]) == 2:
+            raw_s = f"S-{parts[0]}-{parts[1]}{parts[2]}"
+        elif len(parts) == 4 and parts[0] == 'S' and len(parts[1]) == 2 and len(parts[2]) == 2 and len(parts[3]) == 2:
+            raw_s = f"S-{parts[1]}-{parts[2]}{parts[3]}"
+        elif not raw_s.startswith("S-"):
             if raw_s.startswith("S"): raw_s = f"S-{raw_s[1:]}"
             else: raw_s = f"S-{raw_s}"
         if re.match(r"^S-\d{5,}$", raw_s):
@@ -115,17 +120,20 @@ def extract_data_15_sections(text):
         
         for m in reversed(all_3d_dims):
             start, end = m.start(), m.end()
-            pre_context = t[max(0, start-40) : start].lower()
+            pre_context = t[max(0, start-60) : start].lower()
             post_context = t[end : min(len(t), end+50)].lower()
             
             if "without dimension" in post_context or "no dimension" in post_context or "without dimension" in pre_context:
                 continue
                 
-            if any(kw in pre_context for kw in ["mastectomy", "specimen", "overall size"]):
+            mass_kw_pos = max([pre_context.rfind(kw) for kw in ["infiltrative", "mass", "lesion", "tumor"]] + [-1])
+            spec_kw_pos = max([pre_context.rfind(kw) for kw in ["mastectomy", "specimen", "overall size"]] + [-1])
+
+            # Only skip if specimen keyword is STRICTLY AFTER mass keyword in pre_context
+            if spec_kw_pos > mass_kw_pos:
                 continue
 
-            if any(kw in pre_context for kw in ["infiltrative", "mass", "lesion", "tumor"]) or \
-               (any(kw in post_context for kw in ["infiltrative", "mass", "lesion", "tumor"]) and "measuring" not in pre_context):
+            if mass_kw_pos != -1 or (any(kw in post_context for kw in ["infiltrative", "mass", "lesion", "tumor"]) and "measuring" not in pre_context):
                 mass_dim_match = m
                 break
         
@@ -244,8 +252,8 @@ def extract_data_15_sections(text):
     # 8. Margins (Section 11)
     margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"]
     for m_name in margins:
-        # Pattern A: Name first (e.g. "deep surgical margin is close at 0.2 cm", "deep margin is 1.2 cm")
-        regex = rf"(?:{m_name}(?:\s+(?:surgical|resection|fascial))?\s*margin|\b{m_name}\b)\s*(?:is\s+(?:close\s+(?:at|to)|free\s+(?:at|to)|measured\s+(?:at|to)|involved\s+(?:at|to))?|at|=|:|\bclose\s+at\b|\bfree\s+at\b)?\s*([\d.]+)(?:\s*(?:cm|mm))?"
+        # Pattern A: Name first (handles punctuation like commas or periods: e.g. "deep margin, 1 cm", "deep margin. 1.5 cm")
+        regex = rf"(?:{m_name}(?:\s+(?:surgical|resection|fascial))?\s*margin|\b{m_name}\b)\s*[,.:;]?\s*(?:is\s+(?:close\s+(?:at|to)|free\s+(?:at|to)|measured\s+(?:at|to)|involved\s+(?:at|to))?|at|=|:|\bclose\s+at\b|\bfree\s+at\b)?\s*[,.:;]?\s*([\d.]+)(?:\s*(?:cm|mm))?"
         m = re.search(regex, t, re.IGNORECASE)
         # Pattern B: Value first with required 'from' or 'at' (e.g. "2 cm from deep surgical margin")
         if not m:
@@ -366,6 +374,11 @@ def enhance_extraction_with_nlp(text, data):
         if key not in data:
             for token in doc:
                 if margin_word in token.text.lower():
+                    # For skin margin, ensure it is specifically referring to margin and not skin ellipse
+                    if margin_word == "skin":
+                        context_tokens = [tok.text.lower() for tok in doc[token.i:min(len(doc), token.i + 3)]]
+                        if "ellipse" in context_tokens or "margin" not in context_tokens:
+                            continue
                     window_start = max(0, token.i - 5)
                     window_tokens = doc[window_start:token.i]
                     for w in window_tokens:

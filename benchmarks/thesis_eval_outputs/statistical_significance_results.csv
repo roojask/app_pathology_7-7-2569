@@ -1,0 +1,4 @@
+﻿metric,baseline_mean,pw_mean,mean_difference,bootstrap_ci_95_low,bootstrap_ci_95_high,wilcoxon_w,p_value_one_sided,p_value_two_sided,speedup
+Inference Latency (sec),20.04,11.5,8.54,8.13,8.99,2125.0,9.548e-163,1.910e-162,1.74x
+Word Error Rate - WER (%),36.27,29.05,7.22,6.28,8.16,39130.5,1.975e-90,3.950e-90,-
+Character Error Rate - CER (%),9.82,6.54,3.28,2.54,4.01,141406.0,2.604e-20,5.209e-20,-

@@ -58,6 +58,7 @@ class FormHistory(db.Model):
         self.deleted_at = None
 
     @property
+       
     def data_dict(self):
         if not self.form_data:
             return {}
@@ -68,6 +69,23 @@ class FormHistory(db.Model):
             return json.loads(self.form_data)
         except Exception:
             return {}
+
+    # === เพิ่ม 2 ฟังก์ชันนี้ต่อท้าย data_dict ===
+    @property
+    def case_level(self):
+        d = self.data_dict
+        return d.get("case_level") or "Level 1"
+
+    @property
+    def examiner_name(self):
+        d = self.data_dict
+        name = d.get("examiner_name")
+        if name:
+            return name
+        # Fallback กรณีเคสเก่าที่ยังไม่มีใน JSON ให้ดึงจาก User ที่สร้างเคส
+        if hasattr(self, 'author') and self.author:
+            return self.author.name or self.author.username
+        return "-"
 
     @property
     def latest_revision_number(self):

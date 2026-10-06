@@ -1,0 +1,50 @@
+% ----------------------------------------------------------------------
+% Generated LaTeX Tables for Chapter 4 (N = 1,000 Cases Overnight Run)
+% ----------------------------------------------------------------------
+
+\begin{table}[htbp]
+\centering
+\caption{ผลการเปรียบเทียบประสิทธิภาพภาพรวมระหว่างแบบจำลองพื้นฐานและ PathoWhisper ($N=1,000$)}
+\label{tab:headtohead_actual}
+\small
+\begin{tabular}{lcc}
+\hline
+\textbf{ตัวชี้วัดประสิทธิภาพ (Metric)} & \textbf{Whisper Small (Baseline)} & \textbf{PathoWhisper (INT8 + afftdn)} \\
+\hline
+Word Error Rate (Macro-average WER)    & 36.27\% & \textbf{29.05\%} \\
+Word Error Rate (Global Micro-average) & 36.27\% & \textbf{29.05\%} \\
+Character Error Rate (Macro-average)   & 9.82\% & \textbf{6.54\%} \\
+Character Error Rate (Global Micro)    & 9.82\% & \textbf{6.54\%} \\
+เวลาประมวลผลเฉลี่ยต่อเคส (Latency)    & 20.04 วินาที & \textbf{11.50 วินาที} \\
+อัตราเร่งความเร็วในการประมวลผล (Speedup) & 1.00$\times$ & \textbf{1.74$\times$} \\
+ความแม่นยำการสกัดข้อมูลครบ 15 ฟิลด์     & 88.07\% & \textbf{88.82\%} \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{ผลการประเมินประสิทธิภาพจำแนกตาม 10 หมวดหมู่ความท้าทายทางคลินิก ($N=1,000$)}
+\label{tab:bycat_actual}
+\small
+\begin{tabular}{clcccccc}
+\hline
+\textbf{หมวด} & \textbf{หมวดหมู่ความท้าทาย} & \multicolumn{2}{c}{\textbf{WER (\%)}} & \multicolumn{2}{c}{\textbf{Acc (\%)}} & \multicolumn{2}{c}{\textbf{เวลา (s)}} \\
+\cline{3-8}
+ & & \textbf{Base} & \textbf{Patho} & \textbf{Base} & \textbf{Patho} & \textbf{Base} & \textbf{Patho} \\
+\hline
+1 & Standard Protocol & 24.18 & \textbf{18.13} & 81.93 & \textbf{81.93} & 28.90 & \textbf{16.81} \\
+2 & Out-of-Order Reporting & 34.34 & \textbf{25.50} & 81.47 & \textbf{81.60} & 26.31 & \textbf{15.78} \\
+3 & Self-Correction & Hesitation & 38.49 & \textbf{31.93} & 96.07 & \textbf{96.60} & 19.73 & \textbf{10.93} \\
+4 & Multi-Margin Complex Assessment & 30.58 & \textbf{24.60} & 82.00 & \textbf{81.07} & 27.83 & \textbf{16.54} \\
+5 & Heavy Axillary Lymph Nodes Staging & 25.36 & \textbf{16.41} & 90.20 & \textbf{93.26} & 14.61 & \textbf{8.65} \\
+6 & Fibrocystic / Benign Negative Control & 29.18 & \textbf{27.13} & 99.87 & \textbf{99.13} & 14.11 & \textbf{8.66} \\
+7 & High-Speed Rapid Speech & 70.76 & \textbf{65.90} & 83.40 & \textbf{87.07} & 16.42 & \textbf{8.99} \\
+8 & Fume Hood Noise (-10 dB) & 44.88 & \textbf{31.94} & 91.93 & \textbf{93.13} & 15.14 & \textbf{8.74} \\
+9 & Ductal Carcinoma / Microinvasion & 31.77 & \textbf{25.71} & 81.20 & \textbf{81.13} & 24.32 & \textbf{11.52} \\
+10 & Clinical Edge Cases & Missing Fields & 33.13 & \textbf{23.27} & 92.66 & \textbf{93.26} & 12.99 & \textbf{8.39} \\
+\hline
+\multicolumn{2}{c}{\textbf{ค่าเฉลี่ยระดับหมวดหมู่ (Macro-average)}} & 36.27 & \textbf{29.05} & 88.07 & \textbf{88.82} & 20.04 & \textbf{11.50} \\
+\hline
+\end{tabular}
+\end{table}

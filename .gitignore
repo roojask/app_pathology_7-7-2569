@@ -20,6 +20,10 @@ bin/
 *.spec
 dist/
 build/
+installer_output/
+instance/
+benchmarks/thesis_eval_outputs/*.zip
+benchmarks/thesis_eval_outputs/pathowhisper_evaluation_data/
 
 # Local Environment & Secrets
 .env

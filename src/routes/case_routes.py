@@ -1,7 +1,7 @@
-import json
+﻿import json
 import uuid
 import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, jsonify, current_app, session
 from flask_login import login_required, current_user
 from configs.config import Config
 from src.database.models import db, User, FormHistory, CaseRevision, SpecimenPhoto, get_thai_time
@@ -258,7 +258,7 @@ def dashboard():
 def history():
     is_admin = current_user.check_is_admin
     all_histories = FormHistory.query.filter_by(is_deleted=False).order_by(FormHistory.id.desc()).all()
-    user_histories = all_histories if is_admin else FormHistory.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(FormHistory.id.desc()).all()
+    user_histories = all_histories
     all_users = User.query.all() if is_admin else []
         
     db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -512,6 +512,11 @@ def generate_pdf():
             data["audio_clips"] = [{"filename": audio_fn, "url": audio_url, "label": "Clip 1", "timestamp": ""}]
 
         data["transcription"] = form_data.get("transcription") or form_data.get("transcription_text") or ""
+        doc_name = session.get("active_doctor_name") or (current_user.name if hasattr(current_user, 'name') and current_user.name else current_user.username)
+        data["examiner_name"] = doc_name
+        data["case_level"] = session.get("case_level", "Level 1")
+        if not data.get("footer_prosecutor"):
+            data["footer_prosecutor"] = doc_name
 
         if loaded_hist_id and str(loaded_hist_id).strip().isdigit():
             history_record = FormHistory.query.get(int(loaded_hist_id))

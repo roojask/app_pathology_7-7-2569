@@ -31,16 +31,30 @@ def register():
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username_or_email = request.form.get("username")
-        password = request.form.get("password")
-        
-        user = User.query.filter((User.username == username_or_email) | (User.email == username_or_email)).first()
-        
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('dashboard'))
-        else:
-            flash("Invalid username or password.", "danger")
+        # รับชื่อผู้ตรวจ และระดับความซับซ้อนของเคส
+        username = request.form.get("username", "").strip()
+        case_level = request.form.get("case_level", "Level 1")
+
+        if not username:
+            flash("กรุณากรอกชื่อผู้ตรวจ / ผู้บันทึก", "danger")
+            return render_template("login.html")
+
+        # ค้นหาผู้ใช้จากชื่อ หากยังไม่มีให้สร้างใหม่อัตโนมัติทันที (ไม่ต้องมีรหัสผ่าน)
+        user = User.query.filter((User.username == username) | (User.name == username)).first()
+        if not user:
+            safe_email = f"{username.lower().replace(' ', '_')}@pathology.local"
+            user = User(username=username, name=username, email=safe_email)
+            user.set_password("patho1234")  # ตั้งรหัสผ่านเริ่มต้นไว้เบื้องหลังอัตโนมัติ
+            db.session.add(user)
+            db.session.commit()
+
+        # บันทึกระดับความซับซ้อนของเคสลงใน session เพื่อนำไปใช้งาน
+        session['case_level'] = case_level
+        session['active_doctor_name'] = username
+
+        # ล็อกอินเข้าใช้งานทันที
+        login_user(user, remember=True)
+        return redirect(url_for('dashboard'))
     else:
         # Clear any stale non-auth flash messages from session
         if '_flashes' in session:

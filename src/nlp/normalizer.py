@@ -10,7 +10,16 @@ def normalize_text(text):
     t = re.sub(r"(\d+\.\d{1,2})\.?:?(\d+\.\d{1,2})\.?:?\s*(\d+\.\d{1,2})", r"\1 x \2 x \3", t)
     
     # 2. ระบบแก้คำผิดอัจฉริยะ (Smart Self-Correction)
-    t = re.sub(r"([\d.]+\s*x\s*[\d.]+(?:\s*x\s*[\d.]+)?)(?:[\s\.,]*(?:cm|centimeters|mm))?[\s\.,]*(?:sorry|wait|weight|correction|actually|no wait|แก้เป็น|ขอแก้|ไม่ใช่|เปลี่ยนเป็น)+[\s\.,]*(?:measuring|size is|it is|actually)?\s*", "", t)
+    # 2.1 มิติ 2D/3D: ต้องมี (มิติเดิม) + (คำสัญญาณแก้ไข) + (มิติใหม่) จึงจะแทนที่ด้วยมิติใหม่ ป้องกันการลบขนาดเมื่อตามด้วยน้ำหนักหรือข้อความอื่น
+    dim_pattern = r"(\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?(?:\s*x\s*\d+(?:\.\d+)?)?(?:\s*(?:cm|centimeters|mm))?)"
+    signal_2d = r"(?:[\s\.,]*(?:sorry|wait|weight|correction|no wait|แก้เป็น|ขอแก้|ไม่ใช่|เปลี่ยนเป็น)+[\s\.,]*(?:measuring|size is|it is|actually)?\s*)"
+    full_2d_corr = rf"{dim_pattern}{signal_2d}{dim_pattern}"
+    t = re.sub(full_2d_corr, r"\2", t)
+    
+    # 2.2 มิติ 1D: ต้องมีหน่วยระบุชัดเจนทั้งสองฝั่ง ป้องกันการชนกับจำนวนต่อมน้ำเหลือง (เช่น margin 2 mm no 3 lymph nodes)
+    signal_1d = r"(?:sorry|wait|correction|no wait|แก้เป็น|ขอแก้|no)"
+    pat_1d = rf"\b(\d+(?:\.\d+)?)\s*(cm|centimeters|mm)\s*(?:{signal_1d})\s+(\d+(?:\.\d+)?)\s*(cm|centimeters|mm)\b"
+    t = re.sub(pat_1d, r"\3 \4", t)
     
     # 2.5. แปลงคำอ่านภาษาไทย-อังกฤษ (Thai-English Phonetic Normalization)
     t = t.replace("×", " x ").replace("*", " x ").replace("คูณ", " x ")
@@ -60,7 +69,6 @@ def normalize_text(text):
     # แก้บั๊ก Whisper ถอดเสียง equals เป็น =s
     t = t.replace("=s", "=").replace("equals", "=").replace("equal", "=")
     
-    t = re.sub(r"\bx\s+(?:cm|centimeters?)\s+from", "8 cm from", t)
     t = t.replace("mast", "mass") 
     t = t.replace("medium margin", "medial margin")
     t = t.replace("massectomy", "mastectomy")

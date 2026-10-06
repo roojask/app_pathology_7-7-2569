@@ -1,0 +1,6 @@
+﻿config_id,config_name,n_cases,wer_mean,latency_mean_sec
+cfg1_baseline,Whisper Small FP32 (Baseline),5,42.48,17.55
+cfg2_afftdn,+ afftdn Spectral Denoise,5,43.15,17.33
+cfg3_prompt,+ CAP Pathology Prompt,5,40.52,19.67
+cfg4_int8,+ INT8 Quantization (Beam 5),5,33.02,12.63
+cfg5_beam1,+ Greedy Beam 1 (Full PathoWhisper),5,20.52,9.62

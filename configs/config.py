@@ -1,13 +1,26 @@
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from local .env file
 load_dotenv()
 
-BASE_DIR = Path(__file__).parent.parent
+# ถ้าเป็น .exe ให้ชี้ไปที่โฟลเดอร์จริงของโปรแกรมที่ติดตั้ง (ไม่ใช่ Temp)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
 BIN_DIR = BASE_DIR / "bin"
+UPLOAD_DIR = DATA_DIR / "uploads"
+OUTPUT_DIR = DATA_DIR / "outputs"
+ASSETS_DIR = DATA_DIR / "assets"
+# สั่งสร้างโฟลเดอร์ที่จำเป็นทั้งหมดอัตโนมัติหากยังไม่มี
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Automatically add project bin folder to PATH (for portable ffmpeg / tools)
 if BIN_DIR.exists():
@@ -38,13 +51,18 @@ class Config:
     SSL_CERT_PATH = DATA_DIR / "cert.pem"
     SSL_KEY_PATH = DATA_DIR / "key.pem"
     
-    # Path settings
+        # Path settings
     UPLOAD_DIR = DATA_DIR / "uploads"
     OUTPUT_DIR = DATA_DIR / "outputs"
     ASSETS_DIR = DATA_DIR / "assets"
     TEMPLATE_DIR = BASE_DIR / "templates"
-    PDF_TEMPLATE_PATH = ASSETS_DIR / "Breast_Gross_Template.pdf"
-    
+    if getattr(sys, 'frozen', False):
+        _ext_template = Path(sys.executable).parent / "data" / "assets" / "Breast_Gross_Template.pdf"
+        _int_template = Path(getattr(sys, '_MEIPASS', '')) / "data" / "assets" / "Breast_Gross_Template.pdf"
+        PDF_TEMPLATE_PATH = _ext_template if _ext_template.exists() else _int_template
+    else:
+        PDF_TEMPLATE_PATH = ASSETS_DIR / "Breast_Gross_Template.pdf"
+        
     # Language Configuration: Strict English Mode
     DEFAULT_LANGUAGE = "en"
     FORCE_ENGLISH_ONLY = True

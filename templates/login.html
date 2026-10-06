@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign in - Gross Reporting</title>
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}">
 </head>
-<body style="background-color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px 16px; box-sizing: border-box;">
+
+<body
+    style="background-color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px 16px; box-sizing: border-box;">
 
     <div class="auth-card">
         <div class="auth-icon-badge">
@@ -22,7 +25,8 @@
         {% for category, message in messages %}
         {% if message not in shown and "History" not in message %}
         {% set _ = shown.append(message) %}
-        <div style="padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; font-size: 13px; background-color: {% if category == 'success' %}#dcfce7; color: #15803d;{% elif category == 'danger' %}#fee2e2; color: #b91c1c;{% else %}#e0f2fe; color: #0369a1;{% endif %}">
+        <div
+            style="padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; font-size: 13px; background-color: {% if category == 'success' %}#dcfce7; color: #15803d;{% elif category == 'danger' %}#fee2e2; color: #b91c1c;{% else %}#e0f2fe; color: #0369a1;{% endif %}">
             {{ message }}
         </div>
         {% endif %}
@@ -31,39 +35,54 @@
         {% endwith %}
 
         <form method="POST" action="{{ url_for('login') }}">
-            <div class="auth-field">
-                <label for="username"><i class="fa-regular fa-user" style="color: #64748b;"></i> Username</label>
-                <input type="text" id="username" name="username" required autofocus placeholder="Enter your username">
+            <!-- 1. ช่องกรอกชื่อผู้ตรวจ / ผู้ใช้งาน -->
+            <div class="auth-field" style="margin-bottom: 16px;">
+                <label for="username"
+                    style="display: block; margin-bottom: 6px; font-weight: 600; color: #334155; font-size: 13px;">
+                    <i class="fa-regular fa-user" style="color: #64748b;"></i> ชื่อผู้ตรวจ / ผู้บันทึก
+                </label>
+                <input type="text" id="username" name="username" required autofocus
+                    placeholder="กรอกชื่อผู้ตรวจ (เช่น พญ. สมศรี, Dr. A)"
+                    style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
             </div>
 
-            <div class="auth-field">
-                <label for="password"><i class="fa-solid fa-lock" style="color: #64748b;"></i> Password</label>
-                <input type="password" id="password" name="password" required placeholder="Enter your password">
+            <!-- 2. เมนูเลือกระดับความซับซ้อนของเคส -->
+            <div class="auth-field" style="margin-bottom: 24px;">
+                <label for="case_level"
+                    style="display: block; margin-bottom: 6px; font-weight: 600; color: #334155; font-size: 13px;">
+                    <i class="fa-solid fa-layer-group" style="color: #64748b;"></i> ระดับความซับซ้อนของเคส
+                </label>
+                <select id="case_level" name="case_level" required
+                    style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background-color: #fff; color: #1e293b; box-sizing: border-box; cursor: pointer;">
+                    <option value="Level 1">Level 1 - เคสทั่วไป / ไม่ซับซ้อน (Routine / Simple)</option>
+                    <option value="Level 2" selected>Level 2 - เคสซับซ้อนปานกลาง (Moderate Complexity)</option>
+                    <option value="Level 3">Level 3 - เคสซับซ้อนสูง (High Complexity / Malignancy)</option>
+                    <option value="Level 4">Level 4 - เคสพิเศษ / ตัดวงกว้าง (Radical / Multi-organ)</option>
+                </select>
             </div>
 
-            <button type="submit" class="btn-primary-dark">
-                <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in
+            <button type="submit" class="btn-primary-dark"
+                style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600; border-radius: 8px; cursor: pointer;">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> เข้าสู่ระบบ / เริ่มบันทึกเคส
             </button>
         </form>
 
-        <div style="margin-top: 18px; display: flex; justify-content: space-between; font-size: 12.5px;">
-            <a href="{{ url_for('register') }}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Create account</a>
-            <a href="{{ url_for('forgot_password') }}" style="color: #64748b; text-decoration: none;">Forgot password?</a>
-        </div>
-
-        <div class="auth-footer-logos">
+        <div class="auth-footer-logos" style="margin-top: 25px;">
             <div class="auth-institutions-label">Khon Kaen University</div>
             <div class="auth-logos-grid">
                 <div class="logo-item" title="Department of Pathology, Faculty of Medicine, Khon Kaen University">
-                    <img src="{{ url_for('static', filename='images/logo_med_patho_kku.png') }}" alt="Department of Pathology, Faculty of Medicine, Khon Kaen University">
+                    <img src="{{ url_for('static', filename='images/logo_med_patho_kku.png') }}"
+                        alt="Department of Pathology, Faculty of Medicine, Khon Kaen University">
                 </div>
                 <div class="logo-divider"></div>
                 <div class="logo-item" title="College of Computing, Khon Kaen University">
-                    <img src="{{ url_for('static', filename='images/logo_cp_kku.png') }}" alt="College of Computing, Khon Kaen University">
+                    <img src="{{ url_for('static', filename='images/logo_cp_kku.png') }}"
+                        alt="College of Computing, Khon Kaen University">
                 </div>
             </div>
         </div>
     </div>
 
 </body>
+
 </html>

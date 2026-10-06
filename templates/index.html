@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patho Voice Assistant - Document View</title>
     <link href="{{ url_for('static', filename='style.css') }}?v={{ range(10000, 99999) | random }}" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}">
 </head>
 
 <body data-is-new-case="{{ 'true' if is_new_case else 'false' }}" data-is-history="{{ 'true' if loaded_history_id else 'false' }}">
