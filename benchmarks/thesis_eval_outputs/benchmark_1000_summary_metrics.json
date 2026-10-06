@@ -1,24 +1,52 @@
 {
   "total_cases_evaluated": 1000,
-  "macro_metrics": {
+  "wer_criteria_a": {
     "baseline_wer": 36.27,
     "pathowhisper_wer": 29.05,
+    "reduction": 7.22,
+    "bootstrap_ci_95": [6.28, 8.16]
+  },
+  "wer_criteria_b_normalized_dims": {
+    "baseline_wer": 7.25,
+    "pathowhisper_wer": 2.78,
+    "reduction": 4.47,
+    "bootstrap_ci_95": [3.88, 5.02]
+  },
+  "cer_criteria_a": {
     "baseline_cer": 9.82,
     "pathowhisper_cer": 6.54,
-    "baseline_acc": 88.07,
-    "pathowhisper_acc": 88.82,
-    "baseline_latency": 20.04,
-    "pathowhisper_latency": 11.5
+    "reduction": 3.28,
+    "bootstrap_ci_95": [2.54, 4.01]
   },
-  "micro_metrics": {
-    "baseline_wer": 36.27,
-    "pathowhisper_wer": 29.05,
-    "baseline_cer": 9.82,
-    "pathowhisper_cer": 6.54,
-    "baseline_acc": 88.07,
-    "pathowhisper_acc": 88.82,
-    "baseline_latency": 20.04,
-    "pathowhisper_latency": 11.5
+  "latency_seconds": {
+    "baseline_mean": 20.04,
+    "pathowhisper_mean": 11.50,
+    "reduction": 8.54,
+    "speedup": 1.74
   },
-  "overall_speedup": 1.74
+  "field_extraction_15_pure_gt": {
+    "core_6_macro_f1": {
+      "baseline": 96.40,
+      "pathowhisper": 97.50,
+      "delta": 1.10
+    },
+    "spoken_11_fields_macro_f1": {
+      "baseline": 96.26,
+      "pathowhisper": 96.97,
+      "delta": 0.71
+    },
+    "slot_level_agreement_15_fields": {
+      "baseline": 96.81,
+      "pathowhisper": 97.60,
+      "delta_percentage_points": 0.79,
+      "delta_correct_slots": 118,
+      "baseline_correct_slots": "14,522 / 15,000",
+      "pathowhisper_correct_slots": "14,640 / 15,000"
+    },
+    "negative_controls_specificity_4_fields": {
+      "baseline": 100.0,
+      "pathowhisper": 100.0,
+      "tn_count": "4,000 / 4,000"
+    }
+  }
 }
