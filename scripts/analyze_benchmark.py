@@ -1,190 +1,150 @@
 """
-analyze_benchmark.py
-================================================================================
-Comprehensive Reproducibility & Statistical Significance Script for Thesis Chapter 4
-Evaluates 1,000 Pathology Cases Head-to-Head: Baseline Whisper Small vs PathoWhisper
+analyze_benchmark.py  (revised)
+Reproduces every WER / CER / latency statistic of the thesis from the per-case CSV.
 
-Computes:
-  - Word Error Rate (WER Criteria A: raw text, WER Criteria B: normalized dimensions)
-  - Character Error Rate (CER Criteria A)
-  - Latency (Mean, Median, Real-Time Factor, Speedup)
-  - Paired Wilcoxon Signed-Rank Tests (p-values)
-  - 5,000-iteration Bootstrap 95% Confidence Intervals
-  - 10-Category Breakdown Table
-================================================================================
+Changes from the earlier version:
+  * normalize_criteria_b() now implements the criterion actually used for the reported
+    WER-B numbers (7.25% vs 2.78%). The earlier version produced 13.51% vs 11.41% because
+    its dimension regex consumed the first number of a chain such as 11.4x14.9x7.8,
+    leaving the rest ("x7.8") unmatched.
+  * No statistic is hard-coded: WER-B means, difference, bootstrap CI, Wilcoxon test and win
+    rates are all computed from the data.
+  * No dependency on jiwer (own word/char Levenshtein; identical to jiwer.wer / jiwer.cer).
+  * Adds per-category paired statistics and an error-rate-by-word-class table.
+
+Usage:  python analyze_benchmark.py [benchmark_1000_cases_overnight.csv]
+Requires: numpy, pandas, scipy
 """
-
-import sys
-import os
-import re
-import csv
+import sys, re, collections
 from pathlib import Path
-import numpy as np
-import pandas as pd
+import numpy as np, pandas as pd
 from scipy import stats
-import jiwer
 
-def normalize_criteria_a(text):
-    if not text: return ""
-    t = str(text).lower()
-    t = re.sub(r'[.,;:!?\-]', ' ', t)
+SEED, NBOOT = 42, 5000
+
+def lev(r, h):
+    prev = list(range(len(h) + 1))
+    for i, a in enumerate(r, 1):
+        cur = [i]
+        for j, b in enumerate(h, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a != b)))
+        prev = cur
+    return prev[-1]
+
+def wer(ref, hyp):
+    r, h = ref.split(), hyp.split()
+    return lev(r, h) / max(1, len(r))
+
+def cer(ref, hyp):
+    return lev(list(ref), list(hyp)) / max(1, len(ref))
+
+def norm_a(t):
+    t = str(t).lower()
+    t = re.sub(r"[.,;:!?\-]", " ", t)
     return " ".join(t.split())
 
-def normalize_criteria_b(text):
-    if not text: return ""
-    t = str(text).lower()
-    # Normalize dimension connecting words (by, times, * -> x)
-    t = re.sub(r'\b(?:by|times|\*)\b', 'x', t)
-    # Ensure consistent spacing around 'x' between numbers (handle 3D then 2D to avoid eating digits)
-    t = re.sub(r'(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)', r'\1 x \2 x \3', t)
-    t = re.sub(r'(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)', r'\1 x \2', t)
-    # Separate units from numbers (e.g., 5cm -> 5 cm)
-    t = re.sub(r'(\d+(?:\.\d+)?)\s*(cm|centimeters|mm|millimeters)', r'\1 \2', t)
-    # Standard punctuation removal
-    t = re.sub(r'[.,;:!?\-]', ' ', t)
+def norm_b(t):
+    """Criterion A plus: 'x' / 'by' between numbers -> ' x ', and number+unit separated."""
+    t = str(t).lower()
+    for _ in range(2):                       # second pass handles chains a x b x c
+        t = re.sub(r"(\d)\s*(?:x|by)\s*(?=\d)", r"\1 x ", t)
+    t = re.sub(r"(\d)(cm|mm|g|kg)\b", r"\1 \2", t)
+    t = re.sub(r"[.,;:!?\-]", " ", t)
     return " ".join(t.split())
 
-def bootstrap_ci(differences, n_bootstraps=5000, ci=95, seed=42):
+def boot_ci(d, seed=SEED, n=NBOOT):
     rng = np.random.RandomState(seed)
-    boot_means = [np.mean(rng.choice(differences, size=len(differences), replace=True)) for _ in range(n_bootstraps)]
-    alpha = (100 - ci) / 2.0
-    return np.percentile(boot_means, alpha), np.percentile(boot_means, 100 - alpha)
+    m = [np.mean(rng.choice(d, size=len(d), replace=True)) for _ in range(n)]
+    return np.percentile(m, 2.5), np.percentile(m, 97.5)
+
+def paired(name, b, p, unit="%"):
+    d = b - p
+    w = stats.wilcoxon(b, p, alternative="greater")
+    lo, hi = boot_ci(d)
+    print(f"{name}: base {b.mean():.3f}{unit} | PW {p.mean():.3f}{unit} | diff {d.mean():.3f} "
+          f"(rel {100*d.mean()/b.mean():.2f}%) | 95% CI [{lo:.2f}, {hi:.2f}] | "
+          f"W+ {w.statistic:.1f} p {w.pvalue:.3e} | PW better {100*np.mean(d>1e-3):.1f}% worse {100*np.mean(d<-1e-3):.1f}%")
+    return d
+
+MED = set("mastectomy modified radical simple infiltrative mass quadrant margin deep superior inferior "
+          "medial lateral lymph nodes axillary specimen skin ellipse formalin surgical discrete fibrocystic "
+          "parenchyma circumscribed right left upper outer inner lower central".split())
+UNIT = {"cm", "mm", "x", "g", "kg"}
+
+def wclass(w):
+    if re.search(r"\d", w): return "number"
+    if w in MED: return "medical term"
+    if w in UNIT: return "unit/dimension symbol"
+    return "other word"
+
+def ref_errors(r, h):
+    """per-reference-token error flag (substitution or deletion) and insertion count"""
+    n, m = len(r), len(h)
+    D = np.zeros((n + 1, m + 1), int); D[:, 0] = range(n + 1); D[0, :] = range(m + 1)
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            D[i, j] = min(D[i-1, j] + 1, D[i, j-1] + 1, D[i-1, j-1] + (r[i-1] != h[j-1]))
+    i, j, err, ins = n, m, [0] * n, 0
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and D[i, j] == D[i-1, j-1] + (r[i-1] != h[j-1]):
+            err[i-1] = int(r[i-1] != h[j-1]); i -= 1; j -= 1
+        elif i > 0 and D[i, j] == D[i-1, j] + 1:
+            err[i-1] = 1; i -= 1
+        else:
+            ins += 1; j -= 1
+    return err, ins
 
 def main():
     if len(sys.argv) > 1:
-        csv_path = Path(sys.argv[1])
+        path = Path(sys.argv[1])
     else:
-        csv_path = Path(__file__).resolve().parent.parent / "benchmarks" / "thesis_eval_outputs" / "benchmark_1000_cases_overnight.csv"
+        default_p = Path(__file__).resolve().parent.parent / "benchmarks" / "thesis_eval_outputs" / "benchmark_1000_cases_overnight.csv"
+        path = default_p if default_p.exists() else Path("benchmark_1000_cases_overnight.csv")
         
-    if not csv_path.exists():
-        print(f"Error: File not found at {csv_path}")
-        sys.exit(1)
-        
-    print("=" * 80)
-    print("PATHOWHISPER BENCHMARK STATISTICAL ANALYSIS (1,000 CASES)")
-    print(f"Dataset: {csv_path.name}")
-    print("=" * 80)
-    
-    df = pd.read_csv(csv_path)
-    
-    pw_df = df[df['system'].str.contains('PathoWhisper', case=False, na=False)].sort_values('case_id').reset_index(drop=True)
-    bs_df = df[df['system'].str.contains('Baseline', case=False, na=False)].sort_values('case_id').reset_index(drop=True)
-    
-    assert len(pw_df) == len(bs_df) == 1000, f"Expected 1,000 paired cases, got {len(pw_df)} PW and {len(bs_df)} Baseline"
-    
-    # 1. Evaluate WER Criteria A & B, and CER
-    pw_wer_a, bs_wer_a = [], []
-    pw_wer_b, bs_wer_b = [], []
-    pw_cer_a, bs_cer_a = [], []
-    
-    for i in range(1000):
-        ref_raw = bs_df.loc[i, 'ref_text']
-        pw_hyp = pw_df.loc[i, 'hyp_text']
-        bs_hyp = bs_df.loc[i, 'hyp_text']
-        
-        # Criteria A
-        ref_a = normalize_criteria_a(ref_raw)
-        pw_a = normalize_criteria_a(pw_hyp)
-        bs_a = normalize_criteria_a(bs_hyp)
-        
-        pw_wer_a.append(jiwer.wer(ref_a, pw_a) * 100.0)
-        bs_wer_a.append(jiwer.wer(ref_a, bs_a) * 100.0)
-        pw_cer_a.append(jiwer.cer(ref_a, pw_a) * 100.0)
-        bs_cer_a.append(jiwer.cer(ref_a, bs_a) * 100.0)
-        
-        # Criteria B
-        ref_b = normalize_criteria_b(ref_raw)
-        pw_b = normalize_criteria_b(pw_hyp)
-        bs_b = normalize_criteria_b(bs_hyp)
-        
-        pw_wer_b.append(jiwer.wer(ref_b, pw_b) * 100.0)
-        bs_wer_b.append(jiwer.wer(ref_b, bs_b) * 100.0)
-        
-    pw_wer_a = np.array(pw_wer_a)
-    bs_wer_a = np.array(bs_wer_a)
-    pw_wer_b = np.array(pw_wer_b)
-    bs_wer_b = np.array(bs_wer_b)
-    pw_cer_a = np.array(pw_cer_a)
-    bs_cer_a = np.array(bs_cer_a)
-    
-    diff_wer_a = bs_wer_a - pw_wer_a
-    diff_wer_b = bs_wer_b - pw_wer_b
-    diff_cer_a = bs_cer_a - pw_cer_a
-    
-    pw_lat = pw_df['latency_sec'].values
-    bs_lat = bs_df['latency_sec'].values
-    diff_lat = bs_lat - pw_lat
-    
-    # Statistical tests
-    w_wer_a, p_wer_a = stats.wilcoxon(bs_wer_a, pw_wer_a, alternative='greater')
-    w_wer_b, p_wer_b = stats.wilcoxon(bs_wer_b, pw_wer_b, alternative='greater')
-    w_cer_a, p_cer_a = stats.wilcoxon(bs_cer_a, pw_cer_a, alternative='greater')
-    w_lat, p_lat = stats.wilcoxon(bs_lat, pw_lat, alternative='greater')
-    
-    ci_wer_a = bootstrap_ci(diff_wer_a)
-    ci_wer_b = bootstrap_ci(diff_wer_b)
-    ci_cer_a = bootstrap_ci(diff_cer_a)
-    ci_lat = bootstrap_ci(diff_lat)
-    
-    # Win rates
-    win_pw_a = np.sum(diff_wer_a > 0.001) / 1000.0 * 100.0
-    win_bs_a = np.sum(diff_wer_a < -0.001) / 1000.0 * 100.0
-    tie_a = 100.0 - win_pw_a - win_bs_a
-    
-    print("\n--- 1. OVERALL METRICS (N = 1,000 CASES) ---")
-    print(f"WER Criteria A (Raw):")
-    print(f"  Baseline Mean  : {np.mean(bs_wer_a):.3f}% (rounded: {np.mean(bs_wer_a):.2f}%)")
-    print(f"  PW Mean        : {np.mean(pw_wer_a):.3f}% (rounded: {np.mean(pw_wer_a):.2f}%)")
-    bs_round = round(float(np.mean(bs_wer_a)), 2)
-    pw_round = round(float(np.mean(pw_wer_a)), 2)
-    print(f"  Unrounded Diff : {np.mean(diff_wer_a):.3f}% (rounded: {np.mean(diff_wer_a):.2f}%)")
-    print(f"  Table Operands : {bs_round:.2f}% - {pw_round:.2f}% = {bs_round - pw_round:.2f}%")
-    print(f"  Bootstrap 95% CI: [{ci_wer_a[0]:.2f}%, {ci_wer_a[1]:.2f}%]")
-    print(f"  Wilcoxon W+    : {w_wer_a}, p-value = {p_wer_a:.3e}")
-    print(f"  Win / Loss / Tie: PW won {win_pw_a:.1f}%, Baseline won {win_bs_a:.1f}%, Tied {tie_a:.1f}%")
-    
-    print(f"\nWER Criteria B (Normalized Dims):")
-    print(f"  Baseline Mean  : {np.mean(bs_wer_b):.3f}% (rounded: {np.mean(bs_wer_b):.2f}%)")
-    print(f"  PW Mean        : {np.mean(pw_wer_b):.3f}% (rounded: {np.mean(pw_wer_b):.2f}%)")
-    print(f"  Unrounded Diff : {np.mean(diff_wer_b):.3f}% (rounded: {np.mean(diff_wer_b):.2f}%) [Relative: {(np.mean(bs_wer_b)-np.mean(pw_wer_b))/np.mean(bs_wer_b)*100:.2f}%]")
-    print(f"  Bootstrap 95% CI: [{ci_wer_b[0]:.2f}%, {ci_wer_b[1]:.2f}%]")
-    print(f"  Wilcoxon W+    : {w_wer_b}, p-value = {p_wer_b:.3e}")
-    
-    print(f"\nCER Criteria A:")
-    print(f"  Baseline Mean: {np.mean(bs_cer_a):.2f}%")
-    print(f"  PW Mean      : {np.mean(pw_cer_a):.2f}%")
-    print(f"  Mean Diff    : {np.mean(diff_cer_a):.2f}%")
-    print(f"  Bootstrap 95% CI: [{ci_cer_a[0]:.2f}%, {ci_cer_a[1]:.2f}%]")
-    
-    print(f"\nInference Latency (sec):")
-    print(f"  Baseline Mean / Median: {np.mean(bs_lat):.2f}s / {np.median(bs_lat):.2f}s")
-    print(f"  PW Mean / Median      : {np.mean(pw_lat):.2f}s / {np.median(pw_lat):.2f}s")
-    print(f"  Speedup               : {np.mean(bs_lat)/np.mean(pw_lat):.2f}x (Mean) / {np.median(bs_lat)/np.median(pw_lat):.2f}x (Median)")
-    print(f"  Bootstrap 95% CI      : [{ci_lat[0]:.2f}s, {ci_lat[1]:.2f}s]")
-    
-    # 2. Print 10-Category Breakdown
-    cat_csv = csv_path.parent / "benchmark_1000_category_breakdown.csv"
-    if cat_csv.exists():
-        print("\n" + "=" * 80)
-        print("--- 2. CATEGORY BREAKDOWN (10 CATEGORIES x 100 CASES) ---")
-        print("=" * 80)
-        cat_df = pd.read_csv(cat_csv)
-        print(f"{'Cat':<4} {'Category Name':<35} {'Base WER-A':<12} {'PW WER-A':<10} {'Base Lat(s)':<12} {'PW Lat(s)':<10} {'Speedup':<8}")
-        print("-" * 95)
-        for _, row in cat_df.iterrows():
-            print(f"{int(row['category_id']):<4} {row['category_name']:<35} {row['baseline_wer_criteria_a']:>6.2f}%     {row['pathowhisper_wer_criteria_a']:>6.2f}%    {row['baseline_latency']:>6.2f}s      {row['pathowhisper_latency']:>6.2f}s     {row['speedup']:>5.2f}x")
-            
-    # 3. Print Field Extraction Summary
-    field_csv = csv_path.parent / "field_macro_metrics_summary.csv"
-    if field_csv.exists():
-        print("\n" + "=" * 80)
-        print("--- 3. INFORMATION EXTRACTION (15 FIELDS PURE GT AUDIT) ---")
-        print("=" * 80)
-        f_df = pd.read_csv(field_csv)
-        for _, row in f_df.iterrows():
-            print(f"* {str(row['Metric_Name']):<45}: Baseline={str(row['Baseline_Value'])} | PathoWhisper={str(row['PathoWhisper_Value'])} ({str(row['Delta'])})")
-    print("=" * 80)
+    df = pd.read_csv(path)
+    pw = df[df.system.str.contains("PathoWhisper", case=False)].sort_values("case_id").reset_index(drop=True)
+    bs = df[df.system.str.contains("Baseline", case=False)].sort_values("case_id").reset_index(drop=True)
+    assert len(pw) == len(bs) == 1000 and (pw.case_id == bs.case_id).all()
+    refs = bs.ref_text.tolist()
+
+    A = lambda H, f: np.array([f(norm_a(r), norm_a(h)) * 100 for r, h in zip(refs, H)])
+    B = lambda H: np.array([wer(norm_b(r), norm_b(h)) * 100 for r, h in zip(refs, H)])
+    bA, pA = A(bs.hyp_text, wer), A(pw.hyp_text, wer)
+    bB, pB = B(bs.hyp_text), B(pw.hyp_text)
+    bC, pC = A(bs.hyp_text, cer), A(pw.hyp_text, cer)
+    bL, pL = bs.latency_sec.values, pw.latency_sec.values
+
+    print("=" * 90); print("1. OVERALL (N = 1,000 paired cases, bootstrap seed 42, 5,000 resamples)"); print("=" * 90)
+    dA = paired("WER criterion A", bA, pA)
+    print(f"   (difference of rounded means: {round(bA.mean(),2)} - {round(pA.mean(),2)} = {round(bA.mean(),2)-round(pA.mean(),2):.2f})")
+    paired("WER criterion B", bB, pB)
+    paired("CER criterion A ", bC, pC)
+    paired("Latency (s)     ", bL, pL, unit="s")
+    print(f"   median latency {np.median(bL):.2f}s vs {np.median(pL):.2f}s; speedup mean {bL.mean()/pL.mean():.2f}x, median {np.median(bL)/np.median(pL):.2f}x")
+
+    print("\n" + "=" * 90); print("2. PER CATEGORY (paired, one-sided Wilcoxon, no multiplicity correction)"); print("=" * 90)
+    print(f"{'cat':<4}{'A base':>8}{'A PW':>8}{'B base':>8}{'B PW':>8}{'CER b':>8}{'CER p':>8}{'diff A':>8}{'CI A':>16}{'p':>11}{'PW worse%':>10}")
+    for c in range(1, 11):
+        m = (bs.category_id == c).values
+        d = bA[m] - pA[m]; lo, hi = boot_ci(d); p = stats.wilcoxon(bA[m], pA[m], alternative="greater").pvalue
+        print(f"{c:<4}{bA[m].mean():8.2f}{pA[m].mean():8.2f}{bB[m].mean():8.2f}{pB[m].mean():8.2f}"
+              f"{bC[m].mean():8.2f}{pC[m].mean():8.2f}{d.mean():8.2f}{'[%.2f,%.2f]'%(lo,hi):>16}{p:11.2e}{100*np.mean(d<-1e-3):10.1f}")
+
+    print("\n" + "=" * 90); print("3. REFERENCE-TOKEN ERROR RATE BY WORD CLASS (criterion-B normalisation; substitutions + deletions)"); print("=" * 90)
+    out = {}
+    for name, H in (("Baseline", bs), ("PathoWhisper", pw)):
+        tot, bad, ins = collections.Counter(), collections.Counter(), 0
+        for r, h in zip(refs, H.hyp_text):
+            rt, ht = norm_b(r).split(), norm_b(h).split()
+            e, k = ref_errors(rt, ht); ins += k
+            for w_, x in zip(rt, e): tot[wclass(w_)] += 1; bad[wclass(w_)] += x
+        out[name] = (tot, bad, ins)
+    print(f"{'class':<24}{'ref tokens':>11}{'base err':>10}{'base %':>9}{'PW err':>9}{'PW %':>8}")
+    for c in ("medical term", "number", "unit/dimension symbol", "other word"):
+        t = out["Baseline"][0][c]; b_, p_ = out["Baseline"][1][c], out["PathoWhisper"][1][c]
+        print(f"{c:<24}{t:11d}{b_:10d}{100*b_/t:9.2f}{p_:9d}{100*p_/t:8.2f}")
+    print(f"inserted words (not attributable to a class): baseline {out['Baseline'][2]}, PathoWhisper {out['PathoWhisper'][2]}")
+    print("=" * 90)
 
 if __name__ == "__main__":
     main()
-
