@@ -99,49 +99,82 @@ def apply_itn(text):
     t = re.sub(r'[.,;:!?\-]', ' ', t)
     return " ".join(t.split())
 
-def norm_criteria_a(t):
-    """Raw lowercased and stripped punctuation."""
+def norm_b(t):
+    """Criterion B normalization from analyze_benchmark.py."""
     t = str(t).lower()
-    t = re.sub(r'[.,;:!?\-]', ' ', t)
+    for _ in range(2):
+        t = re.sub(r"(\d)\s*(?:x|by)\s*(?=\d)", r"\1 x ", t)
+    t = re.sub(r"(\d)(cm|mm|g|kg)\b", r"\1 \2", t)
+    t = re.sub(r"[.,;:!?\-]", " ", t)
     return " ".join(t.split())
 
-def evaluate_slots(ext_dict, gt_dict):
-    """Evaluate agreement across 15 fields."""
-    keys = [
+def are_dims_equal(d1, d2):
+    if not d1 or not d2: return False
+    try:
+        f1 = [float(x.rstrip('.')) for x in d1]
+        f2 = [float(x.rstrip('.')) for x in d2]
+        return sorted(f1) == sorted(f2)
+    except:
+        return False
+
+def are_numbers_equal(n1, n2):
+    try:
+        return abs(float(str(n1).rstrip('.')) - float(str(n2).rstrip('.'))) < 1e-4
+    except:
+        return False
+
+def are_strings_equal(s1, s2):
+    return str(s1).lower().strip() == str(s2).lower().strip()
+
+def evaluate_slots(pred, gt):
+    """Evaluate agreement across 15 fields strictly matching eval_pure_gt_15_fields.py."""
+    field_keys = [
         "s0_surgical_no", "s1_side", "s2_proc", "s3_dims", "s4_skin",
         "s5_dims", "s6_nipple", "s7_biopsy_scar", "s8_cavity", "s9_residual_mass",
         "s10_infiltrative", "s10_inf_dims", "s10_5_quadrant", "s11_deep_margin", "s14_check"
     ]
+    p_quad = None
+    if pred.get("s10_5_quadrant_vals"):
+        p_quad = " ".join(pred["s10_5_quadrant_vals"])
+    elif pred.get("s10_5_central"):
+        p_quad = "central"
+        
+    pred_mapped = {
+        "s0_surgical_no": pred.get("s0_surgical_no"),
+        "s1_side": pred.get("s1_side"),
+        "s2_proc": pred.get("s2_proc"),
+        "s3_dims": pred.get("s3_dims"),
+        "s4_skin": bool(pred.get("s5_appears_normal") or pred.get("s5_dims")),
+        "s5_dims": pred.get("s5_dims"),
+        "s6_nipple": pred.get("s9_val"),
+        "s7_biopsy_scar": pred.get("s6_check"),
+        "s8_cavity": pred.get("s10_prev1") or pred.get("s10_prev2"),
+        "s9_residual_mass": pred.get("s10_prev2_mass_dims"),
+        "s10_infiltrative": pred.get("s10_infiltrative"),
+        "s10_inf_dims": pred.get("s10_inf_dims"),
+        "s10_5_quadrant": p_quad,
+        "s11_deep_margin": pred.get("s11_deep"),
+        "s14_check": pred.get("s14_check")
+    }
+    
     correct = 0
-    for k in keys:
-        g = gt_dict.get(k)
-        # field extraction lookup
-        if k == "s11_deep_margin":
-            e = ext_dict.get("s11_deep")
-        elif k == "s10_5_quadrant":
-            e = ext_dict.get("s10_5_quadrant_vals")
-            if isinstance(e, list) and isinstance(g, list):
-                if sorted(e) == sorted(g):
-                    correct += 1
-                continue
-        elif k == "s4_skin":
-            e = ext_dict.get("s5_appears_normal") or ext_dict.get("s5_dims") is not None
-            if bool(e) == bool(g):
-                correct += 1
-            continue
-        else:
-            e = ext_dict.get(k)
-
-        if g is None or g == "" or g == [] or g is False:
-            if e is None or e == "" or e == [] or e is False:
-                correct += 1
-        elif isinstance(g, list) and isinstance(e, list):
-            if [str(x).rstrip('.') for x in g] == [str(x).rstrip('.') for x in e]:
-                correct += 1
-        else:
-            if str(g).lower().strip() == str(e).lower().strip():
-                correct += 1
-    return correct, len(keys)
+    for k in field_keys:
+        gv = gt.get(k)
+        pv = pred_mapped.get(k)
+        g_has = (gv is not None and gv != "" and gv != [] and gv is not False)
+        p_has = (pv is not None and pv != "" and pv != [] and pv is not False)
+        if not g_has and not p_has:
+            correct += 1
+        elif g_has and p_has:
+            if k in ["s3_dims", "s5_dims", "s10_inf_dims"]:
+                if are_dims_equal(gv, pv): correct += 1
+            elif k in ["s11_deep_margin"]:
+                if are_numbers_equal(gv, pv): correct += 1
+            elif isinstance(gv, bool):
+                if pv == gv: correct += 1
+            else:
+                if are_strings_equal(gv, pv): correct += 1
+    return correct, len(field_keys)
 
 def main():
     print("=" * 90)
@@ -210,22 +243,18 @@ def main():
         pw_itn = apply_itn(pw_raw)
         t_pw = pw_df.loc[cid, "latency_sec"]
 
-        # Reference Normalized
-        ref_a = norm_criteria_a(ref_text)
-        ref_itn = apply_itn(ref_text)
-
         # Compute WERs
         # Criteria A (Raw)
-        wer_v_raw = wer(ref_a, norm_criteria_a(vosk_raw)) * 100
-        wer_w_raw = wer(ref_a, norm_criteria_a(w2v_raw)) * 100
-        wer_b_raw = wer(ref_a, norm_criteria_a(bs_raw)) * 100
-        wer_p_raw = wer(ref_a, norm_criteria_a(pw_raw)) * 100
+        wer_v_raw = wer(norm_criteria_a(ref_text), norm_criteria_a(vosk_raw)) * 100
+        wer_w_raw = wer(norm_criteria_a(ref_text), norm_criteria_a(w2v_raw)) * 100
+        wer_b_raw = wer(norm_criteria_a(ref_text), norm_criteria_a(bs_raw)) * 100
+        wer_p_raw = wer(norm_criteria_a(ref_text), norm_criteria_a(pw_raw)) * 100
 
-        # Fair ITN WER
-        wer_v_itn = wer(ref_itn, vosk_itn) * 100
-        wer_w_itn = wer(ref_itn, w2v_itn) * 100
-        wer_b_itn = wer(ref_itn, bs_itn) * 100
-        wer_p_itn = wer(ref_itn, pw_itn) * 100
+        # Fair Criterion B / ITN WER
+        wer_v_itn = wer(norm_b(ref_text), norm_b(vosk_itn)) * 100
+        wer_w_itn = wer(norm_b(ref_text), norm_b(w2v_itn)) * 100
+        wer_b_itn = wer(norm_b(ref_text), norm_b(bs_raw)) * 100
+        wer_p_itn = wer(norm_b(ref_text), norm_b(pw_raw)) * 100
 
         # 15-Section Extractor Agreement
         c_v, tot = evaluate_slots(extract_data_15_sections(vosk_itn), gt)
