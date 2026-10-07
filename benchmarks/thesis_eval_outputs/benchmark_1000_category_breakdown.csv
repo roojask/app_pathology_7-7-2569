@@ -5,7 +5,7 @@ category_id,category_name,baseline_wer_criteria_a,pathowhisper_wer_criteria_a,ba
 4,Multi-Margin Complex Assessment,30.58,24.60,4.54,2.33,6.78,6.47,27.83,16.54,1.68
 5,Heavy Axillary Lymph Nodes Staging,25.36,16.41,8.25,1.05,7.37,3.30,14.61,8.65,1.69
 6,Fibrocystic / Benign Negative Control,29.18,27.13,8.07,6.64,5.47,5.44,14.11,8.66,1.63
-7,High-Speed Rapid Speech,70.76,65.90,9.03,4.04,19.77,13.04,16.42,8.99,1.83
+7,High-Speed Rapid Speech,70.75,65.90,9.03,4.04,19.77,13.04,16.42,8.99,1.83
 8,Fume Hood Noise (-10 dB),44.88,31.94,8.78,2.51,10.73,5.92,15.14,8.74,1.73
 9,Ductal Carcinoma / Microinvasion,31.77,25.71,9.08,4.73,9.84,7.12,24.32,11.52,2.11
-10,Clinical Edge Cases & Missing Fields,33.13,23.27,6.73,0.92,5.01,4.06,12.99,8.39,1.55
+10,Clinical Edge Cases & Missing Fields,33.14,23.27,6.73,0.92,5.01,4.06,12.99,8.39,1.55
