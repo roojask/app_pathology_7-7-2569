@@ -22,6 +22,7 @@ extra_files = [
     BASE_DIR / "scripts" / "analyze_benchmark.py",
     BASE_DIR / "scripts" / "run_fair_empirical_comparison.py",
     BASE_DIR / "scripts" / "summarize_fair_benchmark.py",
+    BASE_DIR / "scripts" / "eval_clinical_core_metrics.py",
     BASE_DIR / "templates" / "index.html",
     BASE_DIR / "templates" / "dashboard.html",
     BASE_DIR / "templates" / "history.html",
