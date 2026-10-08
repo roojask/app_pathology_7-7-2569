@@ -23,6 +23,7 @@ extra_files = [
     BASE_DIR / "scripts" / "run_fair_empirical_comparison.py",
     BASE_DIR / "scripts" / "summarize_fair_benchmark.py",
     BASE_DIR / "scripts" / "eval_clinical_core_metrics.py",
+    BASE_DIR / "data" / "dataset_1000" / "ground_truth_1000_pure.json",
     BASE_DIR / "templates" / "index.html",
     BASE_DIR / "templates" / "dashboard.html",
     BASE_DIR / "templates" / "history.html",
@@ -40,8 +41,8 @@ for zpath in zip_targets:
             if f.exists():
                 arcname = f"source_code/{f.relative_to(BASE_DIR)}"
                 zf.write(f, arcname=arcname)
-                # also write at root if it's app.py or extractor.py so easy to find
-                if f.name in ["app.py", "extractor.py", "normalizer.py", "analyze_benchmark.py"]:
+                # also write at root for standard benchmark reproduction
+                if f.name in ["app.py", "extractor.py", "normalizer.py", "analyze_benchmark.py", "eval_clinical_core_metrics.py", "ground_truth_1000_pure.json"]:
                     zf.write(f, arcname=f.name)
                     
     print(f"Packaged {zpath} -> {zpath.stat().st_size:,} bytes")
