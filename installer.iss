@@ -10,7 +10,7 @@ OutputDir=c:\app_pathology_7-7-2569-main\installer_output
 OutputBaseFilename=PathologyApp_Setup
 Compression=lzma2/max
 SolidCompression=yes
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 
 [Tasks]
@@ -20,6 +20,8 @@ Name: "desktopicon"; Description: "สร้างไอคอนบนหน้
 ; ดึงไฟล์ทั้งหมดจากโฟลเดอร์ที่บิลด์ (รวม _internal, dlls, templates และ assets)
 Source: "c:\app_pathology_7-7-2569-main\dist\PathologyApp\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "c:\app_pathology_7-7-2569-main\data\assets\*"; DestDir: "{app}\data\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "c:\app_pathology_7-7-2569-main\bin\*"; DestDir: "{app}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "c:\app_pathology_7-7-2569-main\models\*"; DestDir: "{app}\models"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Pathology Voice Assistant"; Filename: "{app}\PathologyApp.exe"

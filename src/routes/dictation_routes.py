@@ -47,10 +47,36 @@ def api_upload_audio():
                 print(f"[Storage Warning] Supabase upload error: {e}")
 
         audio_url = audio_fn if (audio_fn.startswith("http://") or audio_fn.startswith("https://")) else url_for("get_upload", filename=audio_fn)
+
+        # Local Offline Transcription & Extractor v2 Pipeline
+        transcription_text = ""
+        extracted_data = {}
+        confidence_flags = {}
+
+        do_transcribe = request.args.get("transcribe", "true").lower() in ("true", "1", "yes")
+        if do_transcribe:
+            try:
+                from src.stt.whisper_model import transcribe_audio
+                from src.nlp.normalizer import normalize_text
+                from src.nlp.extractor import extract_data_15_sections, generate_confidence_flags
+
+                raw_transcription = transcribe_audio(save_path)
+                if raw_transcription and "Error during transcription" not in raw_transcription:
+                    transcription_text = normalize_text(raw_transcription)
+                    extracted_data = extract_data_15_sections(transcription_text)
+                    confidence_flags = generate_confidence_flags(extracted_data)
+                else:
+                    transcription_text = raw_transcription or ""
+            except Exception as stt_err:
+                print(f"[STT Offline Warning] Transcription failed: {stt_err}")
+
         return jsonify({
             "success": True,
             "audio_filename": audio_fn,
-            "audio_url": audio_url
+            "audio_url": audio_url,
+            "transcription": transcription_text,
+            "data": extracted_data,
+            "flags": confidence_flags
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

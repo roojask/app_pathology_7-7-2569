@@ -54,6 +54,7 @@ benchmarks/datasets/*.mp3
 # Model Checkpoints (unless tracked with Git LFS)
 models/pathowhisper_lora/*.safetensors
 models/pathowhisper_lora/*.bin
+models/faster_whisper_small/
 
 # Clinical Dataset & Large Experiments
 data/clinical_dataset/audio/

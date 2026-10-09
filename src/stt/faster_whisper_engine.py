@@ -11,19 +11,27 @@ def get_faster_whisper_model(model_size="small", compute_type="int8", device="cp
     """
     Lazy loads Faster-Whisper (CTranslate2 INT8 Engine)
     for 4x-6x CPU inference speedup and lower memory usage.
+    Prioritizes local offline model directory if available.
     """
     global _faster_whisper_model
     if _faster_whisper_model is None:
         with _model_lock:
             if _faster_whisper_model is None:
-                print(f"[Loading] Loading Faster-Whisper ({model_size}) CTranslate2 Engine [{compute_type} on {device}]...")
+                import sys
+                from configs.config import BASE_DIR
+                local_model_dir = BASE_DIR / "models" / "faster_whisper_small"
+                if not local_model_dir.exists() and getattr(sys, 'frozen', False):
+                    local_model_dir = Path(getattr(sys, '_MEIPASS', '')) / "models" / "faster_whisper_small"
+
+                model_target = str(local_model_dir) if (local_model_dir.exists() and (local_model_dir / "model.bin").exists()) else model_size
+                print(f"[Loading] Loading Faster-Whisper from {model_target} [{compute_type} on {device}]...")
                 _faster_whisper_model = WhisperModel(
-                    model_size_or_path=model_size,
+                    model_size_or_path=model_target,
                     device=device,
                     compute_type=compute_type,
                     cpu_threads=8
                 )
-                print(f"[Success] Faster-Whisper ({model_size}) loaded successfully!")
+                print(f"[Success] Faster-Whisper loaded successfully from {model_target}!")
     return _faster_whisper_model
 
 def transcribe_faster_whisper(audio_path, initial_prompt=None, language="en"):

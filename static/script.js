@@ -436,12 +436,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            if (event.error === 'network') {
+                console.warn("[SpeechRecognition] Cloud speech network unavailable. Operating in 100% Offline PathoWhisper Mode.");
+                if (micStatusContainer) {
+                    micStatusContainer.innerHTML = '<span style="color:#38bdf8; font-weight:bold;"><i class="fas fa-microphone-lines"></i> ⚡ โหมดออฟไลน์: กำลังบันทึกเสียงด้วย PathoWhisper (Local Engine)...</span>';
+                }
+                const statusLabel = document.getElementById('sidebar-dictation-state');
+                if (statusLabel) statusLabel.innerText = 'Dictating (Offline Mode)...';
+                // CRITICAL: DO NOT call stopRecordingSession() so MediaRecorder continues recording offline audio!
+                return;
+            }
+
             stopRecordingSession();
 
             if (event.error === 'not-allowed') {
                 showError("ไม่อนุญาตให้ใช้ไมโครโฟน (Not Allowed). กรุณากด 'Allow' ที่แถบ URL หรือตรวจสอบการตั้งค่า");
-            } else if (event.error === 'network') {
-                showError("เกิดข้อผิดพลาดเครือข่าย (Network). ตรวจสอบอินเทอร์เน็ต หรือหากใช้ Chrome ปัญหาอาจเกิดจากการไม่ได้ใช้ HTTPS");
             } else {
                 showError("ข้อผิดพลาด: " + event.error);
             }
@@ -538,7 +547,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
 
                                 if (micStatusContainer) {
-                                    micStatusContainer.innerHTML = '<span style="color:#2563eb;"><i class="fas fa-spinner fa-spin"></i> กำลังบันทึกไฟล์เสียง...</span>';
+                                    micStatusContainer.innerHTML = '<span style="color:#2563eb; font-weight:bold;"><i class="fas fa-spinner fa-spin"></i> กำลังประมวลผลและถอดเสียงด้วย PathoWhisper (Local Engine)...</span>';
                                 }
 
                                 const formData = new FormData();
@@ -549,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                                 formData.append('audio', audioBlob, `mic_record_${Date.now()}.${ext}`);
 
-                                const uploadRes = await fetch('/api/upload_audio', {
+                                const uploadRes = await fetch('/api/upload_audio?transcribe=true', {
                                     method: 'POST',
                                     body: formData
                                 });
@@ -570,8 +579,20 @@ document.addEventListener('DOMContentLoaded', function () {
                                     syncAudioInputs();
                                     renderAudioPlaylist(currentAudioClips.length - 1);
 
+                                    // Handle Offline / PathoWhisper transcription results
+                                    if (uploadData.transcription && uploadData.transcription.trim()) {
+                                        accumulatedTranscript = uploadData.transcription.trim();
+                                        if (txtTranscription) {
+                                            txtTranscription.value = accumulatedTranscript;
+                                        }
+                                        if (uploadData.data && typeof applyLocalDataToForm === 'function') {
+                                            applyLocalDataToForm(uploadData.data);
+                                            if (typeof validateFormData === 'function') validateFormData();
+                                        }
+                                    }
+
                                     if (micStatusContainer) {
-                                        micStatusContainer.innerHTML = '<span style="color:#16a34a; font-weight:bold;"><i class="fas fa-check-circle"></i> บันทึกเสียงและถอดข้อความเรียบร้อย</span>';
+                                        micStatusContainer.innerHTML = '<span style="color:#16a34a; font-weight:bold;"><i class="fas fa-check-circle"></i> ถอดความและสกัดข้อมูลสำเร็จ (PathoWhisper Offline Mode)</span>';
                                     }
                                     if (typeof autoSaveDraft === 'function') autoSaveDraft();
                                 }
