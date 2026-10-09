@@ -25,6 +25,12 @@ ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 # Automatically add project bin folder to PATH (for portable ffmpeg / tools)
 if BIN_DIR.exists():
     os.environ["PATH"] = str(BIN_DIR) + os.pathsep + os.environ.get("PATH", "")
+if getattr(sys, 'frozen', False):
+    _meipass = getattr(sys, '_MEIPASS', None)
+    if _meipass:
+        _int_bin = Path(_meipass) / "bin"
+        if _int_bin.exists():
+            os.environ["PATH"] = str(_int_bin) + os.pathsep + os.environ.get("PATH", "")
 
 
 class Config:
