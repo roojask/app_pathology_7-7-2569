@@ -290,7 +290,9 @@ def extract_data_15_sections(text):
     margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"]
     for m_name in margins:
         # Pattern A: Name first (handles punctuation like commas or periods: e.g. "deep margin, 1 cm", "deep margin. 1.5 cm")
-        regex = rf"(?:{m_name}(?:\s+(?:surgical|resection|fascial))?\s*margin|\b{m_name}\b)\s*[,.:;]?\s*(?:is\s+(?:close\s+(?:at|to)|free\s+(?:at|to)|measured\s+(?:at|to)|involved\s+(?:at|to))?|at|=|:|\bclose\s+at\b|\bfree\s+at\b)?\s*[,.:;]?\s*([\d.]+)(?:\s*(?:cm|mm))?"
+        # v2.1: "skin" alone is not a margin cue ("skin is 7 x 3 cm" is the skin ellipse), so require the word "margin"
+        bare = "" if m_name == "skin" else rf"|\b{m_name}\b"
+        regex = rf"(?:{m_name}(?:\s+(?:surgical|resection|fascial))?\s*margin{bare})\s*[,.:;]?\s*(?:is\s+(?:close\s+(?:at|to)|free\s+(?:at|to)|measured\s+(?:at|to)|involved\s+(?:at|to))?|at|=|:|\bclose\s+at\b|\bfree\s+at\b)?\s*[,.:;]?\s*([\d.]+)(?:\s*(?:cm|mm))?"
         m = re.search(regex, t, re.IGNORECASE)
         # Pattern B: Value first with required 'from' or 'at' (e.g. "2 cm from deep surgical margin")
         if not m:
