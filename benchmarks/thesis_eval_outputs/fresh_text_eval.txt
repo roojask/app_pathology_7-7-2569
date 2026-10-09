@@ -1,0 +1,2 @@
+mass-first: n=139 specimen-dims correct 139 (100.0%), mass-dims correct 139 (100.0%)
+other: n=161 specimen-dims correct 161 (100.0%), mass-dims correct 161 (100.0%)

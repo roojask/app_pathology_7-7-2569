@@ -1,0 +1,41 @@
+﻿====================================================================================================
+A. CASE-LEVEL CLINICAL METRICS (N = 1,000)
+====================================================================================================
+Baseline     CER_case 188/1000 = 18.80% [Wilson 16.50, 21.34] | exactness 81.20% | excl. category 2: 177/900 = 19.67%
+             omissions 226 (critical fields 189) | commissions 66 (critical fields 36) | false-fill 0 | critical-error cases with >=1 flag: 26/188 = 13.8%
+PathoWhisper CER_case 111/1000 = 11.10% [Wilson 9.30, 13.20] | exactness 88.90% | excl. category 2: 96/900 = 10.67%
+             omissions 84 (critical fields 78) | commissions 77 (critical fields 50) | false-fill 0 | critical-error cases with >=1 flag: 34/111 = 30.6%
+Script text  CER_case 0/1000 = 0.00% [Wilson -0.00, 0.38] | exactness 100.00% | excl. category 2: 0/900 = 0.00%
+             omissions 0 (critical fields 0) | commissions 0 (critical fields 0) | false-fill 0 | critical-error cases with >=1 flag: 0/0
+
+Paired: baseline-only errors 142, PathoWhisper-only errors 65, McNemar exact p = 9.16e-08, difference 7.7 points, bootstrap 95% CI [5.0, 10.5]
+
+Critical-field errors (slots with a wrong or missing value):
+  s1_side            {'Baseline': 102, 'PathoWhisper': 1, 'Script text': 0}
+  s3_dims            {'Baseline': 17, 'PathoWhisper': 23, 'Script text': 0}
+  s10_infiltrative   {'Baseline': 20, 'PathoWhisper': 18, 'Script text': 0}
+  s10_inf_dims       {'Baseline': 48, 'PathoWhisper': 40, 'Script text': 0}
+  s11_deep_margin    {'Baseline': 13, 'PathoWhisper': 44, 'Script text': 0}
+  s14_check          {'Baseline': 25, 'PathoWhisper': 2, 'Script text': 0}
+
+Concept error rate (numbers, units and medical concept words; criterion-B normalisation):
+  Baseline     6.04%  (2063/34151)
+  PathoWhisper 1.88%  (643/34151)
+
+Latency median / P95: {'Baseline': (16.3, 29.05), 'PathoWhisper': (9.02, 16.97)}
+
+====================================================================================================
+B. FOUR-SYSTEM COMPARISON (20 cases)
+====================================================================================================
+Vosk         CER_case 20/20 = 100.00% [Wilson 83.89, 100.00] | exactness 0.00% | excl. category 2: 18/18 = 100.00%
+             omissions 27 (critical fields 25) | commissions 53 (critical fields 29) | false-fill 0 | critical-error cases with >=1 flag: 14/20 = 70.0%
+             concept error 10.56% | latency median 5.01s P95 9.04s
+wav2vec 2.0  CER_case 20/20 = 100.00% [Wilson 83.89, 100.00] | exactness 0.00% | excl. category 2: 18/18 = 100.00%
+             omissions 36 (critical fields 29) | commissions 49 (critical fields 31) | false-fill 0 | critical-error cases with >=1 flag: 19/20 = 95.0%
+             concept error 19.94% | latency median 4.44s P95 7.06s
+Baseline     CER_case 3/20 = 15.00% [Wilson 5.24, 36.04] | exactness 85.00% | excl. category 2: 2/18 = 11.11%
+             omissions 2 (critical fields 2) | commissions 1 (critical fields 1) | false-fill 0 | critical-error cases with >=1 flag: 1/3 = 33.3%
+             concept error 5.28% | latency median 17.93s P95 33.07s
+PathoWhisper CER_case 3/20 = 15.00% [Wilson 5.24, 36.04] | exactness 85.00% | excl. category 2: 1/18 = 5.56%
+             omissions 2 (critical fields 2) | commissions 1 (critical fields 1) | false-fill 0 | critical-error cases with >=1 flag: 0/3 = 0.0%
+             concept error 1.32% | latency median 10.02s P95 21.36s

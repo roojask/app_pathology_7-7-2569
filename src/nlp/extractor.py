@@ -11,6 +11,45 @@ except OSError:
     print("WARNING: en_core_web_sm model not found. NLP fallback will be disabled.")
     nlp = None
 
+
+# ---------------------------------------------------------------------------
+# Context-based assignment of 3-D dimensions (v2)
+# The v1 extractor took the first "X x Y x Z" after a generic cue such as "measuring" as the
+# specimen size, so a report that stated the mass first assigned the mass size to the specimen.
+# v2 labels every 3-D dimension by the NEAREST preceding cue word (looking back no further than
+# the previous dimension), and falls back to the words that follow it.
+# ---------------------------------------------------------------------------
+_DIM3 = re.compile(r"(?<!-)(?<!\d)([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", re.IGNORECASE)
+_SPEC_CUES = ["total specimen", "specimen size", "overall size", "mastectomy", "specimen", "dimensions are"]
+_MASS_CUES = ["infiltrative", "mass", "lesion", "tumor", "tumour"]
+_OTHER_CUES = ["previous surgical cavity", "adjacent fibrous tissue", "residual", "well defined", "well-defined",
+               "slit like", "slit-like", "axillary", "skin", "ellipse", "lymph", "node"]
+
+def _nearest_cue(window, cues):
+    best, best_pos = None, -1
+    for cue in cues:
+        pos = window.rfind(cue)
+        if pos > best_pos or (pos == best_pos and best is not None and len(cue) > len(best)):
+            best, best_pos = cue, pos
+    return best_pos
+
+def classify_3d_dims(t):
+    """Return a list of (match, label), label in {'specimen','mass','other',None}."""
+    out, prev_end = [], 0
+    for m in _DIM3.finditer(t):
+        window = t[max(prev_end, m.start() - 80):m.start()].lower()
+        pos = {"specimen": _nearest_cue(window, _SPEC_CUES),
+               "mass": _nearest_cue(window, _MASS_CUES),
+               "other": _nearest_cue(window, _OTHER_CUES)}
+        label = max(pos, key=pos.get) if max(pos.values()) >= 0 else None
+        if label is None:  # no cue before: look at the words right after the dimensions
+            after = t[m.end():m.end() + 25].lower()
+            if any(c in after for c in _MASS_CUES): label = "mass"
+            elif any(c in after for c in ["specimen", "mastectomy"]): label = "specimen"
+        out.append((m, label))
+        prev_end = m.end()
+    return out
+
 def format_section_code(code):
     code = re.sub(r"([a-zA-Z])\s+(\d+)", r"\1\2", code)
     code = re.sub(r"\b(?:to|and)\b", "-", code, flags=re.IGNORECASE)
@@ -54,18 +93,16 @@ def extract_data_15_sections(text):
             data["s2_proc"] = "other"
             data["s2_other_text"] = m.group(1).strip()
      
-    # 3. Specimen Overall Dimensions (Measuring X x Y x Z cm) - Extracted FIRST!
-    m_specs = list(re.finditer(r"(?:mastectomy|specimen|overall size|specimen size|total specimen|measuring|dimensions are)[\s\S]{0,60}?([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE))
-    if m_specs:
-        m = m_specs[0] 
+    # 3. Specimen Overall Dimensions - v2: chosen by context, not by position
+    classified = classify_3d_dims(t)
+    spec = [m for m, lab in classified if lab == "specimen"]
+    if not spec:
+        # no explicit cue: accept the first dimension that is not clearly a mass / other structure
+        spec = [m for m, lab in classified if lab is None][:1]
+    if spec:
+        m = spec[0]
         data["s3_dims"] = [m.group(1).rstrip('.'), m.group(2).rstrip('.'), m.group(3).rstrip('.')]
         t = t[:m.start()] + " [SPECIMEN_DIMS] " + t[m.end():]
-    else:
-        generic_matches = list(re.finditer(r"(?<!-)(?<!\d)([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)\s*(?:cm|mm)?\s*x\s*([\d.]+)", t, re.IGNORECASE))
-        if generic_matches:
-            m = generic_matches[0]
-            data["s3_dims"] = [m.group(1).rstrip('.'), m.group(2).rstrip('.'), m.group(3).rstrip('.')]
-            t = t[:m.start()] + " [SPECIMEN_DIMS] " + t[m.end():]
 
     # 4. Lesions / Mass / Cavity (Section 10) - Extracted SECOND!
     mass_count = 0
