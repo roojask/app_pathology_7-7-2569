@@ -36,19 +36,19 @@ Total Category 2 cases: 100
 [Case case_0002]:
   Hypothesis Text: An infiltrative mass measuring 5.2 by 4.0 by 3.3 cm is found at central quadrant.  Specimen is right modified radical mastectomy measuring 7.1 by 21.7 by 11.6 cm.  Surgical number S-24-1002. Skin ellipse 15.0 by 4.5 cm.  Margin 1.5 cm, 8 lymph nodes ranging from 0.8 to 2.6 cm.
   Ground Truth   : Specimen 3D=['7.1', '21.7', '11.6'], Mass 3D=['5.2', '4.0', '3.3']
-  Extractor Output: Specimen 3D=['5.2', '4.0', '3.3'], Mass 3D=None
+  Extractor Output: Specimen 3D=['7.1', '21.7', '11.6'], Mass 3D=['5.2', '4.0', '3.3']
   Clinical Mechanism: Pathologist dictated mass dimensions first ('measuring 4.5 x 2.1 x 3.2 cm... received mastectomy specimen measuring 12.0 x 8.5 x 4.0 cm'). Heuristic regex captured first 3D numbers into s3_dims and second into s10_inf_dims, swapping them.
 
 [Case case_0012]:
   Hypothesis Text: An infiltrative mass measuring to .9x5.1x3.8cm is found at upper outer quadrant.  Specimen is left simple mastectomy measuring 21.4x18.3x3.9cm.  Surgical number S-24-1012. Skin ellipse 5.2x5.0 cm. Deep margin 1.5 cm.  10 lymph nodes ranging from 0.5 to 2.7 cm.
   Ground Truth   : Specimen 3D=['21.4', '18.3', '3.9'], Mass 3D=['2.9', '5.1', '3.8']
-  Extractor Output: Specimen 3D=['.9', '5.1', '3.8'], Mass 3D=None
+  Extractor Output: Specimen 3D=['21.4', '18.3', '3.9'], Mass 3D=['.9', '5.1', '3.8']
   Clinical Mechanism: Pathologist dictated mass dimensions first ('measuring 4.5 x 2.1 x 3.2 cm... received mastectomy specimen measuring 12.0 x 8.5 x 4.0 cm'). Heuristic regex captured first 3D numbers into s3_dims and second into s10_inf_dims, swapping them.
 
 [Case case_0022]:
   Hypothesis Text: An infiltrative mass measuring 3.4 by 5.4 by 1.9 cm is found at central quadrant.  Specimen is right modified radical mastectomy measuring 5.6 by 25.0 by 4.4 cm.  Surgical number S-24-1022. Skin ellipse 6.8 by 7.2 cm. Deep margin 1.5 cm.  All lymph nodes ranging from 0.3 to 2.5 cm.
   Ground Truth   : Specimen 3D=['5.6', '25.0', '4.4'], Mass 3D=['3.4', '5.4', '1.9']
-  Extractor Output: Specimen 3D=['3.4', '5.4', '1.9'], Mass 3D=None
+  Extractor Output: Specimen 3D=['5.6', '25.0', '4.4'], Mass 3D=['3.4', '5.4', '1.9']
   Clinical Mechanism: Pathologist dictated mass dimensions first ('measuring 4.5 x 2.1 x 3.2 cm... received mastectomy specimen measuring 12.0 x 8.5 x 4.0 cm'). Heuristic regex captured first 3D numbers into s3_dims and second into s10_inf_dims, swapping them.
 
 ================================================================================
