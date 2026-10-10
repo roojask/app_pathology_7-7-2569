@@ -30,7 +30,8 @@ def renumber_cases():
     backup_database()
 
     # 2. Connect to PostgreSQL
-    pg_conn = psycopg2.connect('postgresql://postgres:rooj282026@localhost:5432/pathology_db')
+    pg_url = os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/pathology_db')
+    pg_conn = psycopg2.connect(pg_url)
     pg_cur = pg_conn.cursor()
 
     # Read all cases ordered chronologically by timestamp

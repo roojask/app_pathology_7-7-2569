@@ -18,7 +18,8 @@ def test_databases():
     # 1. PostgreSQL Direct Inspection
     print("\n--- 1. PostgreSQL (Primary DB: pathology_db) ---")
     try:
-        pg_conn = psycopg2.connect('postgresql://postgres:rooj282026@localhost:5432/pathology_db')
+        pg_url = os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/pathology_db')
+        pg_conn = psycopg2.connect(pg_url)
         pg_cur = pg_conn.cursor()
 
         # Check public tables
@@ -86,9 +87,10 @@ def test_databases():
         print(f"[+] Active SQLALCHEMY_DATABASE_URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
         users = User.query.all()
         print(f"[+] ORM User.query.all(): {len(users)} users found")
+        test_pw = os.environ.get('TEST_PASSWORD', 'password')
         for u in users:
             print(f"    * ORM User: id={u.id}, username='{u.username}', check_is_admin={u.check_is_admin}")
-            print(f"      - Can authenticate with 'rooj282026': {u.check_password('rooj282026')}")
+            print(f"      - Can authenticate with test password: {u.check_password(test_pw)}")
             print(f"      - History cases count: {len(u.histories)}")
 
         cases = FormHistory.query.all()
@@ -107,9 +109,9 @@ def test_databases():
         res_login_bad = client.post('/login', data={'username': 'roojask', 'password': 'wrongpassword'}, follow_redirects=True)
         print(f"[+] POST /login (wrong password) -> Status: {res_login_bad.status_code}, 'Invalid username or password' present: {'Invalid username or password' in res_login_bad.get_data(as_text=True)}")
 
-        # Test 3: POST /login with correct password for 'roojask'
-        res_login_ok = client.post('/login', data={'username': 'roojask', 'password': 'rooj282026'}, follow_redirects=False)
-        print(f"[+] POST /login (correct password 'roojask') -> Status: {res_login_ok.status_code}, Location: {res_login_ok.headers.get('Location')}")
+        # Test 3: POST /login with test password for 'roojask'
+        res_login_ok = client.post('/login', data={'username': 'roojask', 'password': test_pw}, follow_redirects=False)
+        print(f"[+] POST /login (test password 'roojask') -> Status: {res_login_ok.status_code}, Location: {res_login_ok.headers.get('Location')}")
 
         # Test 4: Follow redirect to /dashboard with authenticated cookie session
         res_dash = client.get('/dashboard')
@@ -117,8 +119,8 @@ def test_databases():
 
         # Test 5: POST /login with user 'test1'
         client.get('/logout')
-        res_test1 = client.post('/login', data={'username': 'test1', 'password': 'rooj282026'}, follow_redirects=False)
-        print(f"[+] POST /login (correct password 'test1') -> Status: {res_test1.status_code}, Location: {res_test1.headers.get('Location')}")
+        res_test1 = client.post('/login', data={'username': 'test1', 'password': test_pw}, follow_redirects=False)
+        print(f"[+] POST /login (test password 'test1') -> Status: {res_test1.status_code}, Location: {res_test1.headers.get('Location')}")
 
     print("\n=================================================================")
     print("              DATABASE VERIFICATION COMPLETED                    ")

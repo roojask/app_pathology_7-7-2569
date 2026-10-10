@@ -7,7 +7,18 @@ def clean():
     except Exception as be:
         print(f"Safety backup note: {be}")
 
-    conn = psycopg2.connect(dbname='pathology_db', user='postgres', password='rooj282026', host='localhost', port='5432')
+    import os
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
+        conn = psycopg2.connect(db_url)
+    else:
+        conn = psycopg2.connect(
+            dbname=os.environ.get('PGDATABASE', 'pathology_db'),
+            user=os.environ.get('PGUSER', 'postgres'),
+            password=os.environ.get('PGPASSWORD', 'password'),
+            host=os.environ.get('PGHOST', 'localhost'),
+            port=os.environ.get('PGPORT', '5432')
+        )
     cur = conn.cursor()
 
     # Drop the duplicate plural tables

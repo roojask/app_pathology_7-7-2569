@@ -38,7 +38,7 @@ class Config:
     
     # Database setting: PostgreSQL Primary
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL") or "sqlite:///pathology.db"
-    #SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "postgresql://postgres:rooj282026@localhost:5432/pathology_db")
+    # SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "postgresql://postgres:password@localhost:5432/pathology_db")
     if SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
         

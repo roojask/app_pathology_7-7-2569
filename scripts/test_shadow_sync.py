@@ -14,7 +14,8 @@ def test_shadow_sync_pipeline():
     print("=== TESTING SHADOW SYNC AND PERSISTENCE PIPELINE ===")
     with app.test_client() as client:
         # Login
-        client.post('/login', data={'username': 'roojask', 'password': 'rooj282026'}, follow_redirects=True)
+        test_pw = os.environ.get('TEST_PASSWORD', 'password')
+        client.post('/login', data={'username': 'roojask', 'password': test_pw}, follow_redirects=True)
         
         # Test case data
         test_sno = "S-TEST-ZERO-LOSS"

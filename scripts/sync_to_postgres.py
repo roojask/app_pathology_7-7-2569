@@ -38,13 +38,18 @@ def sync():
     print(f"[SQLite] Found {len(histories)} form_history records.")
 
     # 2. Connect to PostgreSQL
-    pg_conn = psycopg2.connect(
-        dbname='pathology_db',
-        user='postgres',
-        password='rooj282026',
-        host='localhost',
-        port='5432'
-    )
+    import os
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
+        pg_conn = psycopg2.connect(db_url)
+    else:
+        pg_conn = psycopg2.connect(
+            dbname=os.environ.get('PGDATABASE', 'pathology_db'),
+            user=os.environ.get('PGUSER', 'postgres'),
+            password=os.environ.get('PGPASSWORD', 'password'),
+            host=os.environ.get('PGHOST', 'localhost'),
+            port=os.environ.get('PGPORT', '5432')
+        )
     pg_cur = pg_conn.cursor()
 
     # 3. Insert users into PostgreSQL "user" table

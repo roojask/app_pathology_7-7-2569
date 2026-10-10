@@ -125,7 +125,11 @@ with open(EXT_DIR / "tab_field15.tex", "w", encoding="utf-8") as f:
 print("Updated tab_field15.tex successfully.")
 
 # 3. Update tab_unit.tex with 16 cases
-unit_df = pd.read_csv(BASE_DIR / "unit_test_results.csv")
+unit_csv_path = BASE_DIR / "benchmarks" / "thesis_eval_outputs" / "unit_test_results.csv"
+if not unit_csv_path.exists():
+    unit_csv_path = BASE_DIR / "unit_test_results.csv"
+unit_df = pd.read_csv(unit_csv_path)
+unit_df.columns = [c.replace(" ", "_") for c in unit_df.columns]
 unit_rows = []
 for _, r in unit_df.iterrows():
     inp = r["Input"].replace("_", r"\_").replace("&", r"\&").replace("%", r"\%")

@@ -1,10 +1,10 @@
 ﻿Test_ID,Description,Status,Latency
-T1_AUTH_GUARD,Root route redirects to login or loads,PASS,208.4ms
-T2_REGISTER,Create user account with password hashing,PASS,474.6ms
-T3_LOGIN,Login and establish secure session,PASS,58.6ms
-T4_API_EXTRACT,Extract 15 structured fields via /api/extract,PASS,93.0ms
-T5_AUDIO_UPLOAD,Upload audio recording via /api/upload_audio,PASS,31061.5ms
-T6_GENERATE_PDF,"Generate PDF & DOCX, save FormHistory in DB",PASS,1697.2ms
-T7_HISTORY_PAGE,Load case history listing page with saved case,PASS,48.6ms
-T8_DASHBOARD,Load clinical analytics dashboard page,PASS,6.7ms
+T1_AUTH_GUARD,Root route redirects to login or loads,PASS,559.1ms
+T2_REGISTER,Create user account with password hashing,PASS,518.1ms
+T3_LOGIN,Login and establish secure session,PASS,230.5ms
+T4_API_EXTRACT,Extract 15 structured fields via /api/extract,PASS,83.2ms
+T5_AUDIO_UPLOAD,Upload audio recording via /api/upload_audio,PASS,101415.1ms
+T6_GENERATE_PDF,"Generate PDF & DOCX, save FormHistory in DB",PASS,4870.9ms
+T7_HISTORY_PAGE,Load case history listing page with saved case,PASS,130.5ms
+T8_DASHBOARD,Load clinical analytics dashboard page,PASS,5.8ms
 T9_OFFLINE_ASSETS,"Verify local static CSS, JS, and FontAwesome assets",PASS,0.0ms
