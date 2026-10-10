@@ -81,7 +81,7 @@ app_pathology_7-7-2569/
 
 ## 📊 Research Benchmarks & Performance (N = 1,000 Cases)
 
-Evaluated against the baseline (Whisper Small FP32) on a 1,000-case synthetic-speech dataset (15,000 field slots, 10 scenarios). All numbers are reproducible with the scripts in `benchmarks/scripts/` and `scripts/` and match the thesis (v8/v9).
+Evaluated against the baseline (Whisper Small FP32) on a 1,000-case synthetic-speech dataset (15,000 field slots, 10 scenarios). All numbers are reproducible with the scripts in `benchmarks/scripts/` and `scripts/` and match the thesis submitted with release v1.0-thesis.
 
 | Metric | Baseline (Whisper Small FP32) | PathoWhisper (INT8 + afftdn + Prompt) | Difference | Test |
 | :--- | :---: | :---: | :---: | :---: |
