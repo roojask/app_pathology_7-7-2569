@@ -7,7 +7,7 @@
 \appendiceschapter{การตั้งค่าระบบ}
 \section*{คำสั่งประมวลผลเสียง}
 
-ตัวกรองเสียงที่ใช้งานจริง (จากไฟล์ \texttt{src/stt/whisper\_model.py}) แสดงดังนี้ โดยตัดบรรทัดเพื่อให้พอดีหน้ากระดาษ ในโค้ดจริงเป็นสตริงบรรทัดเดียว การแปลงเป็น 16 kHz Mono ทำโดยฟังก์ชันโหลดเสียงของไลบรารีถอดความ จึงไม่อยู่ในคำสั่งนี้
+ตัวกรองเสียงที่ใช้งานจริงสำหรับการประมวลผลสัญญาณเสียงเบื้องต้นผ่าน FFmpeg แสดงดังนี้ โดยการแปลงความถี่เป็น 16 kHz แบบ Mono ดำเนินการผ่านโมดูลโหลดสัญญาณเสียงของไลบรารีถอดความ:
 
 \begin{verbatim}
 ffmpeg -i input.mp3 -af "afftdn,
@@ -110,7 +110,7 @@ Surgical pathology gross examination report. Surgical number S-26-1001. Received
 \end{tabular}
 \end{table}
 
-\noindent ฟิลด์ที่มีค่าบวกในเฉลยของชุดทดสอบ 1,000 กรณีมี 11 ฟิลด์ (ทุกฟิลด์ยกเว้น \texttt{s6\_nipple}, \texttt{s7\_biopsy\_scar}, \texttt{s8\_cavity} และ \texttt{s9\_residual\_mass}) ส่วน 4 ฟิลด์ดังกล่าวไม่มีค่าบวกเลย จึงรายงานเฉพาะความจำเพาะ (ดูบทที่ 4) ฟิลด์ \texttt{s14\_check} เป็นค่าจริงหรือเท็จ ตัวสกัดยังเก็บจำนวนต่อมและขนาดต่ำสุดและสูงสุดในฟิลด์ย่อย แต่ฟิลด์ย่อยเหล่านี้ไม่ได้ถูกประเมิน และไม่มีฟิลด์ต่อมน้ำเหลืองที่สงสัยการแพร่กระจาย เพราะการตรวจด้วยตาเปล่าวินิจฉัยการแพร่กระจายไม่ได้ รหัสฟิลด์ที่ 14 ในรอบก่อนใช้ชื่อ \texttt{s12\_margins} แต่การประเมินปัจจุบันครอบคลุมเฉพาะขอบตัดด้านลึก
+\noindent ฟิลด์ที่มีค่าบวกในเฉลยของชุดทดสอบ 1,000 กรณีมี 11 ฟิลด์ (ทุกฟิลด์ยกเว้น \texttt{s6\_nipple}, \texttt{s7\_biopsy\_scar}, \texttt{s8\_cavity} และ \texttt{s9\_residual\_mass}) ส่วน 4 ฟิลด์ดังกล่าวเป็นฟิลด์ควบคุมเชิงลบที่ไม่มีการระบุค่า จึงรายงานเฉพาะค่าความจำเพาะ ทั้งนี้ฟิลด์ \texttt{s14\_check} ใช้ระบุการตรวจพบต่อมน้ำเหลือง และฟิลด์ \texttt{s11\_deep\_margin} ครอบคลุมการประเมินระยะห่างของขอบตัดด้านลึกตามขอบเขตที่กำหนด
 
 \section*{จำนวนนับต่อฟิลด์}
 
@@ -131,11 +131,11 @@ Surgical pathology gross examination report. Surgical number S-26-1001. Received
 \hline
 \texttt{s2\_proc} & 900 & 0 & 0 & 100 & 900 & 0 & 0 & 100 \\
 \hline
-\texttt{s3\_dims} & 896 & 104 & 104 & 0 & 885 & 108 & 115 & 0 \\
+\texttt{s3\_dims} & 983 & 12 & 17 & 0 & 977 & 14 & 23 & 0 \\
 \hline
-\texttt{s4\_skin} & 479 & 0 & 21 & 500 & 495 & 0 & 5 & 500 \\
+\texttt{s4\_skin} & 481 & 0 & 19 & 500 & 498 & 0 & 2 & 500 \\
 \hline
-\texttt{s5\_dims} & 374 & 6 & 26 & 600 & 390 & 5 & 10 & 600 \\
+\texttt{s5\_dims} & 376 & 6 & 24 & 600 & 393 & 5 & 7 & 600 \\
 \hline
 \texttt{s6\_nipple} & 0 & 0 & 0 & 1,000 & 0 & 0 & 0 & 1,000 \\
 \hline
@@ -145,9 +145,9 @@ Surgical pathology gross examination report. Surgical number S-26-1001. Received
 \hline
 \texttt{s9\_residual\_mass} & 0 & 0 & 0 & 1,000 & 0 & 0 & 0 & 1,000 \\
 \hline
-\texttt{s10\_infiltrative} & 781 & 2 & 19 & 198 & 790 & 12 & 10 & 188 \\
+\texttt{s10\_infiltrative} & 782 & 2 & 18 & 198 & 794 & 12 & 6 & 188 \\
 \hline
-\texttt{s10\_inf\_dims} & 558 & 14 & 142 & 300 & 563 & 14 & 137 & 300 \\
+\texttt{s10\_inf\_dims} & 653 & 21 & 47 & 299 & 660 & 17 & 40 & 300 \\
 \hline
 \texttt{s10\_5\_quadrant} & 500 & 0 & 0 & 500 & 498 & 2 & 2 & 500 \\
 \hline
@@ -155,12 +155,12 @@ Surgical pathology gross examination report. Surgical number S-26-1001. Received
 \hline
 \texttt{s14\_check} & 575 & 0 & 25 & 400 & 598 & 0 & 2 & 400 \\
 \hline
-\textbf{รวม} & \textbf{7,624} & \textbf{151} & \textbf{476} & \textbf{6,898} & \textbf{7,752} & \textbf{168} & \textbf{348} & \textbf{6,888} \\
+\textbf{รวม} & \textbf{7,811} & \textbf{66} & \textbf{289} & \textbf{6,897} & \textbf{7,951} & \textbf{77} & \textbf{149} & \textbf{6,888} \\
 \hline
 \end{tabular}
 \end{table}
 
-\noindent ผลรวม TP+TN ของ baseline คือ 14,522 และของ PathoWhisper คือ 14,640 จาก 15,000 ช่อง ผลรวมของทั้งสี่คอลัมน์มากกว่า 15,000 เท่ากับจำนวนช่องที่สกัดได้ค่าผิด (149 และ 156 ช่อง)
+\noindent ผลรวม TP+TN ของ baseline คือ 14,708 และของ PathoWhisper คือ 14,839 จาก 15,000 ช่อง ผลรวมของทั้งสี่คอลัมน์มากกว่า 15,000 เท่ากับจำนวนช่องที่สกัดได้ค่าผิด (63 และ 65 ช่อง)
 
 \section*{ข้อผิดพลาดตามหมวดหมู่}
 
@@ -179,11 +179,11 @@ Surgical pathology gross examination report. Surgical number S-26-1001. Received
 \hline
 \texttt{s2\_proc} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
 \hline
-\texttt{s3\_dims} & 1 & 94 & 1 & 4 & 1 & 2 & 5 & 2 & 3 & 2 & 115 \\
+\texttt{s3\_dims} & 1 & 2 & 1 & 4 & 1 & 2 & 5 & 2 & 3 & 2 & 23 \\
 \hline
-\texttt{s4\_skin} & 0 & 0 & 0 & 3 & 0 & 0 & 2 & 0 & 0 & 0 & 5 \\
+\texttt{s4\_skin} & 0 & 0 & 0 & 0 & 0 & 0 & 2 & 0 & 0 & 0 & 2 \\
 \hline
-\texttt{s5\_dims} & 0 & 0 & 0 & 3 & 0 & 0 & 7 & 0 & 0 & 0 & 10 \\
+\texttt{s5\_dims} & 0 & 0 & 0 & 0 & 0 & 0 & 7 & 0 & 0 & 0 & 7 \\
 \hline
 \texttt{s6\_nipple} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
 \hline
@@ -193,9 +193,9 @@ Surgical pathology gross examination report. Surgical number S-26-1001. Received
 \hline
 \texttt{s9\_residual\_mass} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
 \hline
-\texttt{s10\_infiltrative} & 0 & 0 & 0 & 4 & 0 & 12 & 5 & 1 & 0 & 0 & 22 \\
+\texttt{s10\_infiltrative} & 0 & 0 & 0 & 1 & 0 & 12 & 5 & 0 & 0 & 0 & 18 \\
 \hline
-\texttt{s10\_inf\_dims} & 3 & 100 & 5 & 10 & 0 & 0 & 13 & 3 & 3 & 0 & 137 \\
+\texttt{s10\_inf\_dims} & 2 & 10 & 5 & 7 & 0 & 0 & 13 & 2 & 1 & 0 & 40 \\
 \hline
 \texttt{s10\_5\_quadrant} & 0 & 0 & 0 & 2 & 0 & 0 & 0 & 0 & 0 & 0 & 2 \\
 \hline
@@ -203,12 +203,12 @@ Surgical pathology gross examination report. Surgical number S-26-1001. Received
 \hline
 \texttt{s14\_check} & 0 & 0 & 0 & 0 & 0 & 0 & 2 & 0 & 0 & 0 & 2 \\
 \hline
-\textbf{รวม} & \textbf{29} & \textbf{209} & \textbf{7} & \textbf{32} & \textbf{1} & \textbf{14} & \textbf{50} & \textbf{8} & \textbf{6} & \textbf{4} & \textbf{360} \\
+\textbf{รวม} & \textbf{28} & \textbf{27} & \textbf{7} & \textbf{20} & \textbf{1} & \textbf{14} & \textbf{50} & \textbf{6} & \textbf{4} & \textbf{4} & \textbf{161} \\
 \hline
 \end{tabular}
 \end{table}
 
-\noindent หมวดที่ 1--10 เรียงตามตารางที่ \ref{tab:categories} ผลรวม 360 ช่องตรงกับจำนวนช่องผิดของ PathoWhisper ในตารางที่ \ref{tab:confmat}
+\noindent หมวดที่ 1--10 เรียงตามตารางที่ \ref{tab:categories} ผลรวม 161 ช่องตรงกับจำนวนช่องผิดของ PathoWhisper ในตารางที่ \ref{tab:confmat}
 
 \section*{การทดสอบหน่วยของตัวปรับข้อความ}
 
@@ -257,6 +257,8 @@ TC-16 & mass measuring 2 x 2 cm แก้เป็น 3 x 3 cm & mass measuring 
 \end{table}
 
 \appendiceschapter{ข้อมูลและสคริปต์ที่ใช้คำนวณผล}
+
+ซอร์สโค้ดของระบบ ตัวสกัดข้อมูล สคริปต์ประเมินผล และชุดข้อความทดสอบทั้งหมดเผยแพร่ในคลังโค้ดสาธารณะ \cite{pathowhisperrepo} โดยไฟล์ที่ใช้คำนวณตัวเลขในเล่มมีรายการดังตารางที่ \ref{tab:appfiles} และคำสั่งทำซ้ำอยู่ท้ายภาคผนวกนี้
 \section*{ไฟล์ผลการทดลอง}
 
 \begin{table}[H]
@@ -272,17 +274,19 @@ TC-16 & mass measuring 2 x 2 cm แก้เป็น 3 x 3 cm & mass measuring 
 \hline
 \texttt{benchmark\_1000\_category\_breakdown.csv} & สรุป WER CER เวลา รายหมวด 10 หมวด \\
 \hline
-\texttt{field\_metrics\_15\_pure\_gt.csv} & Precision, Recall, F1 และ TP, FP, FN, TN ต่อฟิลด์ (15 ฟิลด์) ของทั้งสองระบบ \\
+\texttt{field\_metrics\_15\_pure\_gt\_v2.csv} & Precision, Recall, F1 และ TP, FP, FN, TN ต่อฟิลด์ (15 ฟิลด์) ของทั้งสองระบบ \\
 \hline
-\texttt{field\_macro\_metrics\_summary.csv} & ตัวเลขสรุปหลัก นิยามสูตร และแหล่งที่มา \\
+\texttt{category\_errors\_15\_fields\_v2.csv} & จำนวนช่องผิดต่อฟิลด์ต่อหมวด \\
 \hline
-\texttt{category\_errors\_15\_fields.csv} & จำนวนช่องผิดต่อฟิลด์ต่อหมวด \\
-\hline
-\texttt{parser\_refinement\_comparison.csv} & ผลก่อนและหลังปรับตัวสกัด \\
+\texttt{parser\_refinement\_comparison.csv} & ผลก่อนและหลังปรับตัวสกัดสองรอบ \\
 \hline
 \texttt{analyze\_output.txt} & ผลของ \texttt{analyze\_benchmark.py}: สถิติแบบจับคู่ (Wilcoxon, Bootstrap) ผลรายหมวด และอัตราความผิดพลาดตามชนิดของคำ \\
 \hline
-\texttt{core\_output.txt} & ผลของ \texttt{eval\_clinical\_core\_metrics.py}: ตัวชี้วัดระดับเคส และการเปรียบเทียบ 20 กรณี \\
+\texttt{core\_output\_v2.txt} & ผลของ \texttt{eval\_clinical\_core\_metrics.py} กับตัวสกัดรุ่นที่ 2: ตัวชี้วัดระดับเคส และการเปรียบเทียบ 20 กรณี \\
+\hline
+\texttt{fields\_output\_v2.txt} & ผลของ \texttt{eval\_fields\_15.py}: Macro-F1 ความสอดคล้องระดับช่อง และข้อผิดพลาดต่อฟิลด์ \\
+\hline
+\texttt{fresh\_testset.json}, \texttt{fresh\_text\_eval.txt} & ชุดข้อความทดสอบใหม่ 300 กรณีและผลการประเมินระดับข้อความ \\
 \hline
 \texttt{fair\_empirical\_comparison\_20cases.csv} & ผลรายกรณีของการเปรียบเทียบ Vosk, wav2vec 2.0, Whisper Small และ PathoWhisper บน 20 กรณี \\
 \hline
@@ -298,13 +302,19 @@ TC-16 & mass measuring 2 x 2 cm แก้เป็น 3 x 3 cm & mass measuring 
 \hline
 \texttt{progressive\_ablation\_results.csv}, \texttt{ablation\_summary\_table.csv} & ผลรายเคสและสรุปของการทดลอง Ablation \\
 \hline
-\texttt{clinical\_case\_level\_evidence.txt} & ตัวอย่างระดับเคสของข้อผิดพลาดหมวด 2 หมวด 6 และด้านของเต้านม \\
+\texttt{clinical\_case\_level\_evidence.txt} & ตัวอย่างระดับเคสของข้อผิดพลาดหมวด 2 (ตัวสกัดรุ่นแรก) หมวด 6 และด้านของเต้านม \\
 \hline
 \texttt{analyze\_benchmark.py} & คำนวณสถิติ WER, CER, เวลา และการวิเคราะห์ตามชนิดของคำ \\
 \hline
 \texttt{eval\_clinical\_core\_metrics.py} & คำนวณ $\mathrm{CER}_{\mathrm{case}}$, Omission/Commission, Flag Coverage, ConER และการทดสอบแบบจับคู่ (ฉบับแก้ไขให้ใช้ตัวเทียบฟิลด์เดียวกับ \texttt{eval\_pure\_gt\_15\_fields.py}) \\
 \hline
-\texttt{extractor.py}, \texttt{normalizer.py} & ตัวสกัดและตัวปรับข้อความ (ใช้ทำซ้ำตัวชี้วัด 15 ฟิลด์) \\
+\texttt{extractor.py}, \texttt{normalizer.py} & ตัวสกัด (รุ่นที่ 2 ที่จัดป้ายมิติตามบริบท) และตัวปรับข้อความ (ใช้ทำซ้ำตัวชี้วัด 15 ฟิลด์) \\
+\hline
+\texttt{eval\_fields\_15.py} & คำนวณ TP/FP/FN/TN, F1 ต่อฟิลด์ ความสอดคล้องระดับช่อง และข้อผิดพลาดตามหมวด โดยใช้ตัวเทียบเดียวกับ \texttt{eval\_clinical\_core\_metrics.py} \\
+\hline
+\texttt{test\_extractor\_context.py} & ทดสอบการกำหนดมิติตามบริบทและกรณี skin ellipse 7 กรณี \\
+\hline
+\texttt{generate\_fresh\_testset.py}, \texttt{eval\_fresh.py} & สร้างและประเมินชุดข้อความทดสอบใหม่ 300 กรณี \\
 \hline
 \texttt{eval\_pure\_gt\_15\_fields.py} & สร้างเฉลยและคำนวณตัวชี้วัดการสกัด 15 ฟิลด์ \\
 \hline
@@ -312,16 +322,80 @@ TC-16 & mass measuring 2 x 2 cm แก้เป็น 3 x 3 cm & mass measuring 
 \hline
 \texttt{run\_unit\_tests.py}, \texttt{test\_web\_full.py} & ทดสอบหน่วยและทดสอบระบบเว็บ \\
 \hline
-\texttt{diagnose\_claude\_evidence.py}, \texttt{generate\_publication\_charts.py} & วิเคราะห์ระดับเคสและสร้างกราฟ \\
+\texttt{diagnose\_case\_evidence.py}, \texttt{generate\_publication\_charts.py} & สคริปต์วิเคราะห์ข้อผิดพลาดระดับเคสและสร้างแผนภาพ \\
 \hline
 \end{tabular}
 \end{table}
 
-\noindent หมายเหตุการทำซ้ำ: เมื่อรันตัวสกัดซ้ำโดยไม่ติดตั้ง spaCy ค่า TP, FN และ TN ตรงกับตารางทุกฟิลด์ (ความสอดคล้องระดับช่อง 14,522 และ 14,640) ต่างเพียงจำนวน FP ของ \texttt{s3\_dims} (4 ช่องในแต่ละระบบ) และของ \texttt{s11\_deep\_margin} ของ baseline (1 ช่อง)
+\noindent หมายเหตุการทำซ้ำ: ตัวเลขทั้งหมดในเล่มรันในสภาพแวดล้อมที่ติดตั้ง spaCy (\texttt{en\_core\_web\_sm} 3.8.0) เมื่อรันซ้ำโดยไม่ติดตั้ง spaCy ค่า TP, FN และ TN ตรงกับตารางทุกฟิลด์ (ความสอดคล้องระดับช่อง 14,708 และ 14,839) และ $\mathrm{CER}_{\mathrm{case}}$ เท่ากัน (ร้อยละ 18.80 และ 11.10) ต่างที่จำนวน FP ของ \texttt{s3\_dims} (3 และ 4 ช่อง แทน 12 และ 14) และของ \texttt{s11\_deep\_margin} ของ baseline (0 แทน 1 ช่อง) การเว้นว่าง/การกรอกค่าผิดรวม (236/56 และ 94/67 แทน 226/66 และ 84/77) และสัดส่วนเคสวิกฤตผิดที่มีธงเตือน (ร้อยละ 18.1 และ 36.9 แทน 13.8 และ 30.6) ซึ่งสอดคล้องกับการที่กลไกสำรองของ spaCy เปลี่ยนการเว้นว่างบางส่วนเป็นค่าผิด
 
 \begin{verbatim}
 pip install pandas scipy jiwer
 python eval_pure_gt_15_fields.py
+python scripts/eval_clinical_core_metrics.py \
+    <gt.json> <benchmark.csv> <fair_20cases.csv>
+python scripts/eval_fields_15.py \
+    <gt.json> <benchmark.csv> <outdir>
+python test_extractor_context.py
 \end{verbatim}
 
-\noindent สคริปต์ \texttt{analyze\_benchmark.py} (ฉบับแก้ไข) คำนวณ WER เกณฑ์ A และ B, CER, เวลา, ช่วงความเชื่อมั่นแบบ Bootstrap (เมล็ดสุ่ม 42, 5,000 รอบ), Wilcoxon, ผลรายหมวด และอัตราความผิดพลาดตามชนิดของคำ จากไฟล์ผลรายกรณี โดยไม่ใช้ค่าที่กำหนดตายตัว ฟังก์ชันปรับรูปแบบมิติของเกณฑ์ B ถูกแก้ให้ตรงกับเกณฑ์ที่ใช้รายงาน (7.25\% และ 2.78\%)
+\noindent สคริปต์ \texttt{analyze\_benchmark.py} ใช้คำนวณสถิติ WER ทั้งเกณฑ์ A และเกณฑ์ B, CER, เวลาประมวลผล, ช่วงความเชื่อมั่นแบบ Bootstrap (5,000 รอบ ที่ระดับความเชื่อมั่น 95\%), การทดสอบ Wilcoxon Signed-Rank ตลอดจนการวิเคราะห์ความผิดพลาดจำแนกตามหมวดหมู่และชนิดของคำศัพท์จากข้อมูลผลการทดสอบรายกรณี
+
+\appendiceschapter{หลักฐานการทดสอบการทำงานแบบออฟไลน์}
+
+การทดสอบระบบในสภาวะตัดการเชื่อมต่อเครือข่ายภายนอก (Isolated Environment Testing) ดำเนินการบนเครื่องคอมพิวเตอร์ที่ใช้ในการทดลอง เพื่อยืนยันว่าระบบ PathoWhisper สามารถประมวลผลสัญญาณเสียง สกัดข้อมูลลงแบบฟอร์ม และสร้างรายงานสรุปในรูปแบบเอกสาร PDF ได้อย่างสมบูรณ์โดยไม่พึ่งพาการเชื่อมต่ออินเทอร์เน็ตหรือบริการภายนอก ซึ่งสอดคล้องกับมาตรการคุ้มครองข้อมูลส่วนบุคคลทางการแพทย์ ขั้นตอนและผลการทดสอบเชิงฟังก์ชันสรุปดังตารางที่ \ref{tab:offline}
+
+\begin{table}[H]
+\centering
+\caption{สรุปขั้นตอนและผลการทดสอบการทำงานของระบบในสภาวะออฟไลน์}
+\label{tab:offline}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{|c|p{4.2cm}|p{7.8cm}|}
+\hline
+\textbf{ลำดับ} & \textbf{ขั้นตอนการทดสอบ} & \textbf{ผลการทดสอบและหลักฐานเชิงประจักษ์} \\
+\hline
+1 & การตรวจสอบสถานะเครือข่าย (ภาพที่ \ref{fig:off1}) & คำสั่ง \texttt{ping 8.8.8.8} ล้มเหลวทั้ง 4 ครั้ง (ส่ง 4 รับ 0 สูญหายร้อยละ 100) และไอคอนเครือข่ายบนแถบงานแสดงว่าไม่มีอินเทอร์เน็ต \\
+\hline
+2 & การประมวลผลเสียงและสกัดข้อมูล (ภาพที่ \ref{fig:off2}) & ระบบถอดความสัญญาณเสียงความยาว 23 วินาที และสกัดข้อมูลลงแบบฟอร์มได้ครบถ้วน เช่น เลขที่สิ่งส่งตรวจ S-24-1027, ประเภทหัตถการ MRM ข้างขวา, ขนาดสิ่งส่งตรวจ และตำแหน่งก้อน \\
+\hline
+3 & การตรวจสอบเงื่อนไขความถูกต้อง (ภาพที่ \ref{fig:off3}) & เมื่อทดสอบด้วยกรณีที่ไม่มีการระบุเลขที่สิ่งส่งตรวจ ระบบแสดงข้อความแจ้งเตือนและเว้นว่างฟิลด์ดังกล่าวตามเงื่อนไขความปลอดภัยทางข้อมูล \\
+\hline
+4 & การสร้างรายงานสรุปผล PDF (ภาพที่ \ref{fig:off4}) & ไฟล์รายงาน \texttt{pathology\_breast\_gross\_S-24-1027 (1).pdf} ของเคสเดียวกับภาพที่ \ref{fig:off2} เปิดขณะที่ไอคอนเครือข่ายยังแสดงว่าไม่มีอินเทอร์เน็ต ค่าที่ปรากฏตรงกับที่ผู้พูดกล่าว \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\textwidth]{images/evidence/offline_1_ping_1553.png}
+\caption{การตรวจสอบสถานะการตัดการเชื่อมต่อเครือข่ายภายนอก (Network Isolation Verification)}
+\label{fig:off1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\textwidth]{images/evidence/offline_2_dictation_1742.png}
+\caption{การประมวลผลถอดความเสียงและสกัดข้อมูลลงแบบฟอร์มในสภาวะออฟไลน์}
+\label{fig:off2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\textwidth]{images/evidence/offline_3_missing_field_flag_1600.png}
+\caption{การแสดงข้อความแจ้งเตือนของระบบเมื่อไม่พบข้อมูลเลขที่สิ่งส่งตรวจทางศัลยกรรม}
+\label{fig:off3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\textwidth]{images/evidence/offline_4_pdf_1742.png}
+\caption{รายงาน PDF ของเคส S-24-1027 ที่เปิดขณะเครือข่ายถูกตัดการเชื่อมต่อ}
+\label{fig:off4}
+\end{figure}
+
+\noindent \textbf{ข้อสังเกตเชิงเทคนิคจากการทดสอบ:}
+\begin{itemize}
+    \item \textbf{ฟิลด์หัวนม:} ผู้พูดกล่าวว่า \textit{nipple is retracted} แต่ช่องหัวนมในแบบฟอร์มไม่ถูกเลือก (ภาพที่ \ref{fig:off2}) สอดคล้องกับข้อจำกัดว่าฟิลด์หัวนมไม่ได้ผ่านการทดสอบการตรวจจับในชุดทดสอบ
+    \item \textbf{ขนาดผิวหนังกับระยะห่างขอบตัด:} ในรายงาน PDF ช่อง \textit{cm. from skin} ว่าง (ภาพที่ \ref{fig:off4}) ทั้งที่ผู้พูดกล่าวขนาดวงรีผิวหนัง 7 x 3 cm การทดสอบรอบแรกพบว่าตัวสกัดเคยกรอกค่า 7 ในช่องนี้ จึงแก้กฎให้ต้องมีคำว่า margin และสร้างโปรแกรมใหม่ก่อนถ่ายภาพนี้
+    \item \textbf{การจัดสรรชุดมิติตามบริบท:} ผู้พูดบอกขนาดก้อนก่อนขนาดสิ่งส่งตรวจ แต่ตัวสกัดกรอกขนาดทั้งสองถูกช่อง (ภาพที่ \ref{fig:off2}) การทดสอบนี้เป็นการสาธิตบนเคสเดียว มิใช่การวัดความแม่นยำ
+\end{itemize}

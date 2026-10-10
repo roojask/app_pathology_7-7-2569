@@ -15,7 +15,8 @@ pinned: false
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20iPadOS-lightgrey)
 ![Inference Engine](https://img.shields.io/badge/engine-CTranslate2%20INT8-orange)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![Release](https://img.shields.io/badge/release-v1.0--thesis-blue)](https://github.com/roojask/app_pathology_7-7-2569/releases/tag/v1.0-thesis)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ---
 
@@ -28,6 +29,10 @@ Surgical gross pathology examinations require pathologists to inspect specimens 
 3. **Clinical Information Extractor v2.1:** Rule- and context-aware natural language extractor with mid-sentence self-correction disambiguation (e.g., handling *"sorry"*, *"wait/weight"*, and distinction between *skin ellipse* dimensions and *margins*).
 4. **Dual-Tier Database Architecture:** Multi-user PostgreSQL for centralized hospital infrastructure paired with automatic offline SQLite shadow sync to guarantee zero clinical data loss.
 5. **Instant CAP-Compliant Document Generation:** Automatically generates standardized, publication-grade PDF and DOCX reports with graphical checkboxes and dimension anchors.
+
+> [!NOTE]
+> **Acoustic Model Scope & LoRA Disclaimer:**  
+> The primary pipeline evaluated in the thesis uses off-the-shelf `Faster-Whisper Small (INT8)` with CTranslate2 and domain prompting (`PATHOLOGY_PROMPT`) **without** fine-tuning. The LoRA adapter located under `models/pathowhisper_lora/` represents an exploratory proof-of-concept and was **not** utilized in the formal experimental benchmark or thesis evaluation.
 
 ---
 
@@ -47,7 +52,7 @@ app_pathology_7-7-2569/
 ├── configs/             # Configuration, database URIs, SSL and domain prompts
 ├── src/                 
 │   ├── database/        # SQLAlchemy models (User, FormHistory, Revisions)
-│   ├── stt/             # Faster-Whisper INT8 and LoRA STT engines
+│   ├── stt/             # Faster-Whisper INT8 engine (LoRA is exploratory proof-of-concept)
 │   ├── nlp/             # Extractor v2.1 and Text Normalizer
 │   ├── pdf/             # CAP-compliant PyMuPDF report generator
 │   ├── export/          # DOCX & FHIR export utilities
@@ -60,7 +65,7 @@ app_pathology_7-7-2569/
 ├── benchmarks/          # Comprehensive academic evaluation testbed (1,000 cases)
 │   ├── thesis_eval_outputs/  # Verified benchmark metrics, CSVs, and charts
 │   └── scripts/         # Evaluation and statistical analysis scripts
-├── docs/thesis_latex/   # Full LaTeX thesis manuscript and publication tables
+├── docs/thesis_latex/   # Full LaTeX thesis manuscript and publication tables (v9)
 ├── templates/           # Frontend HTML templates (Responsive & iPad-ready)
 ├── static/              # CSS styles, FontAwesome assets, and audio scripts
 ├── tests/               # Unit, integration, and full web validation suites
@@ -68,6 +73,7 @@ app_pathology_7-7-2569/
 ├── run_server.py        # Development HTTPS server
 ├── run_production.py    # Multi-threaded Waitress WSGI production server
 ├── gui_app.py           # Native desktop GUI wrapper
+├── LICENSE              # MIT License
 └── requirements.txt     # Locked production dependencies
 ```
 
@@ -75,17 +81,20 @@ app_pathology_7-7-2569/
 
 ## 📊 Research Benchmarks & Performance (N = 1,000 Cases)
 
-Evaluated against the baseline model (`Whisper Small FP32`) across a 1,000-case breast gross dictation dataset (15,000 total slots) spanning 10 complex clinical scenarios:
+Evaluated against the baseline (Whisper Small FP32) on a 1,000-case synthetic-speech dataset (15,000 field slots, 10 scenarios). All numbers are reproducible with the scripts in `benchmarks/scripts/` and `scripts/` and match the thesis (v8/v9).
 
-| Metric | Baseline (Whisper Small FP32) | PathoWhisper (INT8 + afftdn + Prompt) | Improvement / Difference | Statistical Significance |
+| Metric | Baseline (Whisper Small FP32) | PathoWhisper (INT8 + afftdn + Prompt) | Difference | Test |
 | :--- | :---: | :---: | :---: | :---: |
-| **Word Error Rate (WER - Criterion B)** | 36.27% | **29.05%** | **-7.22%** points | $p = 1.98 \times 10^{-90}$ (Wilcoxon) |
-| **Concept Error Rate (ConER)** | 14.50% | **9.16%** | **-5.34%** points | $p < 0.001$ |
-| **Field Macro-F1 (11 Informative Fields)** | 96.26% | **96.97%** | **+0.71%** points | Robust across all categories |
-| **Slot-Level Agreement (15,000 Slots)** | 96.88% | **97.60%** | **+0.72%** points | 14,640 / 15,000 correct slots |
-| **Case Critical Error Rate ($\mathrm{CER}_{\mathrm{case}}$)** | 35.50% | **4.90%** | **-30.60%** points | $p = 1.34 \times 10^{-67}$ (McNemar) |
-| **Case Exactness** | 64.50% | **95.10%** | **+30.60%** points | 951 / 1,000 error-free cases |
-| **Inference Latency (Mean)** | 20.04 s | **11.50 s** | **1.74× Speedup** | $p = 9.55 \times 10^{-163}$ (Wilcoxon) |
+| **WER, Criterion A** | 36.27% | **29.05%** | −7.21 points (95% CI 6.26–8.14) | Wilcoxon, one-sided, $p = 1.75 \times 10^{-90}$ |
+| **WER, Criterion B (dimension formatting normalised)** | 7.25% | **2.78%** | −4.47 points | Wilcoxon, one-sided, $p = 1.02 \times 10^{-110}$ |
+| **Concept Error Rate (ConER)** | 6.04% | **1.88%** | −4.16 points | – |
+| **Macro-F1 (11 fields with positive reference values)** | 97.79% | **98.61%** | +0.82 points | – |
+| **Slot-level agreement (15,000 slots)** | 98.05% (14,708) | **98.93% (14,839)** | +0.88 points | – |
+| **Case critical error rate ($\mathrm{CER}_{\mathrm{case}}$, 6 critical fields)** | 18.80% | **11.10%** | −7.70 points (95% CI 5.0–10.5) | McNemar exact, $p = 9.16 \times 10^{-8}$ |
+| **Case exactness** | 81.20% | **88.90%** | +7.70 points | – |
+| **Mean latency per case** | 20.04 s | **11.50 s** | 1.74× faster | Wilcoxon, one-sided, $p = 9.55 \times 10^{-163}$ |
+
+> **Caveats:** The test audio is synthetic (two TTS voices). The extractor was refined after inspecting errors on this same test set, so extraction figures are upper bounds. PathoWhisper fills in more wrong values than the baseline (77 vs 66 slots), and flags cover only 30.6% of cases with a critical-field error. See the thesis (Chapters 4–5) for details.
 
 ---
 
@@ -146,7 +155,7 @@ python tests/run_unit_tests.py
 # 2. Context-Aware Extractor & Margin Disambiguation (7/7 Context Tests)
 python test_extractor_context.py
 
-# 3. End-to-End Web, Offline Fallback & Security Audit (9/9 Modules)
+# 3. End-to-End Web & Offline Fallback Functional Tests (9/9 Modules)
 python tests/test_web_full.py
 ```
 
@@ -156,7 +165,7 @@ python tests/test_web_full.py
 This repository contains the official codebase and experimental evaluation for the Bachelor of Science in Artificial Intelligence thesis:
 * **Title (TH):** การพัฒนาระบบแปลงเสียงเป็นข้อความโดยใช้ปัญญาประดิษฐ์เพื่อบันทึกข้อมูลอัตโนมัติในงานพยาธิวิทยา
 * **Title (EN):** Development of an AI-Based Speech-to-Text System for Automatic Data Recording in Pathology
-* **Department:** Department of Computer Science & Artificial Intelligence, Faculty of Science, Khon Kaen University
+* **Institution:** College of Computing (วิทยาลัยการคอมพิวเตอร์), Khon Kaen University
 * **Clinical Collaboration:** Department of Pathology, Faculty of Medicine, Khon Kaen University
 * **Authors:** Thaninrat Lohasan (ธนินท์รัฐ โลหะสาร), Chetsada Klangthin (เจษฎา กลางถิ่น)
 * **Advisors:** Asst. Prof. Isoon Kanjanasurat, Ph.D. & Asst. Prof. Chaiwat Apiwatnasiri, M.D.
@@ -164,4 +173,4 @@ This repository contains the official codebase and experimental evaluation for t
 ---
 
 ## 📜 License
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
