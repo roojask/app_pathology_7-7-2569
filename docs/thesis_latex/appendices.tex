@@ -261,57 +261,107 @@ E2E-04 & ทดสอบจุดเชื่อมต่อ \texttt{POST /api/t
 \appendiceschapter{ข้อมูลและสคริปต์ที่ใช้ในการทดลองและคำนวณผล}
 \section*{คลังข้อมูล สคริปต์การทดลอง และไฟล์ผลลัพธ์}
 
+ซอร์สโค้ดของโครงงาน สคริปต์การทดลอง ชุดข้อมูลควบคุม (Manifests และ Ground Truths) ตลอดจนไฟล์ผลลัพธ์การคำนวณสถิติและรูปภาพประกอบวิทยานิพนธ์ ได้รับการเผยแพร่แบบโอเพนซอร์สบนคลังรหัสต้นฉบับ GitHub เพื่อความโปร่งใสและการทำซ้ำผลการวิจัย (Reproducibility):
+\begin{center}
+\textbf{GitHub Repository:} \url{https://github.com/roojask/app_pathology_7-7-2569}
+\end{center}
+
+โครงสร้างของคลังข้อมูลและสคริปต์ได้รับการออกแบบตามหลักการแยกส่วนอย่างเคร่งครัด (Modular Architecture) เพื่อให้สามารถตรวจสอบย้อนกลับ (Auditability) และทำซ้ำการทดลองได้ในทุกระดับ โดยแบ่งออกเป็น 5 หมวดหมู่หลักตามตารางที่ \ref{tab:appfiles}
+
 \begin{table}[H]
 \centering
 \caption{โครงสร้างไฟล์ข้อมูล สคริปต์การทดลองแบบแยกส่วน และไฟล์ผลลัพธ์ในสถาปัตยกรรมการทดลอง}
 \label{tab:appfiles}
 \scriptsize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{|p{6.4cm}|p{6.6cm}|}
+\begin{tabular}{|p{5.6cm}|p{9.4cm}|}
 \hline
 \textbf{ไฟล์ / โฟลเดอร์} & \textbf{หน้าที่และเนื้อหา} \\
 \hline
-\texttt{scripts/make\_finetune\_data.py} & สคริปต์สร้างชุดข้อมูล \texttt{dataset\_ft} จำนวน 1,000 กรณี พร้อมแยกคลังสำนวนประโยคระหว่าง \texttt{train/val/test\_seen} และ \texttt{test\_unseen} แบบไม่รั่วไหล \\
+\multicolumn{2}{|l|}{\textbf{1. ชุดข้อมูลและข้อมูลเฉลยมาตรฐาน (Synthetic Dataset and Ground Truth)}} \\
 \hline
-\texttt{data/dataset\_ft/ground\_truth\_ft.json}, \texttt{manifest.csv} & ข้อมูลเฉลยครบทั้ง 15 ฟิลด์ และรายการไฟล์เสียงทั้ง 1,000 กรณี (\texttt{train}=600, \texttt{val}=100, \texttt{test\_seen}=150, \texttt{test\_unseen}=150) \\
+\texttt{scripts/make\_finetune\_data.py} & สคริปต์สร้างชุดข้อมูลสังเคราะห์ 1,000 กรณี พร้อมแยกคลังสำนวนประโยคระหว่าง \texttt{train} (600), \texttt{val} (100), \texttt{test\_seen} (150) และ \texttt{test\_unseen} (150) ด้วยหลักการ Zero-Phrase-Leakage และทดสอบทวนสอบตัวสกัด 15 ฟิลด์ได้ค่า Macro-$F_1 = 100\%$ \\
 \hline
-\texttt{src/nlp/extractor\_v3.py} & ตัวสกัดข้อมูลแบบกำหนดแน่นอนรุ่นที่ 3 รองรับครบทั้ง 15 ฟิลด์ CAP และระบบสร้างธงเตือนความปลอดภัยหลายสัญญาณ \\
+\texttt{data/dataset\_ft/ground\_truth\_ft.json}, \texttt{manifest.csv} & ไฟล์ข้อมูลเฉลยครบทั้ง 15 ฟิลด์ CAP และรายการดัชนีไฟล์เสียงความละเอียดสูง 16 kHz ทั้ง 1,000 กรณีศึกษา \\
 \hline
-\texttt{benchmarks/clean\_slate/acoustic\_filters.py} & โมดูลคำนวณค่าประมาณ $\widehat{\mathrm{SNR}}$ แบบไม่ต้องใช้สัญญาณอ้างอิง และกลไกคัดกรองสัญญาณเสียง \texttt{D8\_snr\_gated} \\
+\texttt{benchmarks/clean\_slate/results/calibrated\_tau.json} & ค่าเกณฑ์ขีดแบ่งอัตราส่วนสัญญาณต่อเสียงรบกวน ($\tau^* = 13.55\text{ dB}$) ที่สอบเทียบจากดัชนียูเดนบนชุดตรวจสอบ \\
 \hline
-\texttt{benchmarks/clean\_slate/metrics\_clean.py} & โมดูลคำนวณตัวชี้วัดทั้ง 3 ระดับ: Normalized WER, C-TER, N-DER, 15-Field Macro-$F_1$, $\mathrm{CER}_{\mathrm{case}}$ และคะแนนความเสี่ยง \\
+\multicolumn{2}{|l|}{\textbf{2. โมดูลระบบหลักและตัวสกัดข้อมูล (Core Pipeline and Parser Modules)}} \\
 \hline
-\texttt{benchmarks/clean\_slate/run\_clean\_slate\_experiments.py} & สคริปต์หลักสำหรับรันการทดลองที่ 1--4 (การสอบเทียบ $\tau^*$, การค้นหาพารามิเตอร์ \texttt{afftdn}, การแยกส่วนข้อความนำ $P_0 \dots P_4$ และการเปรียบเทียบข้ามสถาปัตยกรรม) \\
+\texttt{src/nlp/extractor\_v3.py} & ตัวสกัดข้อมูลแบบกำหนดแน่นอนรุ่นที่ 3 (Deterministic Rule-Based Parser) ครอบคลุม 15 ฟิลด์ CAP พร้อมระบบสร้างธงเตือนความปลอดภัยหลายสัญญาณ (Multiple Safety Risk Flags) \\
 \hline
-\texttt{benchmarks/clean\_slate/expand\_arch\_study.py} & สคริปต์ประเมินเปรียบเทียบแบบจำลองตระกูล Kaldi FST (\texttt{Vosk}), ตระกูล CTC (\texttt{Wav2Vec 2.0 Base/Large}, \texttt{HuBERT}, \texttt{WavLM}) และตระกูล \texttt{Whisper} \\
+\texttt{src/core/engine\_faster\_whisper.py} & โมดูลเอนจินการถอดรหัสเสียงออฟไลน์ เชื่อมต่อโมเดล CTranslate2 INT8, กลไกคัดกรองสัญญาณ \texttt{D8\_snr\_gated} และพารามิเตอร์การถอดความ \\
 \hline
-\texttt{benchmarks/clean\_slate/train\_whisper\_lora.py} & สคริปต์ฝึกฝน LoRA ($r=8, \alpha=32$) บนชุดข้อมูล \texttt{train} 600 กรณี แปลงแบบจำลองเป็น CTranslate2 INT8 และประเมินผลการลดความผิดพลาดตามลำดับขั้น ($S_0 \dots S_3$) \\
+\texttt{config.py} & ไฟล์กำหนดค่าพารามิเตอร์ระบบส่วนกลาง (พาธแบบจำลอง, ค่าขีดแบ่ง $\tau^*$, ข้อความนำ $P_4$, โฮสต์และพอร์ตการทำงาน) \\
+\hline
+\multicolumn{2}{|l|}{\textbf{3. ชุดสคริปต์การทดลองและการคำนวณตัวชี้วัด (Clean-Slate Benchmark Suite)}} \\
+\hline
+\texttt{benchmarks/clean\_slate/acoustic\_filters.py} & โมดูลคำนวณค่าประมาณ $\widehat{\mathrm{SNR}}$ แบบไม่ต้องใช้สัญญาณอ้างอิง และกลไกคัดกรองสัญญาณเสียงแบบปรับตัว \texttt{D8\_snr\_gated} \\
+\hline
+\texttt{benchmarks/clean\_slate/metrics\_clean.py} & โมดูลคำนวณตัวชี้วัดทางการแพทย์และ ASR (Normalized WER, C-TER, N-DER, 15-Field Macro-$F_1$, $\mathrm{CER}_{\mathrm{case}}$ และ Clinical Risk Score) \\
+\hline
+\texttt{benchmarks/clean\_slate/run\_clean\_slate\_experiments.py} & สคริปต์หลักสำหรับรันการทดลองที่ 1--3 (การสอบเทียบ $\tau^*$, ตารางกริดค้นหาพารามิเตอร์ \texttt{afftdn}, การแยกส่วนข้อความนำ $P_0 \dots P_4$ และการทดสอบโมเดลฐาน) \\
+\hline
+\texttt{benchmarks/clean\_slate/expand\_arch\_study.py} & สคริปต์ประเมินเปรียบเทียบข้ามสถาปัตยกรรม (Kaldi FST Vosk, Wav2Vec 2.0 Base/Large CTC, HuBERT, WavLM และ Whisper Base/Small) \\
+\hline
+\texttt{benchmarks/clean\_slate/train\_whisper\_lora.py} & สคริปต์ฝึกฝน LoRA ($r=8, \alpha=32$) บนชุดข้อมูล \texttt{train} 600 กรณี, การแปลงแบบจำลองเป็น CTranslate2 INT8 และประเมินผลการลดความผิดพลาดตามลำดับขั้น ($S_0 \dots S_3$) \\
 \hline
 \texttt{benchmarks/clean\_slate/fix\_longform\_lora\_eval.py} & สคริปต์ประมวลผลการถอดรหัสตามความยาวเสียง (Duration-Aware Long-Form Decoding) สำหรับไฟล์เสียงที่ยาวเกิน 27.5 วินาที \\
 \hline
-\texttt{benchmarks/clean\_slate/results/*.csv} & ไฟล์ผลลัพธ์รายกรณีและตารางสรุปของการทดลองทั้งหมด (\texttt{exp1\_cross\_arch\_*}, \texttt{exp2\_filter\_*}, \texttt{exp3\_prompt\_*}, \texttt{exp4\_lora\_evaluation\_*}, \texttt{final\_table\_*}) \\
+\multicolumn{2}{|l|}{\textbf{4. การวิเคราะห์เชิงสถิติ ตารางสรุป และรูปภาพประกอบ (Statistical Analysis and Results)}} \\
 \hline
-\texttt{tests/test\_app\_clean\_slate\_e2e.py} & สคริปต์ทดสอบการทำงานร่วมกันแบบครบวงจร (End-to-End Test) ของเว็บแอปพลิเคชัน Flask กับไปป์ไลน์ระบบบูรณาการ \\
+\texttt{benchmarks/clean\_slate/generate\_final_thesis\_tables.py} & สคริปต์รวบรวมผลลัพธ์การทดลองทั้งหมด คำนวณช่วงความเชื่อมั่น 95\% ทดสอบนัยสำคัญทางสถิติ (McNemar's test, Wilcoxon signed-rank test พร้อมการปรับแก้แบบ Holm-Bonferroni) และสร้างตารางสรุปผลวิทยานิพนธ์ (ตารางที่ 6--13) \\
+\hline
+\texttt{benchmarks/clean\_slate/generate\_thesis\_figures.py} & สคริปต์พล็อตและเรนเดอร์ภาพกราฟประกอบวิทยานิพนธ์ทั้ง 6 ภาพ (ภาพที่ 1--6) ที่ความละเอียดสูง 300 DPI ด้วย Matplotlib และ Seaborn \\
+\hline
+\texttt{benchmarks/clean\_slate/results/final\_thesis\_master\_summary.json} & ไฟล์ฐานข้อมูลผลการทดลองฉบับสมบูรณ์ (Master Summary JSON) ที่รวบรวมค่าตัวชี้วัดทุกระดับของระบบ $S_0 \dots S_3$ ไว้อย่างเป็นเอกภาพ \\
+\hline
+\texttt{benchmarks/clean\_slate/results/*.csv} & ไฟล์บันทึกผลลัพธ์รายกรณี ($N=150$) และตารางสรุปของการทดลองทั้งหมด (\texttt{snr\_calibration\_*}, \texttt{exp1\_*}, \texttt{exp2\_*}, \texttt{exp3\_*}, \texttt{exp4\_*}, \texttt{final\_table\_*}) \\
+\hline
+\multicolumn{2}{|l|}{\textbf{5. แอปพลิเคชันเว็บและตัวติดตั้งสำหรับใช้งานจริง (Application and Desktop Deployment)}} \\
+\hline
+\texttt{app.py} & เว็บเซิร์ฟเวอร์ Flask ให้บริการจุดเชื่อมต่อ API ถอดความเสียง สกัดข้อมูล และหน้าเว็บอินเทอร์เฟซผู้ใช้ \\
+\hline
+\texttt{gui\_app.py} & แอปพลิเคชัน Desktop พร้อมถาดระบบ (System Tray) สำหรับเปิดปิดบริการเซิร์ฟเวอร์ภายในเครื่องแบบ Standalone \\
+\hline
+\texttt{tests/test\_app\_clean\_slate\_e2e.py} & สคริปต์ทดสอบการทำงานร่วมกันแบบครบวงจร (End-to-End System Tests) ของระบบบูรณาการ $S_3$ \\
+\hline
+\texttt{build\_installer.ps1}, \texttt{installer.iss} & สคริปต์ PowerShell และ Inno Setup สำหรับสร้างแพ็กเกจตัวติดตั้งแบบ Standalone ออฟไลน์บนระบบปฏิบัติการ Windows \\
 \hline
 \end{tabular}
 \end{table}
 
+\section*{คำอธิบายโครงสร้างไฟล์ผลลัพธ์การทดลอง (Experiment Output Data Structure)}
+
+ไฟล์ผลลัพธ์ในไดเรกทอรี \texttt{benchmarks/clean\_slate/results/} จัดเก็บข้อมูลการทดลองอย่างเป็นระบบใน 3 ระดับ:
+\begin{enumerate}
+    \item \textbf{ไฟล์ผลลัพธ์ระดับรายกรณี (Case-Level CSVs):} เช่น \texttt{exp4\_lora\_evaluation\_test\_seen.csv} และ \texttt{exp4\_lora\_evaluation\_test\_unseen.csv} บันทึกข้อความถอดความจริง ผลการทำนายของตัวสกัดทั้ง 15 ฟิลด์ ค่าความผิดพลาดของคำศัพท์เฉพาะ (C-TER) และตัวเลข (N-DER) เทียบกับเฉลยสำหรับทุกกรณีศึกษา ($N = 150$) เพื่อใช้ในการตรวจสอบย้อนกลับและวิเคราะห์ข้อผิดพลาด
+    \item \textbf{ไฟล์ผลลัพธ์ระดับตารางสรุป (Summary CSVs):} เช่น \texttt{final\_table\_system\_progression\_test\_seen.csv}, \texttt{final\_table\_prompt\_ablation\_test\_seen.csv} และ \texttt{final\_table\_15fields\_test\_seen.csv} ซึ่งเก็บค่าเฉลี่ยและส่วนเบี่ยงเบนมาตรฐานที่ตรงกับตารางในบทที่ 4 ทุกประการ
+    \item \textbf{ไฟล์ฐานข้อมูลสถิติรวมศูนย์ (\texttt{final\_thesis\_master\_summary.json}):} ทำหน้าที่เป็น Single Source of Truth บันทึกสถิติสรุป ค่าสถิติอนุมาน (ค่าสถิติทดสอบ $W$ และ $\chi^2$, ค่า $p$ ก่อนและหลังปรับแก้ Holm-Bonferroni) และช่วงความเชื่อมั่นร้อยละ 95 เพื่อให้สคริปต์สร้างตารางและสร้างรูปภาพดึงข้อมูลจากแหล่งเดียวกันอย่างสอดคล้องสมบูรณ์
+\end{enumerate}
+
 \section*{คำสั่งสำหรับการทำซ้ำผลการทดลอง (Reproducibility Commands)}
 
-การรันสคริปต์เพื่อทำซ้ำผลการทดลองทั้ง 4 ขั้นตอนหลัก (ได้แก่ การสร้างชุดข้อมูล 1,000 กรณีพร้อมทวนสอบตัวสกัด, การรันการทดลองที่ 1--3, การฝึกฝนและประเมินผล LoRA 600 กรณี, และการทดสอบระบบเว็บแอปพลิเคชันแบบครบวงจร) สามารถดำเนินการผ่านคำสั่งต่อไปนี้:
+การรันสคริปต์เพื่อทำซ้ำผลการทดลองทั้งหมดตั้งแต่ขั้นตอนการเตรียมข้อมูล การฝึกฝน การประเมินผลเชิงสถิติ ไปจนถึงการสร้างภาพประกอบวิทยานิพนธ์ สามารถดำเนินการตามลำดับ 6 ขั้นตอนดังต่อไปนี้:
 
 \begin{verbatim}
 # Step 1: Generate 1,000-case dataset (15 CAP fields) & verify parser (100% Macro-F1)
 python scripts/make_finetune_data.py
 
-# Step 2: Run Experiments 1-3 (SNR Calibration, Filter Grid, Prompt Ablation, Cross-Arch)
+# Step 2: Calibrate SNR threshold (tau*=13.55 dB) & run baseline Experiments 1-3
 python benchmarks/clean_slate/run_clean_slate_experiments.py --stage all_core
 python benchmarks/clean_slate/expand_arch_study.py
 
-# Step 3: Train Whisper Small LoRA (r=8, alpha=32) on 600 cases & evaluate on 300 test cases
+# Step 3: Train Whisper Small LoRA (r=8, alpha=32), export INT8 & run progression S0-S3
 python benchmarks/clean_slate/train_whisper_lora.py --epochs 3
 python benchmarks/clean_slate/fix_longform_lora_eval.py
 
-# Step 4: Run End-to-End Flask Web Application Integration Tests
+# Step 4: Run statistical hypothesis tests (McNemar, Wilcoxon, Holm) & generate tables 6-13
+python benchmarks/clean_slate/generate_final_thesis_tables.py
+
+# Step 5: Render high-resolution publication figures (300 DPI Figures 1-6)
+python benchmarks/clean_slate/generate_thesis_figures.py
+
+# Step 6: Execute end-to-end integration and offline desktop application tests
 python tests/test_app_clean_slate_e2e.py
 \end{verbatim}
 
