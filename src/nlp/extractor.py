@@ -56,12 +56,34 @@ def format_section_code(code):
     code = re.sub(r"\s+", "", code)
     return code.upper()
 
-def extract_data_15_sections(text):
+def _normalize_for_v3(text: str) -> str:
+    """Apply general self-correction normalization before extraction."""
     t = normalize_text(text)
-    data = {"_low_confidence": []}
+    dim_pat = r"(\d+(?:\.\d+)?(?:\s*(?:cm|mm))?\s*x\s*\d+(?:\.\d+)?(?:\s*(?:cm|mm))?(?:\s*x\s*\d+(?:\.\d+)?(?:\s*(?:cm|mm))?)?)"
+    cue_pat = r"(?:[\s.,;:\-]*(?:(?:sorry|wait|weight|correction|no\s+wait|actually|i\s+mean|rather)[\s.,;:\-]*)+(?:measuring|measures|size\s+is|it\s+is)?\s*)"
+    t = re.sub(rf"{dim_pat}{cue_pat}{dim_pat}", r"\2", t, flags=re.IGNORECASE)
+    return t
+
+
+def extract_data_15_sections(text):
+    raw_lower = str(text).lower()
+    t = _normalize_for_v3(text)
+    data = {"_low_confidence": [], "_phonetic_warnings": []}
+
+    # Detect potential phonetic confusions BEFORE extraction (for Safety Flagging)
+    if re.search(r"\b(?:discreet|fibrousistic|fibrocistic|infiltrated)\b", raw_lower):
+        data["_phonetic_warnings"].append("phonetic_benign_or_lesion_variant")
+    if re.search(r"\b(?:lymph|weight|deepest|the)\s+margin\b", raw_lower):
+        data["_phonetic_warnings"].append("ambiguous_margin_modifier")
+    if re.search(r"\bwrite\s+(?:breast|mastectomy|simple|modified|specimen)\b", raw_lower):
+        data["_phonetic_warnings"].append("homophone_write_for_right")
 
     # 1. Surgical Number 
-    m = re.search(r"(?:surgical number|specimen|s-)?\s*(?:is\s+)?([sS]?\s*-?\s*\d{2}(?:\s*[-–\s]\s*\d{2,4})+|\b\d{2}-\d{4,}\b|[sS]?\s*-?\s*\d{2}\s*-?\s*\d+)", t, re.IGNORECASE)
+    m = re.search(
+        r"(?:surgical\s+(?:specimen\s+)?(?:number|case)|accession\s+number|case\s+number|specimen|number|s-)?\s*(?:is\s+)?([sS]?\s*-?\s*\d{2}(?:\s*[-–\s]\s*\d{2,6})+|\b\d{2}-\d{4,}\b|[sS]?\s*-?\s*\d{2}\s*-?\s*\d+)",
+        t,
+        re.IGNORECASE,
+    )
     if m: 
         raw_s = m.group(1).replace(" ", "").upper()
         parts = [p for p in re.split(r'[-–]', raw_s) if p]
@@ -93,11 +115,10 @@ def extract_data_15_sections(text):
             data["s2_proc"] = "other"
             data["s2_other_text"] = m.group(1).strip()
      
-    # 3. Specimen Overall Dimensions - v2: chosen by context, not by position
+    # 3. Specimen Overall Dimensions - v2/v3: chosen by context, not by position
     classified = classify_3d_dims(t)
     spec = [m for m, lab in classified if lab == "specimen"]
     if not spec:
-        # no explicit cue: accept the first dimension that is not clearly a mass / other structure
         spec = [m for m, lab in classified if lab is None][:1]
     if spec:
         m = spec[0]
@@ -289,15 +310,12 @@ def extract_data_15_sections(text):
     # 8. Margins (Section 11)
     margins = ["deep", "superior", "inferior", "medial", "lateral", "skin"]
     for m_name in margins:
-        # Pattern A: Name first (handles punctuation like commas or periods: e.g. "deep margin, 1 cm", "deep margin. 1.5 cm")
-        # v2.1: "skin" alone is not a margin cue ("skin is 7 x 3 cm" is the skin ellipse), so require the word "margin"
         bare = "" if m_name == "skin" else rf"|\b{m_name}\b"
-        regex = rf"(?:{m_name}(?:\s+(?:surgical|resection|fascial))?\s*margin{bare})\s*[,.:;]?\s*(?:is\s+(?:close\s+(?:at|to)|free\s+(?:at|to)|measured\s+(?:at|to)|involved\s+(?:at|to))?|at|=|:|\bclose\s+at\b|\bfree\s+at\b)?\s*[,.:;]?\s*([\d.]+)(?:\s*(?:cm|mm))?"
-        m = re.search(regex, t, re.IGNORECASE)
-        # Pattern B: Value first with required 'from' or 'at' (e.g. "2 cm from deep surgical margin")
+        pat_a = rf"(?:{m_name}(?:\s+(?:surgical|resection|fascial))?\s*margin{bare})\s*[,.:;]?\s*(?:(?:is|measures|measured)\s+(?:(?:close|free|clear|measured|involved)\s+(?:at|to)\s+)?|(?:clear|close|free|measured)\s+(?:at|to)\s+|at\s+|=\s*|:\s*)?(\d+(?:\.\d+)?)(?:\s*(?:cm|mm))?"
+        m = re.search(pat_a, t, re.IGNORECASE)
         if not m:
-            regex = rf"([\d.]+)(?:\s*(?:cm|mm))?\s*(?:cm\s*)?(?:from|at)\s*(?:the\s*)?{m_name}(?:\s+(?:surgical|resection|fascial))?(?:\s*margin)?"
-            m = re.search(regex, t, re.IGNORECASE)
+            pat_b = rf"(\d+(?:\.\d+)?)\s*(?:cm|mm)?\s*(?:cm\s*)?(?:from|to|at)\s+(?:the\s+)?(?:closest\s+)?{m_name}(?:\s+(?:surgical|resection|fascial))?(?:\s*margin)?"
+            m = re.search(pat_b, t, re.IGNORECASE)
         if m:
             data[f"s11_{m_name}"] = m.group(1).rstrip('.')
 
@@ -425,13 +443,28 @@ def enhance_extraction_with_nlp(text, data):
                             data[key] = w.text
     return data
 
-def generate_confidence_flags(extracted_data):
+def generate_confidence_flags(
+    extracted_data,
+    avg_logprob=None,
+    min_word_prob=None,
+    logprob_threshold=-0.35,
+    word_prob_threshold=0.75,
+):
+    """
+    Multi-Signal Clinical Safety Flagging (v3):
+      1. Structural & Cross-Field Consistency Checks (missing accession/side/dims, mass without dims/margin)
+      2. Phonetic Ambiguity Warnings (near-homophones on critical pathology terms)
+      3. ASR Acoustic Uncertainty (segment avg_logprob or word probability below threshold)
+    """
     flags = {}
-    if not extracted_data.get("s0_surgical_no") or extracted_data.get("s0_surgical_no").strip() == "":
+    if not extracted_data.get("s0_surgical_no") or str(extracted_data.get("s0_surgical_no")).strip() == "":
         flags["s0_surgical_no"] = True
+    if not extracted_data.get("s1_side"):
+        flags["missing_side"] = True
     s3_dims = extracted_data.get("s3_dims", [])
     if not s3_dims or len(s3_dims) < 3 or not any(char.isdigit() for char in str(s3_dims)):
         flags["s3_dims"] = True
+
     has_mass = extracted_data.get("s10_infiltrative") or extracted_data.get("s10_well")
     if has_mass:
         inf_dims = extracted_data.get("s10_inf_dims", [])
@@ -440,4 +473,15 @@ def generate_confidence_flags(extracted_data):
             flags["mass_dimensions"] = True
         if extracted_data.get("s10_well") and (not well_dims or len(well_dims) < 3):
             flags["mass_dimensions"] = True
+        if extracted_data.get("s10_infiltrative") and not extracted_data.get("s11_deep"):
+            flags["mass_missing_deep_margin"] = True
+
+    for warn in extracted_data.get("_phonetic_warnings", []):
+        flags[warn] = True
+
+    if avg_logprob is not None and float(avg_logprob) < logprob_threshold:
+        flags["low_asr_logprob"] = True
+    if min_word_prob is not None and float(min_word_prob) < word_prob_threshold:
+        flags["low_word_confidence"] = True
+
     return flags

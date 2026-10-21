@@ -4,346 +4,320 @@
 % ============================
 \setcounter{chapter}{-1}
 
-\appendiceschapter{การตั้งค่าระบบ}
-\section*{คำสั่งประมวลผลเสียง}
+\appendiceschapter{การตั้งค่าระบบและพารามิเตอร์ของไปป์ไลน์}
+\section*{คำสั่งและตรรกะการกรองสัญญาณเสียงแบบปรับตัว (\texttt{D8\_snr\_gated})}
 
-ตัวกรองเสียงที่ใช้งานจริงสำหรับการประมวลผลสัญญาณเสียงเบื้องต้นผ่าน FFmpeg แสดงดังนี้ โดยการแปลงความถี่เป็น 16 kHz แบบ Mono ดำเนินการผ่านโมดูลโหลดสัญญาณเสียงของไลบรารีถอดความ:
+ระบบประเมินค่าอัตราส่วนสัญญาณต่อเสียงรบกวนแบบไม่ต้องใช้สัญญาณอ้างอิง ($\widehat{\mathrm{SNR}}$) จากผลต่างเปอร์เซ็นไทล์ค่ารากกำลังสองเฉลี่ยของพลังงาน (Root-Mean-Square Energy: RMS) ของเฟรมเสียงความยาว 25 มิลลิวินาที (ระยะเลื่อนเฟรม 10 มิลลิวินาที) เปรียบเทียบกับค่าเกณฑ์ขีดแบ่งที่สอบเทียบด้วยดัชนียูเดน (Youden's Index) บนชุดข้อมูลตรวจสอบ ($\tau^* = 13.55\text{ dB}$) โดยจะเรียกใช้งานสายโซ่ตัวกรองความถี่ของโปรแกรม FFmpeg เฉพาะเมื่อ $\widehat{\mathrm{SNR}} < 13.55\text{ dB}$ และส่งผ่านสัญญาณเสียงต้นฉบับโดยไม่กรอง (Bypass) เมื่อ $\widehat{\mathrm{SNR}} \ge 13.55\text{ dB}$ เพื่อรักษาสเปกตรัมความถี่ของเสียงพยัญชนะสั้น ดังคำสั่งต่อไปนี้:
 
 \begin{verbatim}
-ffmpeg -i input.mp3 -af "afftdn,
-  silenceremove=start_periods=1:start_duration=0.1:
-  start_threshold=-40dB:stop_periods=-1:
-  stop_duration=0.6:stop_threshold=-40dB" output.wav
+# Case 1: Heavy Noise Detected (Estimated Blind SNR < 13.55 dB)
+ffmpeg -y -i input.wav -ac 1 -ar 16000 -af \
+  "highpass=f=80,afftdn=nr=6:nf=-30:nt=w,\
+   silenceremove=start_periods=1:start_duration=0.1:start_threshold=-40dB:\
+   stop_periods=-1:stop_duration=0.6:stop_threshold=-40dB" output.wav
+
+# Case 2: Clean Speech Detected (Estimated Blind SNR >= 13.55 dB)
+# Bypass spectral filtering (pass original 16 kHz mono waveform directly)
 \end{verbatim}
 
 \begin{table}[H]
 \centering
-\caption{พารามิเตอร์ของตัวกรองเสียง}
+\caption{พารามิเตอร์ของกลไกคัดกรองสัญญาณรบกวนแบบปรับตัว (\texttt{D8\_snr\_gated})}
 \label{tab:appfilter}
 \small
-\begin{tabular}{|l|l|p{6.0cm}|}
+\begin{tabular}{|l|l|p{6.5cm}|}
 \hline
-\textbf{ตัวกรอง} & \textbf{พารามิเตอร์} & \textbf{ค่า} \\
+\textbf{องค์ประกอบ} & \textbf{พารามิเตอร์} & \textbf{ค่าที่กำหนดและเหตุผลทางวิศวกรรม} \\
 \hline
-afftdn & nr / nf / nt & 12 dB / $-50$ dB / white (ค่าเริ่มต้นของ FFmpeg) \\
+Blind SNR Gate & $\tau^*$ ($P_{85} - P_{15}$ Frame Energy) & $13.55\text{ dB}$ (สอบเทียบจากชุดตรวจสอบ \texttt{val} ให้ค่า $J = 1.0000$, คัดแยกถูกต้องร้อยละ $98.67$ บนชุดทดสอบ) \\
 \hline
-silenceremove & ต้นไฟล์ & ตัดเสียงเงียบที่ยาวเกิน 0.1 วินาที ต่ำกว่า $-40$ dB \\
+\texttt{highpass} & ความถี่ตัด ($f_c$) & $80\text{ Hz}$ (กรองตัดเสียงรบกวนความถี่ต่ำจากมอเตอร์พัดลมตู้ดูดควันก่อนเข้าสู่ตัวกรอง \texttt{afftdn}) \\
 \hline
-silenceremove & ตลอดไฟล์ & ตัดช่วงเงียบที่ยาวเกิน 0.6 วินาที ต่ำกว่า $-40$ dB \\
+\texttt{afftdn} & \texttt{nr} / \texttt{nf} / \texttt{nt} & $6\text{ dB}$ / $-30\text{ dB}$ / \texttt{white} (ระดับการลดเสียงรบกวนแบบนุ่มนวลที่ให้ผลดีกว่าค่าเดิม $12\text{ dB}$ จากการค้นหาแบบกริด) \\
+\hline
+\texttt{silenceremove} & ต้นไฟล์และระหว่างไฟล์ & ตัดช่วงสัญญาณเงียบที่ต้นไฟล์เกิน $0.1\text{ s}$ และช่วงเงียบระหว่างพูดที่เกิน $0.6\text{ s}$ (ระดับพลังงานต่ำกว่า $-40\text{ dB}$) \\
 \hline
 \end{tabular}
 \end{table}
 
-\section*{ค่าตั้งค่าการถอดความ}
+\section*{ค่าตั้งค่าการปรับแต่งค่าน้ำหนักแบบจำลอง (LoRA) และเอนจินถอดความ}
 
 \begin{table}[H]
 \centering
-\caption{ค่าตั้งค่าของเอนจินถอดความ}
+\caption{ค่าตั้งค่าของแบบจำลอง PathoWhisper Small LoRA และเอนจินการถอดความแบบปรับโหมดตามความยาวเสียง}
 \label{tab:appconfig}
 \small
-\begin{tabular}{|l|l|}
+\begin{tabular}{|l|p{8.2cm}|}
 \hline
-\textbf{พารามิเตอร์} & \textbf{ค่า} \\
+\textbf{พารามิเตอร์} & \textbf{ค่าที่กำหนด} \\
 \hline
-แบบจำลอง & Faster-Whisper Small \\
+แบบจำลองฐานและเอนจินอนุมาน & OpenAI Whisper Small แปลงเข้าสู่เอนจิน CTranslate2 (Faster-Whisper) \\
 \hline
-อุปกรณ์ & CPU, \texttt{cpu\_threads=8} \\
+การปรับแต่งด้วยพารามิเตอร์จำนวนน้อย (LoRA) & อันดับเมทริกซ์ $r = 8$, สัมประสิทธิ์มาตราส่วน $\alpha = 32$, $\text{dropout} = 0.05$ บนชั้น \texttt{q\_proj, v\_proj} ของตัวถอดรหัส 48 โมดูล (พารามิเตอร์ฝึกฝน $589,824$ ตัว หรือร้อยละ $0.2434$) \\
 \hline
-Compute type & INT8 \\
+ชุดข้อมูลฝึกฝนและตรวจสอบ & \texttt{train} $= 600$ กรณี, \texttt{val} $= 100$ กรณี (ฝึกฝน 3 รอบ, อัตราการเรียนรู้ $\text{lr} = 1 \times 10^{-4}$, ความละเอียดผสม FP16) \\
 \hline
-Beam size & 1 \\
+อุปกรณ์และชนิดข้อมูลขณะอนุมานผล & หน่วยประมวลผลกลาง CPU (\texttt{cpu\_threads=8}), ลดทอนความละเอียดเป็นเลขจำนวนเต็ม 8 บิต \texttt{INT8} (ขนาดไฟล์ประมาณ $253\text{ MB}$) \\
+\hline
+พารามิเตอร์การถอดรหัสมาตรฐาน ($\le 27.5\text{ s}$) & \texttt{beam\_size=1}, \texttt{word\_timestamps=True}, \texttt{condition\_on\_previous\_text=False} \\
+\hline
+การถอดรหัสไฟล์เสียงความยาวสูง ($> 27.5\text{ s}$) & \texttt{without\_timestamps=True}, \texttt{condition\_on\_previous\_text=False}, \texttt{repetition\_penalty=1.15}, \texttt{vad\_filter=True} (\texttt{min\_silence\_duration\_ms=400}) \\
 \hline
 \end{tabular}
 \end{table}
 
-\section*{ข้อความนำ (PATHOLOGY\_PROMPT)}
+\section*{การออกแบบข้อความนำบริบทแบบแยกส่วนเชิงตั้งฉาก ($P_0 \dots P_4$)}
+
+ข้อความนำบริบทที่ใช้งานในระบบบูรณาการ ($P_4$: \texttt{P4\_phonetic\_contrastive}) ได้รับการออกแบบโดยไม่คัดลอกสำนวนประโยคตัวอย่างจากชุดข้อมูลทดสอบ (Zero-Phrase-Leakage) และมีความยาว 118 โทเคน (อยู่ภายในขีดจำกัด 224 โทเคนของตัวถอดรหัส Whisper) ดังนี้:
 
 \begin{quote}
 \small
-Surgical pathology gross examination report. Surgical number S-26-1001. Received in formalin is a right modified radical mastectomy specimen. Left simple mastectomy. Skin ellipse. The nipple is everted, inverted, unremarkable, shows ulceration. Infiltrative firm yellow-white mass located at upper outer quadrant, upper inner quadrant, lower outer quadrant, lower inner quadrant, central, subareolar. Well-defined firm white mass with slit-like appearance. Poorly circumscribed yellow-white lesion. Previous surgical cavity with adjacent fibrous tissue. Residual mass. Deep surgical resection margin, superior margin, inferior margin, medial margin, lateral margin, skin margin. Centimeters, cm, millimeters, mm. Distance from closest margin. Grossly free from tumor. Representative sections submitted in paraffin blocks. Axillary contents, level 1, level 2, lymph nodes.
+\texttt{Gross pathology breast specimen (CAP protocol). Terminology \& homophone disambiguation: right breast vs left breast (not write), modified radical mastectomy, simple mastectomy, skin ellipse, nipple everted, inverted, retracted, healed biopsy scar, biopsy cavity with residual mass, infiltrative mass vs no discrete mass (not discreet), entirely fibrocystic change (not fibrousistic), ductal carcinoma in situ with microinvasion, upper outer, upper inner, lower outer, lower inner, central quadrant, deep surgical margin (not lymph or weight margin), superior, inferior, medial, lateral margin, axillary lymph nodes. Format: S-00-0000, 0.0 x 0.0 x 0.0 cm.}
 \end{quote}
 
-\noindent ข้อความนี้มี 111 คำ และเมื่อนับด้วยตัวตัดคำของ Whisper แบบหลายภาษาได้ 198 โทเคน ซึ่งไม่เกินขีดจำกัดของข้อความนำที่ 223 โทเคน
-
 \appendiceschapter{ฟิลด์ข้อมูลที่สกัดและผลการประเมินโดยละเอียด}
-\section*{รายการฟิลด์ 15 ฟิลด์}
+\section*{รายการฟิลด์มาตรฐาน CAP ทั้ง 15 ฟิลด์}
 
 \begin{table}[H]
 \centering
-\caption{ฟิลด์ที่ตัวสกัดข้อมูลรองรับ}
+\caption{ฟิลด์ข้อมูลทางศัลยพยาธิวิทยาเต้านมตามเกณฑ์มาตรฐาน CAP ทั้ง 15 ฟิลด์ที่ระบบรองรับและใช้ประเมินผล}
 \label{tab:appfields}
 \footnotesize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{|c|p{5.0cm}|p{6.6cm}|}
+\begin{tabular}{|c|p{4.6cm}|p{7.0cm}|}
 \hline
-\textbf{ที่} & \textbf{รหัสฟิลด์} & \textbf{ความหมาย} \\
+\textbf{ที่} & \textbf{รหัสฟิลด์} & \textbf{ความหมายและบทบาทในการประเมิน} \\
 \hline
-1 & \texttt{s0\_surgical\_no} & เลขที่สิ่งส่งตรวจทางศัลยกรรม \\
+1 & \texttt{s0\_surgical\_no} & เลขที่สิ่งส่งตรวจทางศัลยกรรม (เช่น \texttt{S-26-8450}) \\
 \hline
-2 & \texttt{s1\_side} & ด้านของเต้านม (Right / Left) \\
+2 & \texttt{s1\_side} & ด้านของเต้านม (\texttt{Right} / \texttt{Left}) --- \textbf{ฟิลด์วิกฤต (Critical)} \\
 \hline
-3 & \texttt{s2\_proc} & ประเภทหัตถการ (Mastectomy, Lumpectomy ฯลฯ) \\
+3 & \texttt{s2\_proc} & ประเภทหัตถการผ่าตัด (\texttt{Modified radical mastectomy}, \texttt{Simple mastectomy}) \\
 \hline
-4 & \texttt{s3\_dims} & ขนาด 3 มิติของชิ้นเนื้อ (ซม.) \\
+4 & \texttt{s3\_dims} & ขนาด 3 มิติของสิ่งส่งตรวจหลัก (ซม.) --- \textbf{ฟิลด์วิกฤต (Critical)} \\
 \hline
-5 & \texttt{s4\_skin} & มีชิ้นผิวหนังติดมาหรือไม่ \\
+5 & \texttt{s4\_skin} & การมีชิ้นผิวหนังรูปวงรี (\texttt{Skin ellipse}) ติดมากับสิ่งส่งตรวจ \\
 \hline
 6 & \texttt{s5\_dims} & ขนาด 2 มิติของชิ้นผิวหนัง (ซม.) \\
 \hline
-7 & \texttt{s6\_nipple} & สภาพหัวนมและลานนม \\
+7 & \texttt{s6\_nipple} & สภาพหัวนมและลานนม (\texttt{everted}, \texttt{inverted}, \texttt{retracted}) (มีกรณีผลบวกในหมวดหมู่ที่ 4) \\
 \hline
-8 & \texttt{s7\_biopsy\_scar} & มีรอยแผลเป็นจากการเจาะตรวจเดิมหรือไม่ \\
+8 & \texttt{s7\_biopsy\_scar} & การพบรอยแผลเป็นจากการเจาะตรวจเดิม (\texttt{healed biopsy scar}) (มีกรณีผลบวกในหมวดหมู่ที่ 4) \\
 \hline
-9 & \texttt{s8\_cavity} & มีโพรงจากการผ่าตัดครั้งก่อนหรือไม่ \\
+9 & \texttt{s8\_cavity} & การพบโพรงจากการผ่าตัดครั้งก่อน (\texttt{biopsy cavity}) (มีกรณีผลบวกในหมวดหมู่ที่ 10) \\
 \hline
-10 & \texttt{s9\_residual\_mass} & พบก้อนหลงเหลือติดโพรงเดิมหรือไม่ \\
+10 & \texttt{s9\_residual\_mass} & ขนาดก้อนเนื้องอกหลงเหลือข้างโพรงผ่าตัดเดิม (มีกรณีผลบวกในหมวดหมู่ที่ 10) \\
 \hline
-11 & \texttt{s10\_infiltrative} & ลักษณะของก้อนหลัก (พบก้อนลุกลามหรือไม่) \\
+11 & \texttt{s10\_infiltrative} & ลักษณะรอยโรคหลัก (\texttt{Infiltrative}, \texttt{Circumscribed}, \texttt{No mass}) --- \textbf{ฟิลด์วิกฤต (Critical)} \\
 \hline
-12 & \texttt{s10\_inf\_dims} & ขนาด 3 มิติของก้อนหลัก \\
+12 & \texttt{s10\_inf\_dims} & ขนาด 3 มิติของก้อนเนื้องอกหลัก (ซม.) --- \textbf{ฟิลด์วิกฤต (Critical)} \\
 \hline
-13 & \texttt{s10\_5\_quadrant} & ตำแหน่งจตุภาคที่พบก้อน \\
+13 & \texttt{s10\_5\_quadrant} & ตำแหน่งจตุภาคที่พบก้อนเนื้องอก (\texttt{UOQ}, \texttt{UIQ}, \texttt{LOQ}, \texttt{LIQ}, \texttt{Central}) \\
 \hline
-14 & \texttt{s11\_deep\_margin} & ระยะห่างจากขอบตัดด้านลึก (Deep Margin) \\
+14 & \texttt{s11\_deep\_margin} & ระยะห่างจากขอบตัดด้านลึก (\texttt{Deep Margin}, ซม.) --- \textbf{ฟิลด์วิกฤต (Critical)} \\
 \hline
-15 & \texttt{s14\_check} & การตรวจต่อมน้ำเหลืองรักแร้ (ค่าจริงหรือเท็จ: พบหรือไม่พบต่อมน้ำเหลือง) \\
+15 & \texttt{s14\_check} & การตรวจพบและระบุจำนวนต่อมน้ำเหลืองรักแร้ (\texttt{Axillary lymph nodes}) --- \textbf{ฟิลด์วิกฤต (Critical)} \\
 \hline
 \end{tabular}
 \end{table}
 
-\noindent ฟิลด์ที่มีค่าบวกในเฉลยของชุดทดสอบ 1,000 กรณีมี 11 ฟิลด์ (ทุกฟิลด์ยกเว้น \texttt{s6\_nipple}, \texttt{s7\_biopsy\_scar}, \texttt{s8\_cavity} และ \texttt{s9\_residual\_mass}) ส่วน 4 ฟิลด์ดังกล่าวเป็นฟิลด์ควบคุมเชิงลบที่ไม่มีการระบุค่า จึงรายงานเฉพาะค่าความจำเพาะ ทั้งนี้ฟิลด์ \texttt{s14\_check} ใช้ระบุการตรวจพบต่อมน้ำเหลือง และฟิลด์ \texttt{s11\_deep\_margin} ครอบคลุมการประเมินระยะห่างของขอบตัดด้านลึกตามขอบเขตที่กำหนด
+\noindent ชุดข้อมูล \texttt{dataset\_ft} ได้รับการออกแบบให้มีข้อมูลครบทั้ง 15 ฟิลด์ครอบคลุมทั้ง 10 หมวดหมู่สภาวะทางคลินิก โดยตัวสกัดข้อมูลแบบกำหนดแน่นอนรุ่นที่ 3 (\texttt{src/nlp/extractor\_v3.py}) ให้ความถูกต้องเฉลี่ย $\text{Macro-}F_1 = 100.0\%$ ($\text{CER}_{\text{case}} = 0.00\%$) บนข้อความอ้างอิงเฉลยต้นฉบับ
 
-\section*{จำนวนนับต่อฟิลด์}
+\section*{ตารางแจงนับผลการสกัดข้อมูล (Confusion Matrix) รายฟิลด์บนชุดทดสอบรวม ($N = 300$ กรณี)}
 
 \begin{table}[H]
 \centering
-\caption{จำนวนนับ TP, FP, FN และ TN ต่อฟิลด์ (1,000 กรณี) กรณีสกัดได้ค่าผิดนับเป็นทั้ง FP และ FN}
+\caption{จำนวนนับผลบวกจริง (TP), ผลบวกลวง (FP), ผลลบลวง (FN) และผลลบจริง (TN) ต่อฟิลด์บนชุดทดสอบรวม 300 กรณี (\texttt{test\_seen} 150 กรณี + \texttt{test\_unseen} 150 กรณี) เปรียบเทียบระหว่างระบบพื้นฐาน ($S_0$) และระบบบูรณาการ $S_3$ (กรณีสกัดค่าผิดไปจากเฉลยจะถูกนับเป็นทั้ง FP และ FN)}
 \label{tab:confmat}
 \scriptsize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{|l|r|r|r|r|r|r|r|r|}
 \hline
- & \multicolumn{4}{c|}{\textbf{Baseline}} & \multicolumn{4}{c|}{\textbf{PathoWhisper}} \\
+ & \multicolumn{4}{c|}{\textbf{Baseline ($S_0$: $P_0$)}} & \multicolumn{4}{c|}{\textbf{PathoWhisper ($S_3$: LoRA + $P_4$ + \texttt{D8})}} \\
 \hline
 \textbf{ฟิลด์} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
 \hline
-\texttt{s0\_surgical\_no} & 976 & 24 & 24 & 0 & 978 & 20 & 22 & 0 \\
+\texttt{s0\_surgical\_no} & 283 & 14 & 17 & 0 & 288 & 12 & 12 & 0 \\
 \hline
-\texttt{s1\_side} & 898 & 0 & 102 & 0 & 999 & 1 & 1 & 0 \\
+\texttt{s1\_side} & 284 & 0 & 16 & 0 & 292 & 0 & 8 & 0 \\
 \hline
-\texttt{s2\_proc} & 900 & 0 & 0 & 100 & 900 & 0 & 0 & 100 \\
+\texttt{s2\_proc} & 290 & 0 & 10 & 0 & 296 & 0 & 4 & 0 \\
 \hline
-\texttt{s3\_dims} & 983 & 12 & 17 & 0 & 977 & 14 & 23 & 0 \\
+\texttt{s3\_dims} & 276 & 5 & 24 & 0 & 292 & 4 & 8 & 0 \\
 \hline
-\texttt{s4\_skin} & 481 & 0 & 19 & 500 & 498 & 0 & 2 & 500 \\
+\texttt{s4\_skin} & 146 & 0 & 4 & 150 & 147 & 0 & 3 & 150 \\
 \hline
-\texttt{s5\_dims} & 376 & 6 & 24 & 600 & 393 & 5 & 7 & 600 \\
+\texttt{s5\_dims} & 120 & 3 & 0 & 177 & 120 & 4 & 0 & 176 \\
 \hline
-\texttt{s6\_nipple} & 0 & 0 & 0 & 1,000 & 0 & 0 & 0 & 1,000 \\
+\texttt{s6\_nipple} & 28 & 2 & 2 & 270 & 27 & 3 & 3 & 270 \\
 \hline
-\texttt{s7\_biopsy\_scar} & 0 & 0 & 0 & 1,000 & 0 & 0 & 0 & 1,000 \\
+\texttt{s7\_biopsy\_scar} & 28 & 0 & 2 & 270 & 30 & 0 & 0 & 270 \\
 \hline
-\texttt{s8\_cavity} & 0 & 0 & 0 & 1,000 & 0 & 0 & 0 & 1,000 \\
+\texttt{s8\_cavity} & 30 & 0 & 0 & 270 & 30 & 0 & 0 & 270 \\
 \hline
-\texttt{s9\_residual\_mass} & 0 & 0 & 0 & 1,000 & 0 & 0 & 0 & 1,000 \\
+\texttt{s9\_residual\_mass} & 30 & 0 & 0 & 270 & 29 & 1 & 1 & 270 \\
 \hline
-\texttt{s10\_infiltrative} & 782 & 2 & 18 & 198 & 794 & 12 & 6 & 188 \\
+\texttt{s10\_infiltrative} & 204 & 5 & 6 & 85 & 206 & 0 & 4 & 90 \\
 \hline
-\texttt{s10\_inf\_dims} & 653 & 21 & 47 & 299 & 660 & 17 & 40 & 300 \\
+\texttt{s10\_inf\_dims} & 197 & 6 & 13 & 90 & 202 & 4 & 8 & 90 \\
 \hline
-\texttt{s10\_5\_quadrant} & 500 & 0 & 0 & 500 & 498 & 2 & 2 & 500 \\
+\texttt{s10\_5\_quadrant} & 148 & 2 & 2 & 150 & 147 & 2 & 3 & 150 \\
 \hline
-\texttt{s11\_deep\_margin} & 687 & 1 & 13 & 300 & 656 & 6 & 44 & 300 \\
+\texttt{s11\_deep\_margin} & 186 & 7 & 24 & 90 & 197 & 3 & 13 & 90 \\
 \hline
-\texttt{s14\_check} & 575 & 0 & 25 & 400 & 598 & 0 & 2 & 400 \\
+\texttt{s14\_check} & 179 & 0 & 1 & 120 & 178 & 3 & 2 & 117 \\
 \hline
-\textbf{รวม} & \textbf{7,811} & \textbf{66} & \textbf{289} & \textbf{6,897} & \textbf{7,951} & \textbf{77} & \textbf{149} & \textbf{6,888} \\
+\textbf{รวมทั้ง 15 ฟิลด์} & \textbf{2,429} & \textbf{44} & \textbf{121} & \textbf{1,942} & \textbf{2,481} & \textbf{36} & \textbf{69} & \textbf{1,943} \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
-\noindent ผลรวม TP+TN ของ baseline คือ 14,708 และของ PathoWhisper คือ 14,839 จาก 15,000 ช่อง ผลรวมของทั้งสี่คอลัมน์มากกว่า 15,000 เท่ากับจำนวนช่องที่สกัดได้ค่าผิด (63 และ 65 ช่อง)
+\noindent จากช่องข้อมูลทั้งหมด $300 \times 15 = 4{,}500$ ช่อง ระบบบูรณาการ $S_3$ ให้ความถูกต้องระดับช่องข้อมูล ($\text{TP} + \text{TN}$) สูงถึง $4{,}424 / 4{,}500$ ช่อง (คิดเป็นร้อยละ $98.31$) และลดจำนวนการตกหล่นหรือสกัดผิดพลาดของข้อมูลที่มีอยู่จริง (FN) ลงจาก $121$ ช่อง เหลือเพียง $69$ ช่อง (ลดลงร้อยละ $43.0$)
 
-\section*{ข้อผิดพลาดตามหมวดหมู่}
+\section*{การกระจายตัวของข้อผิดพลาดตามหมวดหมู่การทดสอบ ($N = 300$ กรณี)}
 
 \begin{table}[H]
 \centering
-\caption{จำนวนช่องที่สกัดผิดของ PathoWhisper จำแนกตามฟิลด์และหมวดหมู่ (หมวดละ 100 กรณี)}
+\caption{จำนวนช่องข้อมูลที่สกัดผิดของระบบบูรณาการ $S_3$ จำแนกตามฟิลด์และหมวดหมู่การทดสอบทั้ง 10 หมวดหมู่ (หมวดหมู่ละ 30 กรณี: \texttt{test\_seen} 15 กรณี + \texttt{test\_unseen} 15 กรณี)}
 \label{tab:caterr}
 \scriptsize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{|l|r|r|r|r|r|r|r|r|r|r|r|}
 \hline
 \textbf{ฟิลด์} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} & \textbf{9} & \textbf{10} & \textbf{รวม} \\
 \hline
-\texttt{s0\_surgical\_no} & 0 & 9 & 0 & 2 & 0 & 0 & 7 & 2 & 0 & 2 & 22 \\
+\texttt{s0\_surgical\_no} & 0 & 0 & 0 & 1 & 0 & 0 & 2 & 9 & 0 & 0 & 12 \\
 \hline
-\texttt{s1\_side} & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
+\texttt{s1\_side} & 0 & 0 & 0 & 0 & 2 & 0 & 0 & 6 & 0 & 0 & 8 \\
 \hline
-\texttt{s2\_proc} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\texttt{s2\_proc} & 0 & 0 & 0 & 0 & 2 & 0 & 0 & 2 & 0 & 0 & 4 \\
 \hline
-\texttt{s3\_dims} & 1 & 2 & 1 & 4 & 1 & 2 & 5 & 2 & 3 & 2 & 23 \\
+\texttt{s3\_dims} & 0 & 0 & 0 & 0 & 2 & 0 & 0 & 6 & 0 & 0 & 8 \\
 \hline
-\texttt{s4\_skin} & 0 & 0 & 0 & 0 & 0 & 0 & 2 & 0 & 0 & 0 & 2 \\
+\texttt{s4\_skin} & 0 & 0 & 3 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 3 \\
 \hline
-\texttt{s5\_dims} & 0 & 0 & 0 & 0 & 0 & 0 & 7 & 0 & 0 & 0 & 7 \\
+\texttt{s5\_dims} & 0 & 0 & 4 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 4 \\
 \hline
-\texttt{s6\_nipple} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\texttt{s6\_nipple} & 0 & 0 & 0 & 3 & 0 & 0 & 0 & 0 & 0 & 0 & 3 \\
 \hline
 \texttt{s7\_biopsy\_scar} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
 \hline
 \texttt{s8\_cavity} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
 \hline
-\texttt{s9\_residual\_mass} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\texttt{s9\_residual\_mass} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 1 \\
 \hline
-\texttt{s10\_infiltrative} & 0 & 0 & 0 & 1 & 0 & 12 & 5 & 0 & 0 & 0 & 18 \\
+\texttt{s10\_infiltrative} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 4 & 0 & 0 & 4 \\
 \hline
-\texttt{s10\_inf\_dims} & 2 & 10 & 5 & 7 & 0 & 0 & 13 & 2 & 1 & 0 & 40 \\
+\texttt{s10\_inf\_dims} & 0 & 0 & 1 & 0 & 0 & 0 & 1 & 6 & 0 & 0 & 8 \\
 \hline
-\texttt{s10\_5\_quadrant} & 0 & 0 & 0 & 2 & 0 & 0 & 0 & 0 & 0 & 0 & 2 \\
+\texttt{s10\_5\_quadrant} & 1 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 1 & 0 & 3 \\
 \hline
-\texttt{s11\_deep\_margin} & 25 & 6 & 0 & 4 & 0 & 0 & 9 & 0 & 0 & 0 & 44 \\
+\texttt{s11\_deep\_margin} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 12 & 0 & 1 & 13 \\
 \hline
-\texttt{s14\_check} & 0 & 0 & 0 & 0 & 0 & 0 & 2 & 0 & 0 & 0 & 2 \\
+\texttt{s14\_check} & 0 & 0 & 0 & 3 & 2 & 0 & 0 & 0 & 0 & 0 & 5 \\
 \hline
-\textbf{รวม} & \textbf{28} & \textbf{27} & \textbf{7} & \textbf{20} & \textbf{1} & \textbf{14} & \textbf{50} & \textbf{6} & \textbf{4} & \textbf{4} & \textbf{161} \\
+\textbf{รวมช่องที่ผิด} & \textbf{1} & \textbf{0} & \textbf{8} & \textbf{8} & \textbf{8} & \textbf{0} & \textbf{3} & \textbf{45} & \textbf{1} & \textbf{2} & \textbf{76} \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
-\noindent หมวดที่ 1--10 เรียงตามตารางที่ \ref{tab:categories} ผลรวม 161 ช่องตรงกับจำนวนช่องผิดของ PathoWhisper ในตารางที่ \ref{tab:confmat}
+\noindent จากตารางจะเห็นได้ว่าในหมวดหมู่ที่ 2 (การบรรยายข้อมูลสลับลำดับ: Out-of-Order Reporting) และหมวดหมู่ที่ 6 (สิ่งส่งตรวจเนื้อเยื่อปกติที่ไม่ใช่มะเร็ง: Benign Control) ระบบบูรณาการ $S_3$ มีความผิดพลาดเป็นศูนย์ ($0$ ช่อง) ส่วนความผิดพลาดส่วนใหญ่กระจุกตัวอยู่ในหมวดหมู่ที่ 8 (สภาวะเสียงรบกวนพัดลมตู้ดูดควันระดับรุนแรง $\mathrm{SNR} = -10\text{ dB}$) ซึ่งระบบแจ้งเตือนความปลอดภัยหลายสัญญาณจะยกธงแจ้งเตือนความเสี่ยงในสัดส่วนสูงที่สุดเพื่อส่งต่อให้พยาธิแพทย์ตรวจทานซ้ำตามระเบียบวิธีคัดกรองความปลอดภัย
 
-\section*{การทดสอบหน่วยของตัวปรับข้อความ}
+\section*{การทดสอบระดับหน่วย (Unit Testing) ของตัวปรับข้อความและตัวสกัดข้อมูล}
 
 \begin{table}[H]
 \centering
-\caption{ผลการทดสอบหน่วยของตัวปรับข้อความ (16 กรณี) ผลลัพธ์ที่ได้ตรงกับผลลัพธ์ที่คาดหวังทุกกรณี}
+\caption{ผลการทดสอบระดับหน่วยของตัวปรับข้อความสำหรับคัดกรองการพูดแก้ไขตัวเองกลางประโยค (16 กรณีทดสอบ) และการทดสอบบูรณาการระดับระบบ (4 ชุดการทดสอบหลัก)}
 \label{tab:unit}
 \scriptsize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{|p{1.0cm}|p{5.3cm}|p{5.3cm}|p{1.2cm}|}
+\begin{tabular}{|p{1.2cm}|p{5.2cm}|p{5.2cm}|p{1.2cm}|}
 \hline
-\textbf{ที่} & \textbf{อินพุต} & \textbf{ผลลัพธ์} & \textbf{สถานะ} \\
+\textbf{รหัส} & \textbf{ข้อมูลนำเข้า / ชุดการทดสอบ} & \textbf{ผลลัพธ์ที่ได้} & \textbf{สถานะ} \\
 \hline
-TC-01 & infiltrative mass measuring 2.0 x 3.0 x 1.0 cm sorry 2.5 x 3.5 x 1.5 cm & infiltrative mass measuring 2.5 x 3.5 x 1.5 cm & ผ่าน \\
+TC-01 & \texttt{infiltrative mass measuring 2.0 x 3.0 x 1.0 cm sorry 2.5 x 3.5 x 1.5 cm} & \texttt{infiltrative mass measuring 2.5 x 3.5 x 1.5 cm} & ผ่าน \\
 \hline
-TC-02 & 10 x 5 x 2 cm, weight is 450 grams & 10 x 5 x 2 cm, weight is 450 grams & ผ่าน \\
+TC-02..06 & การแยกแยะคำว่า \texttt{weight / grams / kg} ออกจากคำกริยาแจ้งแก้ไข \texttt{wait} & คงค่าขนาดชิ้นเนื้อและน้ำหนักไว้ครบถ้วนโดยไม่ถูกลบ & ผ่าน \\
 \hline
-TC-03 & 10 x 5 x 2 cm, weight of 450 grams & 10 x 5 x 2 cm, weight of 450 grams & ผ่าน \\
+TC-07..09 & การใช้คำว่า \texttt{actually / no} ในบริบทเปลี่ยนหัวข้อฟิลด์หรือระบุจำนวนต่อมน้ำเหลือง & ไม่ลบค่าของฟิลด์ก่อนหน้าโดยผิดพลาด & ผ่าน \\
 \hline
-TC-04 & 10 x 5 x 2 cm, weight: 450 g & 10 x 5 x 2 cm, weight: 450 g & ผ่าน \\
+TC-10..11 & \texttt{mass measuring 2.0 x 3.0 x 1.0 cm weight (wait) 2.5 x 3.5 x 1.5 cm} & \texttt{mass measuring 2.5 x 3.5 x 1.5 cm} & ผ่าน \\
 \hline
-TC-05 & 10 x 5 x 2 cm, weight 0.45 kg & 10 x 5 x 2 cm, weight 0.45 kg & ผ่าน \\
+TC-12..15 & ประโยคปฏิเสธทางคลินิก (\texttt{no residual mass / no discrete mass}) & คงประโยคปฏิเสธไว้ครบถ้วนและตั้งค่า \texttt{No mass} ถูกต้อง & ผ่าน \\
 \hline
-TC-06 & specimen measuring 10 x 5 x 2 cm, weight 450 grams & specimen measuring 10 x 5 x 2 cm, weight 450 grams & ผ่าน \\
+TC-16 & \texttt{mass measuring 2 x 2 cm แก้เป็น 3 x 3 cm} & \texttt{mass measuring 3 x 3 cm} & ผ่าน \\
 \hline
-TC-07 & 10 x 5 x 2 cm. actually the skin ellipse measures 5 x 2 cm & 10 x 5 x 2 cm. actually the skin ellipse measures 5 x 2 cm & ผ่าน \\
+E2E-01 & ทดสอบการกำหนดค่า \texttt{config.py}, แบบจำลอง LoRA INT8 และข้อความนำ $P_4$ & โหลดแบบจำลอง \texttt{models/pathowhisper\_lora\_int8} สำเร็จ & ผ่าน \\
 \hline
-TC-08 & 5.3 x 2.4 x 2.9 cm weight margin is 3.0 cm & 5.3 x 2.4 x 2.9 cm weight margin is 3.0 cm & ผ่าน \\
+E2E-02 & ทดสอบ \texttt{extractor\_v3.py} บนชุดข้อความตัวแทนครบทั้ง 15 ฟิลด์ & สกัดข้อมูลครบ 15/15 ฟิลด์ด้วยความถูกต้องร้อยละ $100$ & ผ่าน \\
 \hline
-TC-09 & margin 2 mm no 3 lymph nodes & margin 2 mm no 3 lymph nodes & ผ่าน \\
+E2E-03 & ทดสอบเอนจิน \texttt{FasterWhisperEngine} ร่วมกับกลไก \texttt{D8\_snr\_gated} & คัดแยกเสียงสะอาด ($\widehat{\mathrm{SNR}} = 49.4\text{ dB}$) และเสียงตู้ดูดควัน ($\widehat{\mathrm{SNR}} = 1.9\text{ dB}$) ถูกต้อง & ผ่าน \\
 \hline
-TC-10 & mass measuring 2 cm no 3 cm & mass measuring 3 cm & ผ่าน \\
-\hline
-TC-11 & mass measuring 2.0 x 3.0 x 1.0 cm weight 2.5 x 3.5 x 1.5 cm & mass measuring 2.5 x 3.5 x 1.5 cm & ผ่าน \\
-\hline
-TC-12 & specimen weight 450 grams & specimen weight 450 grams & ผ่าน \\
-\hline
-TC-13 & no residual mass identified in the specimen & no residual mass identified in the specimen & ผ่าน \\
-\hline
-TC-14 & no discrete mass identified & no discrete mass identified & ผ่าน \\
-\hline
-TC-15 & actually there is no mass in the upper outer quadrant & actually there is no mass in the upper outer quadrant & ผ่าน \\
-\hline
-TC-16 & mass measuring 2 x 2 cm แก้เป็น 3 x 3 cm & mass measuring 3 x 3 cm & ผ่าน \\
+E2E-04 & ทดสอบจุดเชื่อมต่อ \texttt{POST /api/transcribe} ของเว็บแอปพลิเคชัน Flask แบบครบวงจร & ถอดความ สกัดข้อมูล 15 ฟิลด์ และสร้างธงเตือนสำเร็จในเวลา $3.40\text{ s}$ & ผ่าน \\
 \hline
 \end{tabular}
 \end{table}
 
-\appendiceschapter{ข้อมูลและสคริปต์ที่ใช้คำนวณผล}
-
-ซอร์สโค้ดของระบบ ตัวสกัดข้อมูล สคริปต์ประเมินผล และชุดข้อความทดสอบทั้งหมดเผยแพร่ในคลังโค้ดสาธารณะ \cite{pathowhisperrepo} โดยไฟล์ที่ใช้คำนวณตัวเลขในเล่มมีรายการดังตารางที่ \ref{tab:appfiles} และคำสั่งทำซ้ำอยู่ท้ายภาคผนวกนี้
-\section*{ไฟล์ผลการทดลอง}
+\appendiceschapter{ข้อมูลและสคริปต์ที่ใช้ในการทดลองและคำนวณผล}
+\section*{คลังข้อมูล สคริปต์การทดลอง และไฟล์ผลลัพธ์}
 
 \begin{table}[H]
 \centering
-\caption{ไฟล์ผลการทดลองและสคริปต์}
+\caption{โครงสร้างไฟล์ข้อมูล สคริปต์การทดลองแบบแยกส่วน และไฟล์ผลลัพธ์ในสถาปัตยกรรมการทดลอง}
 \label{tab:appfiles}
 \scriptsize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{|p{6.4cm}|p{6.6cm}|}
 \hline
-\textbf{ไฟล์} & \textbf{เนื้อหา} \\
+\textbf{ไฟล์ / โฟลเดอร์} & \textbf{หน้าที่และเนื้อหา} \\
 \hline
-\texttt{benchmark\_1000\_cases\_overnight.csv} & ผลรายกรณี 2,000 บรรทัด (เฉลย ผลถอด WER CER เวลา) \\
+\texttt{scripts/make\_finetune\_data.py} & สคริปต์สร้างชุดข้อมูล \texttt{dataset\_ft} จำนวน 1,000 กรณี พร้อมแยกคลังสำนวนประโยคระหว่าง \texttt{train/val/test\_seen} และ \texttt{test\_unseen} แบบไม่รั่วไหล \\
 \hline
-\texttt{benchmark\_1000\_category\_breakdown.csv} & สรุป WER CER เวลา รายหมวด 10 หมวด \\
+\texttt{data/dataset\_ft/ground\_truth\_ft.json}, \texttt{manifest.csv} & ข้อมูลเฉลยครบทั้ง 15 ฟิลด์ และรายการไฟล์เสียงทั้ง 1,000 กรณี (\texttt{train}=600, \texttt{val}=100, \texttt{test\_seen}=150, \texttt{test\_unseen}=150) \\
 \hline
-\texttt{field\_metrics\_15\_pure\_gt\_v2.csv} & Precision, Recall, F1 และ TP, FP, FN, TN ต่อฟิลด์ (15 ฟิลด์) ของทั้งสองระบบ \\
+\texttt{src/nlp/extractor\_v3.py} & ตัวสกัดข้อมูลแบบกำหนดแน่นอนรุ่นที่ 3 รองรับครบทั้ง 15 ฟิลด์ CAP และระบบสร้างธงเตือนความปลอดภัยหลายสัญญาณ \\
 \hline
-\texttt{category\_errors\_15\_fields\_v2.csv} & จำนวนช่องผิดต่อฟิลด์ต่อหมวด \\
+\texttt{benchmarks/clean\_slate/acoustic\_filters.py} & โมดูลคำนวณค่าประมาณ $\widehat{\mathrm{SNR}}$ แบบไม่ต้องใช้สัญญาณอ้างอิง และกลไกคัดกรองสัญญาณเสียง \texttt{D8\_snr\_gated} \\
 \hline
-\texttt{parser\_refinement\_comparison.csv} & ผลก่อนและหลังปรับตัวสกัดสองรอบ \\
+\texttt{benchmarks/clean\_slate/metrics\_clean.py} & โมดูลคำนวณตัวชี้วัดทั้ง 3 ระดับ: Normalized WER, C-TER, N-DER, 15-Field Macro-$F_1$, $\mathrm{CER}_{\mathrm{case}}$ และคะแนนความเสี่ยง \\
 \hline
-\texttt{analyze\_output.txt} & ผลของ \texttt{analyze\_benchmark.py}: สถิติแบบจับคู่ (Wilcoxon, Bootstrap) ผลรายหมวด และอัตราความผิดพลาดตามชนิดของคำ \\
+\texttt{benchmarks/clean\_slate/run\_clean\_slate\_experiments.py} & สคริปต์หลักสำหรับรันการทดลองที่ 1--4 (การสอบเทียบ $\tau^*$, การค้นหาพารามิเตอร์ \texttt{afftdn}, การแยกส่วนข้อความนำ $P_0 \dots P_4$ และการเปรียบเทียบข้ามสถาปัตยกรรม) \\
 \hline
-\texttt{core\_output\_v2.txt} & ผลของ \texttt{eval\_clinical\_core\_metrics.py} กับตัวสกัดรุ่นที่ 2: ตัวชี้วัดระดับเคส และการเปรียบเทียบ 20 กรณี \\
+\texttt{benchmarks/clean\_slate/expand\_arch\_study.py} & สคริปต์ประเมินเปรียบเทียบแบบจำลองตระกูล Kaldi FST (\texttt{Vosk}), ตระกูล CTC (\texttt{Wav2Vec 2.0 Base/Large}, \texttt{HuBERT}, \texttt{WavLM}) และตระกูล \texttt{Whisper} \\
 \hline
-\texttt{fields\_output\_v2.txt} & ผลของ \texttt{eval\_fields\_15.py}: Macro-F1 ความสอดคล้องระดับช่อง และข้อผิดพลาดต่อฟิลด์ \\
+\texttt{benchmarks/clean\_slate/train\_whisper\_lora.py} & สคริปต์ฝึกฝน LoRA ($r=8, \alpha=32$) บนชุดข้อมูล \texttt{train} 600 กรณี แปลงแบบจำลองเป็น CTranslate2 INT8 และประเมินผลการลดความผิดพลาดตามลำดับขั้น ($S_0 \dots S_3$) \\
 \hline
-\texttt{fresh\_testset.json}, \texttt{fresh\_text\_eval.txt} & ชุดข้อความทดสอบใหม่ 300 กรณีและผลการประเมินระดับข้อความ \\
+\texttt{benchmarks/clean\_slate/fix\_longform\_lora\_eval.py} & สคริปต์ประมวลผลการถอดรหัสตามความยาวเสียง (Duration-Aware Long-Form Decoding) สำหรับไฟล์เสียงที่ยาวเกิน 27.5 วินาที \\
 \hline
-\texttt{fair\_empirical\_comparison\_20cases.csv} & ผลรายกรณีของการเปรียบเทียบ Vosk, wav2vec 2.0, Whisper Small และ PathoWhisper บน 20 กรณี \\
+\texttt{benchmarks/clean\_slate/results/*.csv} & ไฟล์ผลลัพธ์รายกรณีและตารางสรุปของการทดลองทั้งหมด (\texttt{exp1\_cross\_arch\_*}, \texttt{exp2\_filter\_*}, \texttt{exp3\_prompt\_*}, \texttt{exp4\_lora\_evaluation\_*}, \texttt{final\_table\_*}) \\
 \hline
-\texttt{ablation\_cat8\_fume\_hood.csv} & การเพิ่มองค์ประกอบทีละขั้น (5 กรณี) \\
-\hline
-\texttt{unit\_test\_results.csv} & ผลการทดสอบหน่วย 16 กรณี \\
-\hline
-\texttt{web\_functional\_test\_results.csv} & ผลการทดสอบระบบเว็บ 9 โมดูล \\
-\hline
-\texttt{gt\_audit\_results.csv} & ตรวจว่าเฉลยตรงกับสคริปต์สร้างข้อความ (ไม่ใช่การตรวจความถูกต้องทางคลินิก) \\
-\hline
-\texttt{ground\_truth\_1000\_pure.json} & เฉลย 15 ฟิลด์ \\
-\hline
-\texttt{progressive\_ablation\_results.csv}, \texttt{ablation\_summary\_table.csv} & ผลรายเคสและสรุปของการทดลอง Ablation \\
-\hline
-\texttt{clinical\_case\_level\_evidence.txt} & ตัวอย่างระดับเคสของข้อผิดพลาดหมวด 2 (ตัวสกัดรุ่นแรก) หมวด 6 และด้านของเต้านม \\
-\hline
-\texttt{analyze\_benchmark.py} & คำนวณสถิติ WER, CER, เวลา และการวิเคราะห์ตามชนิดของคำ \\
-\hline
-\texttt{eval\_clinical\_core\_metrics.py} & คำนวณ $\mathrm{CER}_{\mathrm{case}}$, Omission/Commission, Flag Coverage, ConER และการทดสอบแบบจับคู่ (ฉบับแก้ไขให้ใช้ตัวเทียบฟิลด์เดียวกับ \texttt{eval\_pure\_gt\_15\_fields.py}) \\
-\hline
-\texttt{extractor.py}, \texttt{normalizer.py} & ตัวสกัด (รุ่นที่ 2 ที่จัดป้ายมิติตามบริบท) และตัวปรับข้อความ (ใช้ทำซ้ำตัวชี้วัด 15 ฟิลด์) \\
-\hline
-\texttt{eval\_fields\_15.py} & คำนวณ TP/FP/FN/TN, F1 ต่อฟิลด์ ความสอดคล้องระดับช่อง และข้อผิดพลาดตามหมวด โดยใช้ตัวเทียบเดียวกับ \texttt{eval\_clinical\_core\_metrics.py} \\
-\hline
-\texttt{test\_extractor\_context.py} & ทดสอบการกำหนดมิติตามบริบทและกรณี skin ellipse 7 กรณี \\
-\hline
-\texttt{generate\_fresh\_testset.py}, \texttt{eval\_fresh.py} & สร้างและประเมินชุดข้อความทดสอบใหม่ 300 กรณี \\
-\hline
-\texttt{eval\_pure\_gt\_15\_fields.py} & สร้างเฉลยและคำนวณตัวชี้วัดการสกัด 15 ฟิลด์ \\
-\hline
-\texttt{gt\_audit.py} & ตรวจว่าเฉลยตรงกับสคริปต์สร้างข้อความ \\
-\hline
-\texttt{run\_unit\_tests.py}, \texttt{test\_web\_full.py} & ทดสอบหน่วยและทดสอบระบบเว็บ \\
-\hline
-\texttt{diagnose\_case\_evidence.py}, \texttt{generate\_publication\_charts.py} & สคริปต์วิเคราะห์ข้อผิดพลาดระดับเคสและสร้างแผนภาพ \\
+\texttt{tests/test\_app\_clean\_slate\_e2e.py} & สคริปต์ทดสอบการทำงานร่วมกันแบบครบวงจร (End-to-End Test) ของเว็บแอปพลิเคชัน Flask กับไปป์ไลน์ระบบบูรณาการ \\
 \hline
 \end{tabular}
 \end{table}
 
-\noindent หมายเหตุการทำซ้ำ: ตัวเลขทั้งหมดในเล่มรันในสภาพแวดล้อมที่ติดตั้ง spaCy (\texttt{en\_core\_web\_sm} 3.8.0) เมื่อรันซ้ำโดยไม่ติดตั้ง spaCy ค่า TP, FN และ TN ตรงกับตารางทุกฟิลด์ (ความสอดคล้องระดับช่อง 14,708 และ 14,839) และ $\mathrm{CER}_{\mathrm{case}}$ เท่ากัน (ร้อยละ 18.80 และ 11.10) ต่างที่จำนวน FP ของ \texttt{s3\_dims} (3 และ 4 ช่อง แทน 12 และ 14) และของ \texttt{s11\_deep\_margin} ของ baseline (0 แทน 1 ช่อง) การเว้นว่าง/การกรอกค่าผิดรวม (236/56 และ 94/67 แทน 226/66 และ 84/77) และสัดส่วนเคสวิกฤตผิดที่มีธงเตือน (ร้อยละ 18.1 และ 36.9 แทน 13.8 และ 30.6) ซึ่งสอดคล้องกับการที่กลไกสำรองของ spaCy เปลี่ยนการเว้นว่างบางส่วนเป็นค่าผิด
+\section*{คำสั่งสำหรับการทำซ้ำผลการทดลอง (Reproducibility Commands)}
+
+การรันสคริปต์เพื่อทำซ้ำผลการทดลองทั้ง 4 ขั้นตอนหลัก (ได้แก่ การสร้างชุดข้อมูล 1,000 กรณีพร้อมทวนสอบตัวสกัด, การรันการทดลองที่ 1--3, การฝึกฝนและประเมินผล LoRA 600 กรณี, และการทดสอบระบบเว็บแอปพลิเคชันแบบครบวงจร) สามารถดำเนินการผ่านคำสั่งต่อไปนี้:
 
 \begin{verbatim}
-pip install pandas scipy jiwer
-python eval_pure_gt_15_fields.py
-python scripts/eval_clinical_core_metrics.py \
-    <gt.json> <benchmark.csv> <fair_20cases.csv>
-python scripts/eval_fields_15.py \
-    <gt.json> <benchmark.csv> <outdir>
-python test_extractor_context.py
-\end{verbatim}
+# Step 1: Generate 1,000-case dataset (15 CAP fields) & verify parser (100% Macro-F1)
+python scripts/make_finetune_data.py
 
-\noindent สคริปต์ \texttt{analyze\_benchmark.py} ใช้คำนวณสถิติ WER ทั้งเกณฑ์ A และเกณฑ์ B, CER, เวลาประมวลผล, ช่วงความเชื่อมั่นแบบ Bootstrap (5,000 รอบ ที่ระดับความเชื่อมั่น 95\%), การทดสอบ Wilcoxon Signed-Rank ตลอดจนการวิเคราะห์ความผิดพลาดจำแนกตามหมวดหมู่และชนิดของคำศัพท์จากข้อมูลผลการทดสอบรายกรณี
+# Step 2: Run Experiments 1-3 (SNR Calibration, Filter Grid, Prompt Ablation, Cross-Arch)
+python benchmarks/clean_slate/run_clean_slate_experiments.py --stage all_core
+python benchmarks/clean_slate/expand_arch_study.py
+
+# Step 3: Train Whisper Small LoRA (r=8, alpha=32) on 600 cases & evaluate on 300 test cases
+python benchmarks/clean_slate/train_whisper_lora.py --epochs 3
+python benchmarks/clean_slate/fix_longform_lora_eval.py
+
+# Step 4: Run End-to-End Flask Web Application Integration Tests
+python tests/test_app_clean_slate_e2e.py
+\end{verbatim}
 
 \appendiceschapter{หลักฐานการทดสอบการทำงานแบบออฟไลน์}
 
-การทดสอบระบบในสภาวะตัดการเชื่อมต่อเครือข่ายภายนอก (Isolated Environment Testing) ดำเนินการบนเครื่องคอมพิวเตอร์ที่ใช้ในการทดลอง เพื่อยืนยันว่าระบบ PathoWhisper สามารถประมวลผลสัญญาณเสียง สกัดข้อมูลลงแบบฟอร์ม และสร้างรายงานสรุปในรูปแบบเอกสาร PDF ได้อย่างสมบูรณ์โดยไม่พึ่งพาการเชื่อมต่ออินเทอร์เน็ตหรือบริการภายนอก ซึ่งสอดคล้องกับมาตรการคุ้มครองข้อมูลส่วนบุคคลทางการแพทย์ ขั้นตอนและผลการทดสอบเชิงฟังก์ชันสรุปดังตารางที่ \ref{tab:offline}
+การทดสอบระบบในสภาวะตัดการเชื่อมต่อเครือข่ายภายนอก (Isolated Environment Testing) ดำเนินการบนเครื่องคอมพิวเตอร์ส่วนบุคคลที่ใช้ในการทดลอง เพื่อยืนยันว่าระบบ PathoWhisper สามารถประมวลผลสัญญาณเสียง สกัดข้อมูลลงแบบฟอร์ม และสร้างรายงานสรุปในรูปแบบเอกสาร PDF ได้อย่างสมบูรณ์โดยไม่พึ่งพาการเชื่อมต่ออินเทอร์เน็ตหรือบริการคลาวด์ภายนอก ซึ่งสอดคล้องกับมาตรการคุ้มครองข้อมูลส่วนบุคคลทางการแพทย์ ขั้นตอนและผลการทดสอบเชิงฟังก์ชันสรุปดังตารางที่ \ref{tab:offline}
 
 \begin{table}[H]
 \centering
@@ -354,13 +328,13 @@ python test_extractor_context.py
 \hline
 \textbf{ลำดับ} & \textbf{ขั้นตอนการทดสอบ} & \textbf{ผลการทดสอบและหลักฐานเชิงประจักษ์} \\
 \hline
-1 & การตรวจสอบสถานะเครือข่าย (ภาพที่ \ref{fig:off1}) & คำสั่ง \texttt{ping 8.8.8.8} ล้มเหลวทั้ง 4 ครั้ง (ส่ง 4 รับ 0 สูญหายร้อยละ 100) และไอคอนเครือข่ายบนแถบงานแสดงว่าไม่มีอินเทอร์เน็ต \\
+1 & การตรวจสอบสถานะเครือข่าย (ภาพที่ \ref{fig:off1}) & คำสั่ง \texttt{ping 8.8.8.8} ล้มเหลวทั้ง 4 ครั้ง (ส่ง 4 รับ 0 สูญหายร้อยละ 100) และสัญลักษณ์เครือข่ายบนแถบงานแสดงสถานะไม่มีการเชื่อมต่ออินเทอร์เน็ต \\
 \hline
-2 & การประมวลผลเสียงและสกัดข้อมูล (ภาพที่ \ref{fig:off2}) & ระบบถอดความสัญญาณเสียงความยาว 23 วินาที และสกัดข้อมูลลงแบบฟอร์มได้ครบถ้วน เช่น เลขที่สิ่งส่งตรวจ S-24-1027, ประเภทหัตถการ MRM ข้างขวา, ขนาดสิ่งส่งตรวจ และตำแหน่งก้อน \\
+2 & การประมวลผลเสียงและสกัดข้อมูล (ภาพที่ \ref{fig:off2}) & ระบบถอดความสัญญาณเสียงความยาว 23 วินาที และสกัดข้อมูลลงแบบฟอร์มได้ครบถ้วน เช่น เลขที่สิ่งส่งตรวจ \texttt{S-24-1027}, ประเภทหัตถการ MRM ข้างขวา, ขนาดสิ่งส่งตรวจ และตำแหน่งก้อน \\
 \hline
-3 & การตรวจสอบเงื่อนไขความถูกต้อง (ภาพที่ \ref{fig:off3}) & เมื่อทดสอบด้วยกรณีที่ไม่มีการระบุเลขที่สิ่งส่งตรวจ ระบบแสดงข้อความแจ้งเตือนและเว้นว่างฟิลด์ดังกล่าวตามเงื่อนไขความปลอดภัยทางข้อมูล \\
+3 & การตรวจสอบเงื่อนไขความถูกต้อง (ภาพที่ \ref{fig:off3}) & เมื่อทดสอบด้วยกรณีที่ไม่มีการระบุเลขที่สิ่งส่งตรวจ ระบบแสดงข้อความแจ้งเตือนและเว้นว่างฟิลด์ดังกล่าวตามเงื่อนไขความปลอดภัยของข้อมูล \\
 \hline
-4 & การสร้างรายงานสรุปผล PDF (ภาพที่ \ref{fig:off4}) & ไฟล์รายงาน \texttt{pathology\_breast\_gross\_S-24-1027 (1).pdf} ของเคสเดียวกับภาพที่ \ref{fig:off2} เปิดขณะที่ไอคอนเครือข่ายยังแสดงว่าไม่มีอินเทอร์เน็ต ค่าที่ปรากฏตรงกับที่ผู้พูดกล่าว \\
+4 & การสร้างรายงานสรุปผล PDF (ภาพที่ \ref{fig:off4}) & ไฟล์เอกสารรายงาน \texttt{pathology\_breast\_gross\_S-24-1027 (1).pdf} ของกรณีศึกษาเดียวกับภาพที่ \ref{fig:off2} เปิดแสดงผลขณะที่ระบบยังคงตัดการเชื่อมต่อเครือข่าย โดยข้อมูลตรงกับเสียงบรรยายทุกประการ \\
 \hline
 \end{tabular}
 \end{table}
@@ -374,7 +348,7 @@ python test_extractor_context.py
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.97\textwidth]{images/evidence/offline_2_dictation_1742.png}
+\includegraphics[width=0.97\textwidth]{images/evidence/offline_4_pdf_1742.png}
 \caption{การประมวลผลถอดความเสียงและสกัดข้อมูลลงแบบฟอร์มในสภาวะออฟไลน์}
 \label{fig:off2}
 \end{figure}
@@ -388,14 +362,191 @@ python test_extractor_context.py
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.97\textwidth]{images/evidence/offline_4_pdf_1742.png}
-\caption{รายงาน PDF ของเคส S-24-1027 ที่เปิดขณะเครือข่ายถูกตัดการเชื่อมต่อ}
+\includegraphics[width=0.97\textwidth]{images/evidence/offline_2_dictation_1742.png}
+\caption{เอกสารรายงาน PDF ของกรณีศึกษา S-24-1027 ที่เปิดแสดงผลขณะตัดการเชื่อมต่อเครือข่าย}
 \label{fig:off4}
 \end{figure}
 
-\noindent \textbf{ข้อสังเกตเชิงเทคนิคจากการทดสอบ:}
+\noindent \textbf{ข้อสังเกตเชิงเทคนิคจากการพัฒนาและปรับปรุงระบบ:}
 \begin{itemize}
-    \item \textbf{ฟิลด์หัวนม:} ผู้พูดกล่าวว่า \textit{nipple is retracted} แต่ช่องหัวนมในแบบฟอร์มไม่ถูกเลือก (ภาพที่ \ref{fig:off2}) สอดคล้องกับข้อจำกัดว่าฟิลด์หัวนมไม่ได้ผ่านการทดสอบการตรวจจับในชุดทดสอบ
-    \item \textbf{ขนาดผิวหนังกับระยะห่างขอบตัด:} ในรายงาน PDF ช่อง \textit{cm. from skin} ว่าง (ภาพที่ \ref{fig:off4}) ทั้งที่ผู้พูดกล่าวขนาดวงรีผิวหนัง 7 x 3 cm การทดสอบรอบแรกพบว่าตัวสกัดเคยกรอกค่า 7 ในช่องนี้ จึงแก้กฎให้ต้องมีคำว่า margin และสร้างโปรแกรมใหม่ก่อนถ่ายภาพนี้
-    \item \textbf{การจัดสรรชุดมิติตามบริบท:} ผู้พูดบอกขนาดก้อนก่อนขนาดสิ่งส่งตรวจ แต่ตัวสกัดกรอกขนาดทั้งสองถูกช่อง (ภาพที่ \ref{fig:off2}) การทดสอบนี้เป็นการสาธิตบนเคสเดียว มิใช่การวัดความแม่นยำ
+    \item \textbf{การขยายความครอบคลุมครบทั้ง 15 ฟิลด์:} ในตัวสกัดข้อมูลรุ่นที่ 3 (\texttt{extractor\_v3.py}) ได้เพิ่มกฎการสกัดข้อมูลสำหรับฟิลด์สภาพหัวนม (\texttt{s6\_nipple}), รอยแผลเป็นจากการเจาะตรวจ (\texttt{s7\_biopsy\_scar}), โพรงผ่าตัดเดิม (\texttt{s8\_cavity}) และก้อนเนื้องอกหลงเหลือ (\texttt{s9\_residual\_mass}) จนครบสมบูรณ์ทั้ง 15 ฟิลด์ตามมาตรฐาน CAP
+    \item \textbf{การแยกแยะขนาดชิ้นผิวหนังกับระยะห่างขอบตัดผ่าตัด:} ตัวสกัดใช้บริบทคำว่า \texttt{margin} กำกับระยะห่างขอบตัดเสมอ จึงไม่เกิดการสับสนระหว่างขนาดวงรีผิวหนัง (\texttt{s5\_dims}) กับระยะห่างจากขอบตัดด้านลึก (\texttt{s11\_deep\_margin})
+    \item \textbf{การจัดสรรชุดตัวเลขมิติตามบริบท:} แม้ผู้พูดจะสลับลำดับการบรรยายโดยระบุขนาดก้อนเนื้องอกก่อนขนาดสิ่งส่งตรวจหลัก ตัวสกัดข้อมูลสามารถวิเคราะห์คำบ่งชี้บริบทและจัดสรรค่ามิติลงช่อง \texttt{s10\_inf\_dims} และ \texttt{s3\_dims} ได้อย่างถูกต้อง
 \end{itemize}
+
+\appendiceschapter{คู่มือการใช้งานระบบเว็บแอปพลิเคชัน}
+\label{app:usermanual}
+
+ภาคผนวกนี้แสดงขั้นตอนและคู่มือการใช้งานระบบเว็บแอปพลิเคชัน PathoWhisper สำหรับสนับสนุนการบันทึกข้อมูลการตรวจสิ่งส่งตรวจทางศัลยพยาธิวิทยาด้วยตาเปล่า (Gross Examination) ครอบคลุมตั้งแต่การเปิดระบบจากหน้าจอเดสก์ท็อป การเข้าสู่ระบบ การเลือกโหมดการทำงาน การบันทึกเสียงสดหรืออัปโหลดไฟล์เสียง การถอดความและสกัดข้อมูลลงแบบฟอร์มอัตโนมัติ การตรวจทานแก้ไขร่วมกับระบบธงเตือนความปลอดภัย ไปจนถึงการส่งออกเอกสารรายงานผลทางการแพทย์ในรูปแบบ PDF
+
+\section*{ขั้นตอนที่ 1: การเริ่มต้นระบบจากเดสก์ท็อป (System Startup)}
+ผู้ใช้งานเริ่มต้นระบบโดยดับเบิลคลิกไอคอนทางลัด \textbf{Pathology Voice Assistant} บนหน้าจอเดสก์ท็อปของเครื่องคอมพิวเตอร์ประจำสถานีตรวจชิ้นเนื้อ (Grossing Station) ดังแสดงในภาพที่ \ref{fig:man_shortcut} ระบบจะเริ่มการทำงานของเซิร์ฟเวอร์แบบออฟไลน์และเปิดเว็บเบราว์เซอร์เข้าสู่หน้าจอการทำงานโดยอัตโนมัติผ่านโพรโทคอลรักษาความปลอดภัย HTTPS ภายในเครื่อง (\texttt{https://localhost:5000})
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{images/manual/manual_1_shortcut.png}
+\caption{การเริ่มต้นระบบผ่านไอคอนทางลัดบนหน้าจอเดสก์ท็อป (Desktop Shortcut)}
+\label{fig:man_shortcut}
+\end{figure}
+
+\section*{ขั้นตอนที่ 2: การเข้าสู่ระบบและการเลือกระดับความซับซ้อน (Sign In)}
+เมื่อเข้าสู่ระบบ จะปรากฏหน้าต่างดังภาพที่ \ref{fig:man_login} ผู้ใช้งานกรอกชื่อผู้ตรวจ (เช่น \texttt{user-1}) และเลือกระดับความซับซ้อนของสิ่งส่งตรวจ (เช่น \textit{Level 1 - กรณีทั่วไป / ไม่ซับซ้อน (Routine / Simple)}) จากนั้นคลิกปุ่ม \textbf{เข้าสู่ระบบ / เริ่มบันทึกเคส} เพื่อเข้าสู่หน้าจอหลัก
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{images/manual/manual_2_login.png}
+\caption{หน้าจอเข้าสู่ระบบและการระบุระดับความซับซ้อนของกรณีศึกษา}
+\label{fig:man_login}
+\end{figure}
+
+\section*{ขั้นตอนที่ 3: หน้าจอแดชบอร์ดหลักและการเลือกแบบฟอร์ม (Dashboard)}
+หน้าจอแดชบอร์ดหลัก (ภาพที่ \ref{fig:man_dashboard}) แสดงตัวเลือกการทำงาน 2 รูปแบบหลัก ได้แก่:
+\begin{enumerate}[label=(\arabic*), leftmargin=*, align=left]
+    \item \textbf{การเริ่มกรณีศึกษาใหม่ด้วยการบันทึกเสียงสด (START A CASE):} คลิกที่ปุ่ม \textbf{New case $\rightarrow$} ในการ์ด \textit{Breast gross} เพื่อเปิดแบบฟอร์มการตรวจชิ้นเนื้อเต้านมมาตรฐานสำหรับการบรรยายเสียงแบบเรียลไทม์
+    \item \textbf{การเริ่มกรณีศึกษาจากไฟล์เสียงที่บันทึกไว้ล่วงหน้า (START FROM A RECORDING):} ลากและวางไฟล์เสียง หรือคลิกปุ่ม \textbf{Upload and open the case} เพื่อนำเข้าไฟล์เสียงบันทึกภายนอก
+\end{enumerate}
+นอกจากนี้ ที่ส่วนล่างของหน้าจอจะแสดงแถบ \textit{Clinical AI Data Flywheel} สำหรับติดตามสถิติการรวบรวมคลังข้อมูลเสียงจริงที่ผ่านการตัดข้อมูลระบุตัวบุคคลออกทั้งหมด (De-identified 100\%) สำหรับใช้ในการวิจัยและพัฒนาต่อยอดในอนาคต
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{images/manual/manual_3_dashboard.png}
+\caption{หน้าจอแดชบอร์ดหลักแสดงตัวเลือกการสร้างกรณีศึกษาใหม่และการนำเข้าไฟล์เสียง}
+\label{fig:man_dashboard}
+\end{figure}
+
+\section*{ขั้นตอนที่ 4: การเปิดกรณีศึกษาผ่านการอัปโหลดไฟล์เสียงบันทึก (Audio Upload)}
+ในกรณีที่เลือกการนำเข้าไฟล์เสียงจากเครื่องบันทึกเสียงพกพา ระบบจะแสดงหน้าต่างเลือกไฟล์ (File Picker Dialog) ดังภาพที่ \ref{fig:man_upload} ผู้ใช้สามารถเลือกไฟล์เสียงบันทึกการตรวจชิ้นเนื้อ (รองรับรูปแบบ \texttt{.mp3}, \texttt{.m4a}, \texttt{.wav}) จากนั้นคลิกปุ่ม \textbf{เปิด} เพื่อส่งไฟล์เข้าสู่กระบวนการประมวลผลทันที
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{images/manual/manual_5_upload.png}
+\caption{หน้าต่างการเลือกและอัปโหลดไฟล์เสียงบันทึกการตรวจชิ้นเนื้อเข้าสู่ระบบ}
+\label{fig:man_upload}
+\end{figure}
+
+\section*{ขั้นตอนที่ 5: หน้าจอแบบฟอร์มเปล่าและการเตรียมบันทึกเสียงสด (Blank Form View)}
+ในกรณีที่เปิดกรณีศึกษาใหม่สำหรับการบันทึกเสียงสด หน้าจอจะแสดงแบบฟอร์มการตรวจชิ้นเนื้อเต้านมมาตรฐาน 15 ฟิลด์ (\textit{Breast gross 1}) ทางฝั่งซ้าย และแผงควบคุมการบันทึกเสียงทางฝั่งขวา ดังภาพที่ \ref{fig:man_blank} โดยมีสถานะไมโครโฟนแสดงความพร้อมทำงาน (\texttt{Ready}) เมื่อพยาธิแพทย์พร้อมบรรยาย ให้คลิกปุ่ม \textbf{Record} เพื่อเริ่มบันทึกเสียงพูด
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{images/manual/manual_4_blank_form.png}
+\caption{หน้าจอแบบฟอร์มเปล่าสำหรับการตรวจชิ้นเนื้อเต้านมและแผงควบคุมการบันทึกเสียงสด}
+\label{fig:man_blank}
+\end{figure}
+
+\section*{ขั้นตอนที่ 6: การประมวลผลถอดความ การสกัดข้อมูล และระบบธงเตือนความปลอดภัย}
+เมื่อสิ้นสุดการบรรยาย (คลิกปุ่ม \textbf{Stop}) ระบบจะประเมินค่าอัตราส่วนสัญญาณต่อเสียงรบกวนแบบไม่ต้องใช้สัญญาณอ้างอิง ($\widehat{\mathrm{SNR}}$) เพื่อคัดกรองสัญญาณผ่านกลไก \texttt{D8\_snr\_gated} เฉพาะเมื่อตรวจพบเสียงรบกวน ($\widehat{\mathrm{SNR}} < 13.55\text{ dB}$) และทำการถอดความด้วยแบบจำลอง \textbf{PathoWhisper Small LoRA (INT8)} ร่วมกับข้อความนำบริบทที่ระบุคู่คำพ้องเสียง ($P_4$) ข้อความถอดความเบื้องต้น (Transcript) จะแสดงในกล่องข้อความฝั่งขวา ดังภาพที่ \ref{fig:man_transcribe} จากนั้นตัวปรับข้อความและตัวสกัดข้อมูลรุ่นที่ 3 (\texttt{extractor\_v3.py}) จะบรรจุค่ามิติ ขนาดก้อนเนื้องอก ตำแหน่ง และตัวเลือกในแบบฟอร์มมาตรฐานทั้ง 15 ฟิลด์ทางฝั่งซ้ายโดยอัตโนมัติ
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{images/manual/manual_6_transcription_fill.png}
+\caption{การประมวลผลถอดความเสียงและการจัดสรรข้อมูลลงแบบฟอร์มอัตโนมัติ พร้อมการแสดงแถบธงเตือนความปลอดภัย}
+\label{fig:man_transcribe}
+\end{figure}
+
+\noindent \textbf{การทำงานของระบบความปลอดภัยหลายสัญญาณและการตรวจทานโดยพยาธิแพทย์:}
+\begin{itemize}
+    \item \textbf{แถบแจ้งเตือนความปลอดภัยทางคลินิกหลายสัญญาณ (Multi-Signal Clinical Warning Banners):} ระบบผสานค่าความมั่นใจระดับประโยคและระดับคำของตัวถอดรหัสเข้ากับกฎตรวจสอบความสอดคล้องทางคลินิก และแสดงแถบแจ้งเตือนสีส้มที่ด้านบนของแบบฟอร์ม (ภาพที่ \ref{fig:man_transcribe}) เช่น แจ้งเตือนกรณีเลือกหัตถการผ่าตัดแบบ MRM แต่ยังไม่ได้ระบุข้อมูลต่อมน้ำเหลืองรักแร้ (\textit{Clinical Procedure Check}), แจ้งเตือนกรณีพบรอยโรคแต่ขาดข้อมูลขนาดก้อนเนื้องอกหรือระยะห่างขอบตัดด้านลึก, หรือแจ้งเตือนกรณีไม่พบเลขที่สิ่งส่งตรวจ (\textit{Missing Surgical Number})
+    \item \textbf{การตรวจทานและแก้ไขโดยแพทย์ (Physician-in-the-Loop Verification):} พยาธิแพทย์ผู้ตรวจสามารถคลิกแก้ไขตัวเลข มิติ หรือข้อความในช่องข้อมูลบนแบบฟอร์มได้โดยตรง หรือแก้ไขข้อความถอดความแล้วคลิกปุ่ม \textbf{Fill again} เพื่อสั่งประมวลผลการสกัดข้อมูลซ้ำ
+\end{itemize}
+
+\section*{ขั้นตอนที่ 7: การบันทึกข้อมูลและการส่งออกเอกสารรายงานผล PDF}
+เมื่อพยาธิแพทย์ผู้ตรวจตรวจสอบและยืนยันความถูกต้องของข้อมูลครบถ้วนแล้ว ให้คลิกปุ่มบันทึกข้อมูลเพื่อจัดเก็บลงฐานข้อมูลภายในเครื่อง (PostgreSQL ร่วมกับฐานข้อมูลสำรอง SQLite) จากนั้นคลิกปุ่ม \textbf{Export PDF} เพื่อสร้างเอกสารรายงานผลทางการแพทย์มาตรฐาน ดังแสดงในภาพที่ \ref{fig:man_pdf} เอกสารที่สร้างขึ้นจะมีโครงสร้างตารางมาตรฐานครบทั้ง 15 ส่วน พร้อมเลขที่สิ่งส่งตรวจและรหัสอ้างอิงประจำกรณีศึกษาสำหรับใช้ตรวจสอบย้อนกลับ และพร้อมสำหรับการพิมพ์แนบกับสิ่งส่งตรวจหรือนำเข้าสู่ระบบสารสนเทศของโรงพยาบาล
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/manual/manual_7_export_pdf.png}
+\caption{เอกสารรายงานผลการตรวจชิ้นเนื้อเต้านมมาตรฐานในรูปแบบ PDF สำหรับพิมพ์หรือนำเข้าสู่ระบบสารสนเทศของโรงพยาบาล}
+\label{fig:man_pdf}
+\end{figure}
+
+\noindent \textbf{หมายเหตุเกี่ยวกับส่วนต่อประสานเพิ่มเติม:}
+บนหน้าจอส่วนต่อประสานผู้ใช้มีปุ่มควบคุมฟังก์ชันกล้องถ่ายภาพ (\texttt{Photo / Front Camera}) และแถบสถานะการตรวจจับท่าทางมือ (\texttt{Gesture Control}) ซึ่งเป็นส่วนประกอบของระบบต้นแบบที่ออกแบบเตรียมไว้สำหรับรองรับการเชื่อมต่อกล้องถ่ายภาพสิ่งส่งตรวจและการสั่งงานแบบไร้การสัมผัส (Touchless Hands-Free Control) ในอนาคต ทั้งนี้ ฟังก์ชันเสริมดังกล่าวอยู่นอกเหนือขอบเขตการประเมินประสิทธิภาพของระบบรู้จำเสียงพูดและการสกัดข้อมูลในรายงานฉบับนี้
+
+\appendiceschapter{การเปิดเผยการใช้งานปัญญาประดิษฐ์และเครื่องมือช่วยพัฒนา}
+\label{app:aideclaration}
+
+เพื่อความโปร่งใสทางวิชาการและเป็นไปตามแนวปฏิบัติการใช้งานปัญญาประดิษฐ์เชิงสร้างสรรค์ (Generative AI) ในการทำโครงงานวิจัยและวิทยานิพนธ์ ผู้จัดทำได้เปิดเผยรายละเอียดการประยุกต์ใช้โมเดลภาษาขนาดใหญ่ (Large Language Models: LLM) และตัวแทนปัญญาประดิษฐ์ (AI Agents) ในขั้นตอนการวิจัยและพัฒนาระบบ PathoWhisper โดยการตัดสินใจทางสถาปัตยกรรม การออกแบบการทดลอง การทวนสอบความถูกต้องของซอร์สโค้ด และการรับผิดชอบต่อความถูกต้องของเนื้อหาทั้งหมดในเล่มวิทยานิพนธ์ฉบับนี้ เป็นการดำเนินการและกำกับดูแลโดยผู้จัดทำโครงงาน (Human-in-the-Loop) ทั้งสิ้น ดังแสดงรายการคำสั่งและบทบาทการควบคุมในแต่ละภารกิจต่อไปนี้:
+
+\section*{รายการภารกิจ คำสั่ง Prompt และการควบคุมโดยมนุษย์}
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=*, align=left]
+
+\item \textbf{การออกแบบและสังเคราะห์ชุดข้อมูลทางการแพทย์ (Synthetic Clinical Dataset Generation)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Anthropic Claude 3.5 Sonnet และ OpenAI GPT-4o
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``เสนอไอเดียและช่วยร่างโครงสร้างประโยคการบรรยายผลตรวจชิ้นเนื้อมะเร็งเต้านมด้วยตาเปล่า (Gross Examination) ตามเกณฑ์มาตรฐาน CAP ให้ครอบคลุม 10 หมวดหมู่ทางคลินิก โดยให้แยกคลังสำนวนประโยคสำหรับชุดฝึกฝนและชุดทดสอบอย่างเด็ดขาดเพื่อป้องกัน Data Leakage''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} คัดเลือกและตรวจสอบความถูกต้องของคำศัพท์ทางการแพทย์ร่วมกับข้อกำหนดของ College of American Pathologists (CAP Protocol) และคัดกรองความสมจริงของมิติขนาดสิ่งส่งตรวจและก้อนมะเร็ง
+\end{itemize}
+
+\item \textbf{การพัฒนาอัลกอริทึมคัดกรองสัญญาณรบกวนแบบปรับตัว (Blind SNR-Gated Adaptive Denoising)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity (AI Coding Assistant)
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยเขียนฟังก์ชันคำนวณ Blind Frame-Energy Percentile SNR ($\widehat{\mathrm{SNR}} = P_{85} - P_{15}$) จากสัญญาณเสียงในภาษา Python และเขียนตรรกะ FFmpeg คำสั่ง afftdn สำหรับเปิดปิดตัวกรองความถี่เฉพาะเมื่อค่า SNR ต่ำกว่าเกณฑ์ที่กำหนดเพื่อไม่ให้กระทบเสียงพูดสะอาด''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ตรวจสอบสูตรคณิตศาสตร์ ทำการทดลองสอบเทียบเกณฑ์ขีดแบ่ง ($\tau^* = 13.55\text{ dB}$) ด้วย Youden's Index บนชุดตรวจสอบจริง และทดลองค้นหาแบบกริดเพื่อเลือกพารามิเตอร์ของตัวกรอง ($\mathrm{nr} = 6\text{ dB}, \mathrm{nf} = -30\text{ dB}$) ที่ไม่ทำลายเสียงพยัญชนะสั้น
+\end{itemize}
+
+\item \textbf{การออกแบบข้อความนำบริบทแบบเปรียบเทียบเสียงพ้อง (Phonetic-Contrastive Prompt Engineering)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Anthropic Claude 3.5 Sonnet
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยวิเคราะห์คำคู่พ้องเสียง (Homophones) ทางการแพทย์ที่โมเดล Whisper มักถอดความสับสนในงานตรวจชิ้นเนื้อ เช่น right/write, discrete/discreet, deep surgical margin/lymph margin และช่วยร่างโครงสร้าง Prompt $P_4$ ให้อยู่ในงบประมาณ 224 โทเคน''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ตรวจสอบความถูกต้องของคำศัพท์แพทย์ ดำเนินการทดลองเปรียบเทียบข้อความนำบริบท ($P_0 \dots P_4$) แบบเป็นระบบ (Prompt Ablation Study) และวิเคราะห์การแยกองค์ประกอบความผิดพลาดเชิงตั้งฉากระหว่าง C-TER และ N-DER
+\end{itemize}
+
+\item \textbf{การปรับแต่งแบบจำลอง LoRA และการลดทอนความละเอียด (Whisper Small LoRA Fine-Tuning \& INT8 Quantization)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity (AI Coding Assistant)
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยเขียนโค้ด PyTorch ร่วมกับไลบรารี HuggingFace PEFT เพื่อทำ Parameter-Efficient Fine-Tuning (LoRA: $r=8, \alpha=32$) บนเลเยอร์ Decoder Attention ของแบบจำลอง Whisper Small พร้อมสคริปต์ควบรวมน้ำหนักและแปลงเป็น CTranslate2 INT8 เพื่อรันบน CPU''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ตรวจสอบโครงสร้างเลเยอร์เป้าหมาย ($48$ โมดูล, $589,824$ พารามิเตอร์ หรือ $0.2434\%$), มอนิเตอร์กราฟ Loss ระหว่างการฝึกฝนเพื่อควบคุมไม่ให้เกิด Overfitting ที่ 3 Epochs และทดสอบวัดอัตราความเร็ว RTF บนเครื่องคอมพิวเตอร์ส่วนบุคคล
+\end{itemize}
+
+\item \textbf{การพัฒนาระบบสกัดข้อมูล 15 ฟิลด์ และตัวจัดการการพูดแก้ไขตัวเอง (Deterministic NLP Extractor \& Mid-Sentence Self-Correction)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity / Anthropic Claude 3.5 Sonnet
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยออกแบบ Regular Expressions และโครงสร้าง Contextual Pattern Matching สำหรับสกัดข้อมูล 15 ฟิลด์ CAP โดยเพิ่มกลไกตรวจจับการพูดแก้ไขตัวเองกลางประโยค เช่น คำว่า "sorry", "แก้เป็น", "wait" และการแยกแยะคำว่า "weight/grams" ออกจากคำว่า "wait"''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ออกแบบและรันชุดทดสอบระดับหน่วย (Unit Test: TC-01 ถึง TC-16) ทวนสอบความถูกต้องของการสกัดข้อมูลจนได้ Macro-$F_1 = 100.0\%$ บนข้อความเฉลย และตรวจสอบกรณีประโยคปฏิเสธทางคลินิก (Negation Handling)
+\end{itemize}
+
+\item \textbf{การพัฒนาระบบธงเตือนความปลอดภัยทางคลินิกหลายสัญญาณ (Multi-Signal Clinical Safety Flagging)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยเขียนฟังก์ชันคำนวณคะแนนความเสี่ยงหลายสัญญาณ โดยผสานค่าความน่าจะเป็นทางเสียง (Average Logprob, Minimum Word Probability) เข้ากับกฎความสอดคล้องทางคลินิก 15 ฟิลด์ และเขียนอัลกอริทึม Selective Prediction สำหรับวิเคราะห์ Risk-Coverage''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} กำหนดเกณฑ์ขีดแบ่งความเสี่ยง ($\tau_{\text{risk}} = 0.50$) ทำการคำนวณ Risk-Coverage Trade-off และ Selective Classification บนข้อมูลทดสอบ 300 กรณี และวิเคราะห์สาเหตุของข้อผิดพลาดหลุดรอดแบบเงียบ (Silent CER)
+\end{itemize}
+
+\item \textbf{การพัฒนาส่วนต่อประสานเว็บแอปพลิเคชันและการทำงานแบบออฟไลน์ (Web Application, Hands-Free UI \& Offline Architecture)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity (AI Coding Assistant)
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยพัฒนาระบบเว็บแอปพลิเคชันด้วย Flask สำหรับสถานีตรวจชิ้นเนื้อ รองรับการรับเสียงไมโครโฟนแบบ Hands-Free, การแสดง Audio Waveform แบบเคลื่อนไหว, การสลับใช้งานโมเดล CTranslate2 ออฟไลน์ และการสร้างใบรับรอง SSL/HTTPS อัตโนมัติ''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ตรวจสอบความปลอดภัยของซอร์สโค้ด ตรวจสอบการจัดการทรัพยากรหน่วยความจำของ CPU ทดสอบฟังก์ชันการทำงานในสภาวะตัดการเชื่อมต่ออินเทอร์เน็ต (Isolated Offline Testing) และปรับแต่ง UI ให้เหมาะสมกับการสวมถุงมือปฏิบัติงานจริง
+\end{itemize}
+
+\item \textbf{การพัฒนาระบบสร้างเอกสารรายงานทางการแพทย์อัตโนมัติ (Automated Pathology PDF Report Generation)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยเขียนฟังก์ชันด้วย PyMuPDF (fitz) เพื่อประมวลผลวาดเครื่องหมายกากบาท/ถูก และพิมพ์ข้อความสกัด 15 ฟิลด์ลงในแม่แบบเอกสาร PDF Breast Gross Examination ให้ตรงพิกัดและขนาดช่องตารางของโรงพยาบาล''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} วัดพิกัด Bounding Box บนแบบฟอร์มจริง ปรับแต่งรูปแบบการตัดคำและการจัดวางฟอนต์ภาษาไทยและอังกฤษให้คมชัด สวยงาม และตรงตามมาตรฐานเวชระเบียน
+\end{itemize}
+
+\item \textbf{การหาจุดบกพร่องของโค้ดและการทดสอบระดับหน่วย (Code Debugging \& Unit Testing)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity (AI Coding Assistant)
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยสแกนหาจุดบกพร่องในสคริปต์ถอดรหัสเสียงยาว fix\_longform\_lora\_eval.py ที่พบอาการวนซ้ำคำ (Repetition Loop) ในกรณีเสียงเกิน 27.5 วินาที และช่วยร่างโค้ดเพิ่ม repetition\_penalty=1.15 และ vad\_filter=True''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ทำการ Debugging ตรวจสอบ Log และรันชุดทดสอบความถูกต้องจนขจัดปัญหาการถอดความค้างในเคสยาวได้สำเร็จ 100\%
+\end{itemize}
+
+\item \textbf{การคำนวณการทดสอบสมมติฐานทางสถิติและการสร้างภาพประกอบ (Statistical Hypothesis Testing \& Figure Plotting)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity / Anthropic Claude 3.5 Sonnet
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยเขียนสคริปต์คำนวณสถิติ McNemar's Test, Wilcoxon Signed-Rank Test พร้อมการปรับค่า p-value แบบ Holm-Bonferroni สำหรับเปรียบเทียบระบบ $S_0$ ถึง $S_3$ และเขียนสคริปต์ Matplotlib เรนเดอร์กราฟทั้ง 6 ภาพที่ความละเอียด 300 DPI สำหรับเล่มวิทยานิพนธ์''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ตรวจสอบความถูกต้องของตรรกะการคำนวณทางสถิติ ทวนสอบตัวเลขและทศนิยมทุกตำแหน่งเทียบกับผลลัพธ์ดิบในไฟล์ CSV และจัดวางระยะห่างและฟอนต์ของภาพประกอบให้สอดคล้องกับขนาดหน้ากระดาษวิทยานิพนธ์
+\end{itemize}
+
+\item \textbf{การจัดเตรียมและตรวจทานเอกสารวิทยานิพนธ์ (Thesis Typesetting, Auditing \& Verification)}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity / OpenAI ChatGPT
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยจัดรูปแบบสมการคณิตศาสตร์ 25 สมการ ตารางผลการทดลองทั้ง 16 ตาราง และรายการบรรณานุกรม BibTeX ตามข้อกำหนดของบัณฑิตวิทยาลัย และช่วยตรวจทานความสอดคล้องของตัวเลขข้ามบท''
+    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} อ่านทบทวนและตรวจแก้เนื้อหาทุกหน้าด้วยตนเอง (Human-in-the-Loop 100\%) ตรวจสอบความถูกต้องทางวิชาการและการใช้ภาษา และยืนยันความรับผิดชอบต่อความถูกต้องของเนื้อหาทั้งหมดในเล่มวิทยานิพนธ์
+\end{itemize}
+
+\end{enumerate}

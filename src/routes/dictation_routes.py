@@ -48,23 +48,37 @@ def api_upload_audio():
 
         audio_url = audio_fn if (audio_fn.startswith("http://") or audio_fn.startswith("https://")) else url_for("get_upload", filename=audio_fn)
 
-        # Local Offline Transcription & Extractor v2 Pipeline
+        # Local Offline Transcription (PathoWhisper Clean-Slate S3 Pipeline) & Extractor v3
         transcription_text = ""
         extracted_data = {}
         confidence_flags = {}
+        snr_db = None
+        denoised_applied = None
+        avg_logprob = None
+        min_word_prob = None
 
         do_transcribe = request.args.get("transcribe", "true").lower() in ("true", "1", "yes")
         if do_transcribe:
             try:
-                from src.stt.whisper_model import transcribe_audio
+                from src.stt.whisper_model import transcribe_audio_with_metadata
                 from src.nlp.normalizer import normalize_text
                 from src.nlp.extractor import extract_data_15_sections, generate_confidence_flags
 
-                raw_transcription = transcribe_audio(save_path)
+                stt_meta = transcribe_audio_with_metadata(save_path)
+                raw_transcription = stt_meta.get("text", "")
+                snr_db = stt_meta.get("snr_db")
+                denoised_applied = stt_meta.get("denoised_applied")
+                avg_logprob = stt_meta.get("avg_logprob")
+                min_word_prob = stt_meta.get("min_word_prob")
+
                 if raw_transcription and "Error during transcription" not in raw_transcription:
                     transcription_text = normalize_text(raw_transcription)
-                    extracted_data = extract_data_15_sections(transcription_text)
-                    confidence_flags = generate_confidence_flags(extracted_data)
+                    extracted_data = extract_data_15_sections(raw_transcription)
+                    confidence_flags = generate_confidence_flags(
+                        extracted_data,
+                        avg_logprob=avg_logprob,
+                        min_word_prob=min_word_prob,
+                    )
                 else:
                     transcription_text = raw_transcription or ""
             except Exception as stt_err:
@@ -76,7 +90,11 @@ def api_upload_audio():
             "audio_url": audio_url,
             "transcription": transcription_text,
             "data": extracted_data,
-            "flags": confidence_flags
+            "flags": confidence_flags,
+            "snr_db": snr_db,
+            "denoised_applied": denoised_applied,
+            "avg_logprob": avg_logprob,
+            "min_word_prob": min_word_prob,
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

@@ -1,0 +1,13 @@
+condition_id,condition_name,total_cases_evaluated,core_100_cases_evaluated,denoise,prompt,beam_size,temperature,cpu_threads,mean_latency_core_sec,median_latency_core_sec,p95_latency_core_sec,mean_wer_criterion_a_all,mean_wer_criterion_b_all,median_wer_criterion_b_all,repetition_loops_count,cer_case_percent_all,mean_slot_accuracy_all
+C0_ct2_fp32_baseline,"C0: Baseline FP32 (CT2 FP32, No Denoise, No Prompt, Beam 5)",3,3,False,False,5,0.0,8,22.45,22.55,24.81,21.93,4.54,2.5,0,0.0,100.0
+C1_vanilla,"C1: Vanilla (CT2 INT8, No Denoise, No Prompt, Beam 5)",3,3,False,False,5,0.0,8,8.79,8.6,9.07,29.63,5.37,5.0,0,0.0,100.0
+C2_denoise_only,"C2: +Denoise Only (CT2 INT8, Denoise, No Prompt, Beam 5)",3,3,True,False,5,0.0,8,9.66,9.21,10.75,25.83,2.09,2.17,0,0.0,100.0
+C3_prompt_only,"C3: +Prompt Only (CT2 INT8, No Denoise, Prompt, Beam 5)",3,3,False,True,5,0.0,8,8.58,9.0,10.0,30.47,0.0,0.0,0,0.0,100.0
+C4_beam1_only,"C4: +Greedy Only (CT2 INT8, No Denoise, No Prompt, Beam 1)",3,3,False,False,1,0.0,8,7.73,7.49,7.71,20.5,5.37,5.0,0,0.0,100.0
+C5_full_pathowhisper,"C5: Full PathoWhisper (CT2 INT8, Denoise, Prompt, Beam 1)",3,3,True,True,1,0.0,8,9.4,9.46,10.45,57.95,35.31,1.59,1,66.67,93.33
+C6_leaveout_denoise,"C6: Full - Denoise (CT2 INT8, No Denoise, Prompt, Beam 1)",3,3,False,True,1,0.0,8,7.29,8.59,8.92,9.43,0.0,0.0,0,0.0,100.0
+C7_leaveout_prompt,"C7: Full - Prompt (CT2 INT8, Denoise, No Prompt, Beam 1)",3,3,True,False,1,0.0,8,8.37,7.54,9.98,18.16,1.36,1.59,0,0.0,100.0
+C8_leaveout_beam1,"C8: Full - Greedy (CT2 INT8, Denoise, Prompt, Beam 5)",3,3,True,True,5,0.0,8,10.77,10.41,12.15,10.99,1.25,1.59,0,33.33,97.78
+SIZE_tiny,"Size: Tiny INT8 (Denoise, Prompt, Beam 1)",3,3,True,True,1,0.0,8,2.07,1.52,3.15,34.05,3.65,3.17,0,33.33,93.33
+SIZE_base,"Size: Base INT8 (Denoise, Prompt, Beam 1)",3,3,True,True,1,0.0,8,3.0,2.16,4.66,31.42,1.56,2.17,0,0.0,100.0
+SIZE_medium,"Size: Medium INT8 (Denoise, Prompt, Beam 1)",3,3,True,True,1,0.0,8,19.44,21.97,24.43,7.14,0.0,0.0,0,0.0,100.0

@@ -1,0 +1,5 @@
+model_id,model_name,avg_latency_sec,mean_wer_criterion_a,mean_wer_criterion_b,reduction_points
+tiny,Whisper Tiny (PyTorch),3.03,29.97,7.21,22.76
+base,Whisper Base (PyTorch),3.8,26.93,4.56,22.37
+small_bs,Whisper Small (PyTorch Baseline),10.41,22.87,1.64,21.23
+pathowhisper,PathoWhisper Small (INT8 + Prompt),19.81,22.15,0.38,21.77

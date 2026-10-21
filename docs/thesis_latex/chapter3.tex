@@ -1,219 +1,346 @@
 \providecommand{\todo}[1]{\textbf{[TODO: #1]}}
 
-บทนี้อธิบายระเบียบวิธีดำเนินการวิจัย การจัดทำชุดข้อมูลทดสอบ สถาปัตยกรรมการประมวลผลสัญญาณเสียงและถอดความ ตรรกะการสกัดข้อมูลทางคลินิก การพัฒนาระบบเว็บแอปพลิเคชัน และระบบสมการตัวชี้วัดสำหรับการประเมินผล
+บทนี้อธิบายระเบียบวิธีดำเนินการวิจัย การออกแบบชุดข้อมูลแบบแยกสำนวนประโยคอย่างอิสระ (Zero-Phrase-Leakage Dataset) กลไกกรองสัญญาณรบกวนแบบปรับตัวด้วยเกณฑ์อัตโนมัติ (Blind SNR-Gated Adaptive Denoising) การออกแบบโครงสร้างข้อความนำบริบท ($P_0 \dots P_4$) การปรับแต่งน้ำหนักแบบจำลองเชิงลึกด้วยเทคนิค Low-Rank Adaptation (LoRA) ควบคู่กับการลดทอนความละเอียดเป็น INT8 ตัวสกัดข้อมูล 15 ฟิลด์ร่วมกับระบบแจ้งเตือนความปลอดภัยหลายสัญญาณ และระบบสมการตัวชี้วัดสำหรับการประเมินผล
 
-\section{การวางแผนวิจัย}
+\section{การวางแผนวิจัยและสถาปัตยกรรมระบบ}
 
-โครงงานดำเนินงานตามขั้นตอน 4 ระยะ ได้แก่ (1) การจัดทำชุดข้อมูลทดสอบและเฉลยมาตรฐาน (2) การพัฒนากระบวนการประมวลผลเสียงและเอนจินถอดความ PathoWhisper (3) การพัฒนาตัวสกัดข้อมูลทางคลินิกและระบบเว็บ และ (4) การประเมินประสิทธิภาพของระบบ ผังการทำงานแสดงดังภาพที่ \ref{fig:workflow}
+โครงงานดำเนินงานตามขั้นตอนวิจัยเชิงระบบ 5 ระยะ ได้แก่ (1) การสร้างชุดข้อมูล 1,000 กรณีศึกษาที่แยกสำนวนการพูดระหว่างชุดฝึกฝน ชุดตรวจสอบ และชุดทดสอบอย่างเคร่งครัด ครอบคลุม 15 ฟิลด์มาตรฐาน CAP (2) การออกแบบสวิตช์ประเมินอัตราส่วนสัญญาณต่อเสียงรบกวนแบบไม่ต้องพึ่งพาข้อมูลอ้างอิงและการค้นหาพารามิเตอร์ที่เหมาะสมที่สุดของตัวกรอง \texttt{afftdn} (3) การศึกษาผลกระทบของโครงสร้างข้อความนำบริบทและการปรับแต่งน้ำหนักแบบจำลอง Whisper Small ด้วยเทคนิค LoRA แล้วแปลงเป็น CTranslate2 INT8 (4) การพัฒนาตัวสกัดข้อมูลทางคลินิกและกลไกแจ้งเตือนความปลอดภัยหลายสัญญาณเชื่อมเข้ากับเว็บแอปพลิเคชัน Flask และ (5) การประเมินผลทางสถิติแบบจับคู่รายกรณี ผังการทำงานของไปป์ไลน์ PathoWhisper ฉบับสมบูรณ์ ($S_3$) แสดงดังภาพที่ \ref{fig:workflow}
 
 \begin{figure}[H]
 \centering
 \small
 \begin{tabular}{c}
-\fbox{\parbox{0.82\textwidth}{\centering 1. รับสัญญาณเสียงจากไมโครโฟนผ่านเบราว์เซอร์ หรืออัปโหลดไฟล์เสียง}}\\[2pt]
+\fbox{\parbox{0.86\textwidth}{\centering 1. รับสัญญาณเสียงจากไมโครโฟนผ่านเบราว์เซอร์ หรืออัปโหลดไฟล์เสียง (\texttt{/api/upload\_audio})}}\\[2pt]
 $\downarrow$\\[2pt]
-\fbox{\parbox{0.82\textwidth}{\centering 2. กรองสัญญาณเสียงด้วยตัวกรอง afftdn $\rightarrow$ ตัดช่วงเงียบด้วย silenceremove $\rightarrow$ สุ่มแปลงเป็น 16 kHz Mono}}\\[2pt]
+\fbox{\parbox{0.86\textwidth}{\centering 2. ประเมินค่า $\widehat{\mathrm{SNR}} = P_{85} - P_{15}$: หาก $\widehat{\mathrm{SNR}} \ge 13.55\text{ dB}$ ให้บายพาสตัวกรอง $\mid$ หาก $< 13.55\text{ dB}$ ให้กรองด้วย \texttt{afftdn(nr=6dB, nf=-30dB)}}}\\[2pt]
 $\downarrow$\\[2pt]
-\fbox{\parbox{0.82\textwidth}{\centering 3. ถอดความเป็นข้อความด้วย Faster-Whisper Small (INT8) ร่วมกับข้อความนำคลังศัพท์ CAP}}\\[2pt]
+\fbox{\parbox{0.86\textwidth}{\centering 3. ถอดความด้วยโมเดล Fine-Tuned Whisper Small LoRA (CTranslate2 INT8) ร่วมกับพรอมต์เปรียบเทียบเสียงพ้อง ($P_4$)}}\\[2pt]
 $\downarrow$\\[2pt]
-\fbox{\parbox{0.82\textwidth}{\centering 4. ปรับข้อความและสกัดข้อมูลลงแบบฟอร์ม 15 ฟิลด์ด้วยตัวสกัดแบบกำหนดแน่นอน}}\\[2pt]
+\fbox{\parbox{0.86\textwidth}{\centering 4. ปรับมาตรฐานคำพูดแก้ไขตัวเองและสกัดข้อมูลครบ 15 ฟิลด์ CAP (\texttt{extractor\_v3}) พร้อมคำนวณค่าความมั่นใจ ($\mathrm{avg\_logprob}, \mathrm{min\_word\_prob}$)}}\\[2pt]
 $\downarrow$\\[2pt]
-\fbox{\parbox{0.82\textwidth}{\centering 5. แสดงผลให้พยาธิแพทย์ตรวจทานและยืนยัน $\rightarrow$ บันทึกฐานข้อมูล $\rightarrow$ ส่งออกเอกสาร PDF}}
+\fbox{\parbox{0.86\textwidth}{\centering 5. คัดกรองความปลอดภัยหลายสัญญาณ (Multi-Signal Safety Flagging) $\rightarrow$ แพทย์ตรวจทาน $\rightarrow$ บันทึกฐานข้อมูลและสร้าง PDF}}
 \end{tabular}
-\caption{ผังขั้นตอนการทำงานของระบบ PathoWhisper}
+\caption{ผังขั้นตอนการทำงานของสถาปัตยกรรมระบบ PathoWhisper ($S_3$ Full Pipeline)}
 \label{fig:workflow}
 \end{figure}
 
-\section{การเก็บรวบรวมและจัดทำชุดข้อมูล}
+\section{การสร้างและแบ่งชุดข้อมูลแบบปราศจากการรั่วไหลของสำนวนประโยค}
 
-\subsection{ชุดข้อมูลทดสอบ}
+\subsection{หมวดหมู่การทดสอบทางคลินิกและการครอบคลุมครบ 15 ฟิลด์ CAP}
 
-ชุดข้อมูลทดสอบประกอบด้วยกรณีศึกษาจำนวน 1,000 กรณี แบ่งออกเป็น 10 หมวดหมู่ หมวดละ 100 กรณี เพื่อประเมินขีดความสามารถของระบบในสภาวะแวดล้อมที่หลากหลาย ดังแสดงในตารางที่ \ref{tab:categories}
+ชุดข้อมูลประกอบด้วยกรณีศึกษาจำนวน 1,000 กรณี แบ่งออกเป็น 10 หมวดหมู่ทางคลินิก หมวดละ 100 กรณี ดังแสดงในตารางที่ \ref{tab:categories} โดยทุกกรณีศึกษามีข้อมูลเฉลยครบทั้ง 15 ฟิลด์ตามเกณฑ์มาตรฐาน CAP ได้แก่ \texttt{s0\_surgical\_no}, \texttt{s1\_side}, \texttt{s2\_proc}, \texttt{s3\_dims}, \texttt{s4\_skin}, \texttt{s5\_dims}, \texttt{s6\_nipple}, \texttt{s7\_biopsy\_scar}, \texttt{s8\_cavity}, \texttt{s9\_residual\_mass}, \texttt{s10\_infiltrative}, \texttt{s10\_inf\_dims}, \texttt{s10\_5\_quadrant}, \texttt{s11\_deep\_margin} และ \texttt{s14\_check} โดยมีการกำหนดให้มีกรณีศึกษาที่เป็นผลบวกครบทุกฟิลด์ (รวมถึงสภาพหัวนมและแผลเป็นในหมวดที่ 4 และโพรงผ่าตัดเดิมพร้อมก้อนเนื้อคงเหลือในหมวดที่ 10 หมวดละ 100 กรณี)
 
 \begin{table}[H]
 \centering
-\caption{หมวดหมู่ของชุดข้อมูลทดสอบทางคลินิกจำลอง}
+\caption{หมวดหมู่ของชุดข้อมูลทดสอบทางคลินิกจำลอง 10 หมวดหมู่ ($N = 1{,}000$ กรณี)}
 \label{tab:categories}
 \small
 \begin{tabular}{|c|p{5.5cm}|p{6.8cm}|}
 \hline
-\textbf{ที่} & \textbf{หมวดหมู่การทดสอบ} & \textbf{ลักษณะเงื่อนไขทางคลินิกที่ทดสอบ} \\
+\textbf{ที่} & \textbf{หมวดหมู่การทดสอบ} & \textbf{ลักษณะเงื่อนไขทางคลินิกและฟิลด์ที่เน้นทดสอบ} \\
 \hline
-1 & Standard Protocol & บรรยายข้อมูลเรียงตามลำดับแบบฟอร์ม \\
+1 & Standard Protocol & บรรยายข้อมูลเรียงตามลำดับแบบฟอร์มมาตรฐาน \\
 \hline
-2 & Out-of-Order Reporting & บรรยายข้อมูลสลับลำดับ เช่น บอกขนาดก้อนก่อนสิ่งส่งตรวจ \\
+2 & Out-of-Order Reporting & บรรยายข้อมูลสลับลำดับ เช่น บอกขนาดก้อนและต่อมน้ำเหลืองก่อนสิ่งส่งตรวจ \\
 \hline
-3 & Self-Correction \& Hesitation & มีการลังเลและแก้ไขตัวเลขหรือมิติกลางประโยค \\
+3 & Self-Correction \& Hesitation & มีการลังเลและพูดแก้ไขตัวเลขมิติหรือด้านซ้าย/ขวากลางประโยค \\
 \hline
-4 & Multi-Margin Complex Assessment & มีการระบุขอบตัดและระยะห่างหลายทิศทาง \\
+4 & Multi-Margin, Scar \& Nipple & ระบุขอบตัด 5 ทิศทาง พร้อมบรรยายรอยแผลเป็น (\texttt{s7}) และสภาพหัวนม (\texttt{s6}) \\
 \hline
-5 & Heavy Axillary Lymph Nodes Staging & บรรยายจำนวนและขนาดต่อมน้ำเหลืองที่พบด้วยตาเปล่า \\
+5 & Heavy Axillary Lymph Nodes & บรรยายจำนวนและช่วงขนาดของต่อมน้ำเหลืองรักแร้ (\texttt{s14}) \\
 \hline
-6 & Fibrocystic / Benign Negative Control & สิ่งส่งตรวจที่ไม่ใช่มะเร็ง (กลุ่มควบคุมเชิงลบ) \\
+6 & Fibrocystic / Benign Control & สิ่งส่งตรวจไม่ใช่มะเร็ง (กลุ่มควบคุมเชิงลบของ \texttt{s10\_infiltrative}) \\
 \hline
-7 & High-Speed Rapid Speech & อัตราการพูดเร็วเกิน 200 คำต่อนาที \\
+7 & High-Speed Rapid Speech & อัตราการพูดเร็วและกระชับแบบโทรเลขเกิน 200 คำต่อนาที \\
 \hline
-8 & Fume Hood Noise ($-10$ dB) & เสียงพูดที่ซ้อนทับเสียงพัดลมตู้ดูดควันที่ SNR $-10$ dB \\
+8 & Fume Hood Noise ($-10$ dB) & เสียงพูดซ้อนทับเสียงพัดลมตู้ดูดควันรุนแรงที่ SNR $-10$ dB \\
 \hline
-9 & Ductal Carcinoma / Microinvasion & ศัพท์เฉพาะเกี่ยวกับรอยโรค DCIS และการลุกลามขนาดเล็กn \\
+9 & Ductal Carcinoma / Microinvasion & ศัพท์เฉพาะเกี่ยวกับรอยโรค DCIS และการลุกลามขนาดเล็ก \\
 \hline
-10 & Clinical Edge Cases \& Missing Fields & กรณีที่มีข้อมูลไม่ครบถ้วนหรือมีฟิลด์เว้นว่าง \\
+10 & Previous Cavity \& Residual Mass & โพรงผ่าตัดเดิม (\texttt{s8\_cavity}) พร้อมก้อนเนื้อคงเหลือ (\texttt{s9\_residual\_mass}) \\
 \hline
 \end{tabular}
 \end{table}
 
-\subsection{รายละเอียดการสร้างชุดข้อมูล}
-คุณลักษณะของชุดข้อมูลทดสอบสรุปดังตารางที่ \ref{tab:dataset} ข้อมูลเสียงสังเคราะห์ขึ้นจากสคริปต์ข้อความที่จัดโครงสร้างตามเกณฑ์มาตรฐาน CAP โดยมี 11 ฟิลด์ที่มีค่าบวกทางคลินิก และ 4 ฟิลด์ควบคุมเชิงลบที่ไม่มีการระบุค่า
+\subsection{การแบ่งชุดข้อมูลแบบแยกสำนวนประโยคและผู้พูด (Zero-Phrase-Leakage Split)}
+
+เพื่อป้องกันอคติจากการปรับแต่งกฎสกัดข้อมูลหรือการจดจำโครงสร้างประโยคบนชุดทดสอบ โครงงานได้สร้างคลังสำนวนการพูดของแพทย์ (Clinical Phrasing Templates) แยกออกจากกันอย่างเป็นอิสระจำนวน 7 รูปแบบต่อหมวดหมู่ และแบ่งชุดข้อมูล 1,000 กรณีออกเป็น 4 ชุดข้อมูลย่อยที่มีสัดส่วนหมวดหมู่และระดับเสียงรบกวนสมดุลกัน (Stratified Partitioning) ดังแสดงในตารางที่ \ref{tab:dataset}:
+\begin{enumerate}
+    \item \textbf{ชุดฝึกฝน (\texttt{train}, $N = 600$ กรณี):} ใช้สำนวนการพูดชุดที่ 0--3 และเสียงผู้พูดกลุ่มฝึกฝน สำหรับใช้ฝึกฝนแบบจำลอง LoRA และพัฒนากฎของตัวสกัดข้อมูล \texttt{extractor\_v3}
+    \item \textbf{ชุดตรวจสอบ (\texttt{val}, $N = 100$ กรณี):} ใช้สำนวนการพูดชุดที่ 4 สำหรับปรับเทียบค่าขีดแบ่ง $\tau^*$ ของสวิตช์กรองเสียง และตรวจสอบการลู่เข้าของค่าสูญเสีย ($\mathrm{val\_loss}$) ระหว่างการฝึกฝน LoRA
+    \item \textbf{ชุดทดสอบสำนวนใหม่ในผู้พูดกลุ่มเดิม (\texttt{test\_seen}, $N = 150$ กรณี):} ใช้สำนวนการพูดชุดที่ 5--6 ซึ่งไม่เคยปรากฏในชุดฝึกฝนหรือชุดตรวจสอบเลย ($\text{Template Overlap} = 0.0\%$)
+    \item \textbf{ชุดทดสอบผู้พูดใหม่และคำศัพท์ใหม่ (\texttt{test\_unseen}, $N = 150$ กรณี):} ใช้สำนวนการพูดชุดที่ 5--6 ร่วมกับเสียงผู้พูดที่แยกอิสระ (Held-Out Speakers: สำเนียงสหราชอาณาจักรและแคนาดา) และคำศัพท์คลินิกชุดทดสอบที่ไม่เคยปรากฏในชุดฝึกฝน
+\end{enumerate}
 
 \begin{table}[H]
 \centering
-\caption{คุณลักษณะของชุดข้อมูลทดสอบ}
+\caption{โครงสร้างการแบ่งชุดข้อมูลภายใต้ระเบียบวิธี Zero-Phrase-Leakage ($N = 1{,}000$ กรณี)}
 \label{tab:dataset}
 \small
-\begin{tabular}{|p{4.2cm}|p{8.8cm}|}
+\begin{tabular}{|l|c|c|p{4.2cm}|p{3.8cm}|}
 \hline
-\textbf{คุณลักษณะ} & \textbf{รายละเอียด} \\
+\textbf{ชุดข้อมูลย่อย} & \textbf{จำนวน} & \textbf{สำนวนที่ใช้} & \textbf{ลักษณะเสียงผู้พูดและอัตราเร็ว} & \textbf{วัตถุประสงค์การใช้งาน} \\
 \hline
-จำนวนกรณีทดสอบ & 1,000 กรณีศึกษา (10 หมวด $\times$ 100 กรณี) \\
+\texttt{train} & 600 & รูปแบบที่ 0--3 & ผู้พูดกลุ่มฝึกฝน (US/AU), ความเร็วแปรผัน & ฝึกฝน LoRA ($r=8$) และพัฒนา \texttt{extractor\_v3} \\
 \hline
-ไฟล์เสียงและรูปแบบ & 1,000 ไฟล์ รูปแบบ MP3 ความยาวเฉลี่ย 21.48 วินาทีต่อไฟล์ \\
+\texttt{val} & 100 & รูปแบบที่ 4 & ผู้พูดกลุ่มฝึกฝน, แยกสำนวนอิสระ & ปรับเทียบเกณฑ์ $\tau^*$ และเลือกพารามิเตอร์กรองเสียง \\
 \hline
-การสังเคราะห์เสียง & Microsoft Edge TTS ภาษาอังกฤษ 2 สัญญาณเสียง (en-US-ChristopherNeural และ en-US-JennyNeural) \\
+\texttt{test\_seen} & 150 & รูปแบบที่ 5--6 & ผู้พูดกลุ่มฝึกฝน, สำนวนใหม่ไม่ซ้ำชุดฝึก & ประเมินความสามารถในการวางนัยทั่วไปข้ามสำนวน \\
 \hline
-การจำลองสัญญาณรบกวน & ซ้อนทับเสียงพัดลมตู้ดูดควันพยาธิวิทยาจริงที่ SNR $-10$ dB ด้วย FFmpeg \\
-\hline
-เฉลยมาตรฐาน (Ground Truth) & สกัดจากสคริปต์แม่แบบตาม CAP Protocol ครบ 15 ฟิลด์ \\
+\texttt{test\_unseen} & 150 & รูปแบบที่ 5--6 & ผู้พูดกลุ่มใหม่ (UK/CA) + คำศัพท์ใหม่ & ประเมินความทนทานต่อผู้พูดและคำศัพท์นอกชุดฝึก \\
 \hline
 \end{tabular}
 \end{table}
 
-\section{การประมวลผลและการสกัดข้อมูล}
+\section{สถาปัตยกรรมและอัลกอริทึมที่นำเสนอ}
 
-\subsection{การประมวลผลสัญญาณเสียงเบื้องต้น}
-สัญญาณเสียงอินพุตจะถูกประมวลผลผ่านตัวกรองสเปกตรัม \texttt{afftdn} ของ FFmpeg โดยกำหนดค่าการลดทอนสัญญาณรบกวน (\texttt{nr}) เท่ากับ 12 dB และระดับเสียงรบกวนพื้นฐาน (\texttt{nf}) เท่ากับ $-50$ dB ตามด้วยตัวกรอง \texttt{silenceremove} เพื่อตัดช่วงสัญญาณเงียบที่มีระดับพลังงานต่ำกว่า $-40$ dB โดยตัดช่วงเริ่มต้นที่ยาวเกิน 0.1 วินาที และช่วงหยุดพักระหว่างประโยคที่ยาวเกิน 0.6 วินาที ก่อนแปลงสัญญาณเป็น 16 kHz Mono สำหรับเอนจินถอดความ
+\subsection{กลไกกรองสัญญาณรบกวนแบบปรับตัวด้วยเกณฑ์อัตโนมัติ (Blind SNR-Gated Adaptive Denoising)}
 
-\subsection{เอนจินการถอดความ PathoWhisper}
-ระบบใช้ Faster-Whisper รุ่น Small (CTranslate2) ประมวลผลแบบ INT8 บน CPU จำนวน 8 เธรด กำหนด Beam Size เท่ากับ 1 เพื่อลดเวลาหน่วง พร้อมทั้งกำหนดข้อความนำบริบท (\texttt{PATHOLOGY\_PROMPT}) ซึ่งรวบรวมคำศัพท์ทางการแพทย์ตามเกณฑ์ CAP เพื่อชี้นำการสะกดคำที่ถูกต้อง โดยเปรียบเทียบกับแบบจำลองพื้นฐาน Whisper Small ต้นฉบับ (FP32 บน PyTorch, Beam Size 5, ไม่ใช้ Prompt)
+เพื่อแก้ไขปัญหาของตัวกรองสเปกตรัม \texttt{afftdn} แบบเปิดคงที่ที่ทำลายพลังงานเสียงพยัญชนะความถี่สูงในสัญญาณเสียงสะอาด โครงงานได้ออกแบบอัลกอริทึมประเมินอัตราส่วนสัญญาณต่อเสียงรบกวนแบบไม่ต้องใช้สัญญาณอ้างอิง (Blind Frame-Energy Percentile SNR Estimator) โดยแบ่งสัญญาณเสียง $x[n]$ ที่ความถี่สุ่มตัวอย่าง 16 kHz ออกเป็นเฟรมสั้นความยาว 25 มิลลิวินาที ($L = 400$ ตัวอย่าง) และคำนวณพลังงานรากกำลังสองเฉลี่ยในหน่วยเดซิเบลของเฟรมที่ $m$:
+\begin{equation}
+E_{\mathrm{dB}}(m) = 20 \log_{10} \left( \sqrt{\frac{1}{L} \sum_{n=0}^{L-1} x_m^2[n] + \epsilon} \right), \quad \epsilon = 10^{-12}
+\label{eq:framedb}
+\end{equation}
+จากนั้นคัดเฉพาะเฟรมที่มีพลังงานสูงกว่าระดับความเงียบดิจิทัล ($E_{\mathrm{dB}}(m) > -65\text{ dB}$) แล้วคำนวณผลต่างระหว่างเปอร์เซ็นไทล์ที่ 85 (แทนระดับพลังงานช่วงที่มีเสียงพูด) และเปอร์เซ็นไทล์ที่ 15 (แทนระดับพลังงานพื้นหลังหรือเสียงพัดลมตู้ดูดควัน):
+\begin{equation}
+\widehat{\mathrm{SNR}} = P_{85}\!\left(E_{\mathrm{dB}}\right) - P_{15}\!\left(E_{\mathrm{dB}}\right)
+\label{eq:snrest}
+\end{equation}
+กฎการตัดสินใจของสวิตช์กรองเสียงแบบปรับตัว ($\mathrm{D8\_snr\_gated}$) กำหนดจากค่าขีดแบ่งที่เหมาะสมที่สุด $\tau^* = 13.55\text{ dB}$ ซึ่งได้จากการหาค่าสูงสุดของดัชนียูเดน ($J = \mathrm{Sensitivity} + \mathrm{Specificity} - 1 = 1.0000$) บนชุดข้อมูล \texttt{val}:
+\begin{equation}
+\text{Routing}(\widehat{\mathrm{SNR}}) =
+\begin{cases}
+\text{Bypass \texttt{afftdn} (ส่งสัญญาณสะอาดตรงสู่เอนจินถอดความ)}, & \text{เมื่อ } \widehat{\mathrm{SNR}} \ge 13.55\text{ dB} \\
+\text{Apply \texttt{afftdn}}(\mathrm{nr}=6\text{ dB}, \mathrm{nf}=-30\text{ dB}, \mathrm{nt}=\text{white}), & \text{เมื่อ } \widehat{\mathrm{SNR}} < 13.55\text{ dB}
+\end{cases}
+\label{eq:snrgate}
+\end{equation}
 
-\subsection{การปรับข้อความและการสกัดข้อมูลทางคลินิก}
-ข้อความถอดความจะเข้าสู่ตัวปรับข้อความ (\texttt{normalizer.py}) เพื่อจัดการคำพูดแก้ไขกลางประโยค โดยตรวจจับคำสัญญาณ เช่น \textit{sorry, wait, actually, no wait} ที่ตามหลังตัวเลขมิติ แล้วเลือกเก็บเฉพาะค่าชุดล่าสุด ตลอดจนจัดการกรณีคำพ้องเสียง เช่น คำว่า \textit{weight} ที่ตามด้วยมิติชุดใหม่ให้ถือเป็นการแก้ไขค่า ตัวสกัดข้อมูลประยุกต์ใช้นิพจน์ปรกติในการจัดสรรข้อมูลลงแบบฟอร์ม 15 ฟิลด์ โดยจับคู่ชุดมิติ 3 มิติเข้ากับขนาดสิ่งส่งตรวจหรือขนาดก้อนตามคำระบุบริบทที่อยู่ใกล้ที่สุด ทั้งนี้ระบบทำงานแบบกำหนดแน่นอนและไม่สร้างข้อมูลที่ปรากฏไม่ชัดเจนในข้อความ
+\subsection{การออกแบบโครงสร้างข้อความนำบริบทเชิงเปรียบเทียบเสียงพ้อง ($P_0 \dots P_4$)}
 
-\section{การออกแบบและพัฒนาระบบ}
+ตัวถอดรหัสของแบบจำลอง Whisper มีขีดจำกัดหน้าต่างบริบทเริ่มต้นที่ 224 โทเคน การป้อนข้อความนำบริบทที่ยาวเกินขีดจำกัดจะถูกตัดทอนส่วนต้นทิ้ง โครงงานจึงออกแบบการทดลองแยกองค์ประกอบของข้อความนำบริบทออกเป็น 5 รูปแบบ ($P_0 \dots P_4$) เพื่อพิสูจน์ผลกระทบเชิงตั้งฉาก (Orthogonal Decomposition):
+\begin{itemize}
+    \item $P_0$ (\texttt{No Prompt}, 0 โทเคน): ไม่ใช้ข้อความนำบริบท
+    \item $P_1$ (\texttt{Generic Medical}, 22 โทเคน): ประโยคการแพทย์ทั่วไปที่ไม่มีคำศัพท์พยาธิวิทยาเต้านมจำเพาะ
+    \item $P_2$ (\texttt{Glossary Only}, 58 โทเคน): คลังคำศัพท์กายวิภาคและพยาธิวิทยาเต้านมตามเกณฑ์ CAP ล้วน (ไม่มีตัวเลขหรือสัญลักษณ์มิติ)
+    \item $P_3$ (\texttt{Numerical Format Only}, 54 โทเคน): รูปแบบรหัสสิ่งส่งตรวจ (\texttt{S-26-01425}) และมิติตัวเลขสามมิติ (\texttt{18.5 x 14.2 x 4.8 cm}) ล้วน (ไม่มีคำศัพท์รอยโรค)
+    \item $P_4$ (\texttt{Phonetic-Contrastive CAP Prompt}, 118 โทเคน): ผสานคลังคำศัพท์ CAP รูปแบบมิติตัวเลข และคู่คำเปรียบเทียบเสียงพ้องที่มักเกิดความสับสนทางคลินิก (\textit{discrete not discreet; fibrocystic not fibrous-cystic; everted vs inverted; right vs write; 2 x 3 cm not 2 by 3 cm}) ภายในงบประมาณไม่เกิน 224 โทเคน
+\end{itemize}
 
-ระบบพัฒนาขึ้นเป็นเว็บแอปพลิเคชันด้วยภาษา Python และเฟรมเวิร์ก Flask ให้บริการแบบโลคอลผ่านโพรโทคอล HTTPS ฝั่งหน้าบ้านรองรับการบันทึกเสียงสดและการแสดงผลแบบฟอร์มเพื่อให้ผู้ตรวจทานสามารถแก้ไขข้อมูลได้แบบเรียลไทม์ ฝั่งหลังบ้านบันทึกข้อมูลที่ผ่านการยืนยันลงฐานข้อมูล PostgreSQL 16 และมี SQLite ทำหน้าที่เป็นฐานข้อมูลสำรองฉุกเฉินแบบออฟไลน์ พร้อมทั้งมีโมดูลส่งออกรายงานสรุปในรูปแบบเอกสาร PDF และ DOCX ผ่าน ReportLab และ PyMuPDF ซอร์สโค้ดของระบบและสคริปต์ที่ใช้ประเมินผลเผยแพร่ในคลังโค้ดสาธารณะ \cite{pathowhisperrepo}
+\subsection{การปรับแต่งน้ำหนักเชิงลึกด้วยเทคนิค Low-Rank Adaptation (LoRA) และการลดทอนความละเอียดเป็น INT8}
 
-\section{การประเมินผลและระบบสมการตัวชี้วัด}
+เพื่อให้แบบจำลองเรียนรู้การจับคู่ลักษณะทางสัทศาสตร์เข้ากับรูปแบบข้อความรายงานพยาธิวิทยาโดยไม่เกิดปัญหาการลืมความรู้เดิม (Catastrophic Forgetting) โครงงานได้ประยุกต์ใช้เทคนิค Low-Rank Adaptation (LoRA) กับแบบจำลอง \texttt{openai/whisper-small} (พารามิเตอร์ทั้งหมด 242,324,736 ตัว) โดยตรึงค่าน้ำหนักของตัวเข้ารหัสเสียง (Acoustic Encoder) ไว้ทั้งหมด และแทรกเมทริกซ์อันดับต่ำ $B \in \mathbb{R}^{d \times r}$ และ $A \in \mathbb{R}^{r \times k}$ ขนานไปกับเมทริกซ์การฉายภาพ $\mathbf{W}_0 \in \mathbb{R}^{d \times k}$ ของชั้นการใส่ใจตนเอง (Self-Attention) และการใส่ใจข้าม (Cross-Attention) เฉพาะโมดูล $\mathbf{W}_q$ (\texttt{q\_proj}) และ $\mathbf{W}_v$ (\texttt{v\_proj}) ในตัวถอดรหัสทั้ง 12 ชั้น (รวม 48 โมดูล):
+\begin{equation}
+\mathbf{h} = \mathbf{W}_0 \mathbf{x} + \frac{\alpha}{r} \mathbf{B}\mathbf{A}\mathbf{x}
+\label{eq:lora}
+\end{equation}
+โดยกำหนดค่าอันดับ $r = 8$, สัมประสิทธิ์มาตราส่วน $\alpha = 32$ ($\alpha/r = 4$) และ $\mathrm{dropout} = 0.05$ ทำให้มีจำนวนพารามิเตอร์ที่ต้องฝึกฝนเพียง 589,824 พารามิเตอร์ หรือคิดเป็นร้อยละ 0.2434 ของพารามิเตอร์ทั้งหมด การฝึกฝนดำเนินการบนชุดข้อมูล \texttt{train} จำนวน 600 กรณีศึกษา เป็นเวลา 3 Epoch ด้วยตัวหาค่าเหมาะที่สุด AdamW ($\mathrm{lr} = 10^{-4}, \text{weight decay} = 0.01$, Linear Warmup ร้อยละ 10) บนฟังก์ชันสูญเสีย Cross-Entropy ของลำดับโทเคนเป้าหมาย:
+\begin{equation}
+\mathcal{L}_{\mathrm{LoRA}}(\Theta_{\mathrm{LoRA}}) = -\sum_{t=1}^{T} \log P_{\mathbf{W}_0 + \Delta \mathbf{W}}\!\left(y_t \mid y_{<t}, \mathbf{X}_{\mathrm{mel}}\right)
+\label{eq:loraloss}
+\end{equation}
+ภายหลังเสร็จสิ้นการฝึกฝน ค่าน้ำหนัก $\Delta \mathbf{W} = \frac{\alpha}{r}\mathbf{B}\mathbf{A}$ จะถูกควบรวมเข้ากับน้ำหนักฐาน $\mathbf{W}_{\mathrm{merged}} = \mathbf{W}_0 + \Delta \mathbf{W}$ แล้วแปลงให้อยู่ในรูปแบบกราฟคำนวณ CTranslate2 พร้อมลดทอนความละเอียดเป็นจำนวนเต็ม 8 บิต (INT8 Quantization) สำหรับการอนุมานความเร็วสูงบน CPU ทั้งนี้ สำหรับไฟล์เสียงที่มีความยาวเกิน 27.5 วินาที ระบบใช้โหมดการถอดรหัสเสียงยาวตามความยาวสัญญาณ (Duration-Aware Long-Form Decoding: \texttt{without\_timestamps=True, condition\_on\_previous\_text=False, repetition\_penalty=1.15, vad\_filter=True}) เพื่อป้องกันการเลื่อนตัวชี้เวลาถอยหลังข้ามรอยต่อหน้าต่าง 30 วินาที
 
-\subsection{ระบบสมการตัวชี้วัดประสิทธิภาพ}
+\subsection{ตัวสกัดข้อมูล 15 ฟิลด์ (\texttt{extractor\_v3}) และกลไกแจ้งเตือนความปลอดภัยหลายสัญญาณ}
+
+เพื่อควบคุมตัวแปรและแยกแยะข้อผิดพลาดระหว่างกระบวนการแปลงเสียงเป็นข้อความ (ASR Transcription Errors) ออกจากข้อผิดพลาดของตัวสกัดข้อมูลทางคลินิก (Downstream NLP Parsing Bugs) ตัวสกัดข้อมูล \texttt{extractor\_v3} ถูกพัฒนาขึ้นในฐานะตัวประเมินมาตรฐานอ้างอิงแบบกำหนดแน่นอน (Deterministic Oracle CAP Evaluator) โดยใช้กฎเกณฑ์และพจนานุกรมคำศัพท์ที่ครอบคลุมข้อกำหนดมาตรฐาน CAP มะเร็งเต้านมทั้ง 15 ฟิลด์ ตัวสกัดนี้ผ่านการตรวจสอบยืนยันความถูกต้องบนข้อความเฉลยอ้างอิง (Ground-Truth Text) ครบทั้ง 1,000 กรณีศึกษา และได้ความถูกต้องร้อยละ 100.00 ในทุกฟิลด์ ทำให้สามารถรับประกันได้ว่าความผิดพลาดทุกประการที่ตรวจพบในตารางผลการทดลองมีที่มาจากกระบวนการรู้จำเสียงพูดของแบบจำลองโดยแท้จริง มิได้เกิดจากความบกพร่องของตัวสกัดข้อมูล โดยฟังก์ชันหลักประกอบด้วย (1) การซ่อมแซมและคัดเลือกค่าล่าสุดเมื่อมีคำพูดแก้ไขตัวเองกลางประโยค (Speech Self-Repair) (2) การจัดกลุ่มตัวเลขมิติ 3 มิติเข้ากับขนาดสิ่งส่งตรวจ ขนาดก้อนเนื้อร้าย หรือขนาดโพรงผ่าตัดเดิมตามคำบอกบริบทที่อยู่ใกล้ที่สุด และ (3) การสกัดข้อมูลครบทั้ง 15 ฟิลด์ตามมาตรฐาน CAP
+
+เพื่อป้องกันความเสี่ยงจากข้อผิดพลาดเงียบ (Silent Critical Errors) โครงงานได้ออกแบบกลไกแจ้งเตือนความปลอดภัยทางคลินิกหลายสัญญาณ (Multi-Signal Clinical Safety Flagging) ตามแนวคิดการพยากรณ์แบบคัดเลือก (Selective Prediction) \cite{geifman2017selective} ซึ่งผสานสัญญาณ 3 แหล่งเข้าด้วยกัน:
+\begin{enumerate}
+    \item \textbf{ความไม่แน่นอนทางเสียงจากตัวถอดรหัส (Acoustic Decoder Uncertainty):} แจ้งเตือนเมื่อค่าเฉลี่ยความน่าจะเป็นลอการิทึมของเซกเมนต์ $\mathrm{avg\_logprob} < -0.35$ หรือค่าความน่าจะเป็นต่ำสุดระดับคำ $\mathrm{min\_word\_prob} < 0.75$
+    \item \textbf{ตัวตรวจจับคำพ้องเสียงที่มีความเสี่ยงทางคลินิก (Phonetic Ambiguity Warnings):} แจ้งเตือนทันทีเมื่อพบรูปคำพ้องเสียงที่อาจเปลี่ยนความหมายทางการแพทย์ในข้อความดิบก่อนการสกัด เช่น \textit{discreet, fibrousistic, write breast} หรือคำขยายขอบตัดที่กำกวม (\textit{lymph margin, weight margin}) โดยไม่ทำการเดาหรือเขียนทับข้อมูลโดยพลการ
+    \item \textbf{การตรวจสอบความสอดคล้องข้ามฟิลด์ (Cross-Field Structural Consistency):} แจ้งเตือนเมื่อฟิลด์บังคับตกหล่น (\texttt{s0\_surgical\_no}, \texttt{s1\_side}, \texttt{s3\_dims}) หรือเมื่อตรวจพบก้อนเนื้อลุกลาม (\texttt{s10\_infiltrative = True}) แต่ไม่มีข้อมูลขนาด 3 มิติของก้อน (\texttt{s10\_inf\_dims}) หรือไม่มีระยะห่างขอบตัดด้านลึก (\texttt{s11\_deep\_margin})
+\end{enumerate}
+
+\section{ระบบสมการตัวชี้วัดและการวิเคราะห์ทางสถิติ}
 \label{sec:metrics}
 
-เพื่อให้การประเมินผลมีความรัดกุมตามหลักวิชาการ โครงงานกำหนดตัวชี้วัดประสิทธิภาพเชิงคณิตศาสตร์ ดังนี้:
+การประเมินประสิทธิภาพของระบบ PathoWhisper ครอบคลุมการวัดผล 4 มิติหลักอย่างเป็นระบบ ได้แก่ (1) การประเมินความถูกต้องระดับการถอดความเสียงพูด (Acoustic Transcription) (2) การประเมินความถูกต้องระดับการสกัดสารสนเทศตามมาตรฐาน CAP (Clinical Information Extraction) (3) การประเมินประสิทธิภาพกลไกความปลอดภัยและการพยากรณ์แบบคัดเลือก (Selective Prediction and Safety Screening) และ (4) การทดสอบนัยสำคัญทางสถิติแบบจับคู่คู่ขนานกับการควบคุมความผิดพลาดสะสมจากการทดสอบพหุคูณ
 
-\subsubsection{อัตราความผิดพลาดระดับคำ (Word Error Rate: WER)} ใช้วัดความแม่นยำในการแปลงเสียงเป็นข้อความเทียบกับข้อความอ้างอิงเฉลย: 
-\begin{equation} 
-\mathrm{WER} = \frac{S + D + I}{N} \times 100\% 
-\label{eq:wer} 
-\end{equation} 
-โดยที่ $S$ คือจำนวนคำที่ถูกแทนที่ผิด (Substitutions), $D$ คือจำนวนคำที่ตกหล่น (Deletions), $I$ คือจำนวนคำที่แทรกเกิน (Insertions), และ $N$ คือจำนวนคำทั้งหมดในข้อความเฉลย โดยคำนวณภายใต้ 2 เกณฑ์ ได้แก่ เกณฑ์ A (การจัดมาตรฐานข้อความพื้นฐาน) และเกณฑ์ B (การจัดมาตรฐานรูปแบบมิติและเลขที่สิ่งส่งตรวจ) เกณฑ์ B กำหนดหลังพิจารณาผลของเกณฑ์ A จึงรายงานทั้งสองเกณฑ์
+\subsection{การประเมินผลระดับการถอดความเสียง (Acoustic Transcription Metrics)}
 
-\subsubsection{ความแม่นยำ การระลึก และคะแนนเอฟวันระดับฟิลด์ (Precision, Recall, $F_1$)}
-ประเมินความถูกต้องของการสกัดข้อมูลลงแบบฟอร์มสำหรับฟิลด์ที่ $k$:
-\begin{equation}
-\mathrm{Precision}_k = \frac{\mathrm{TP}_k}{\mathrm{TP}_k + \mathrm{FP}_k} 
-\times 100\%
-\label{eq:precision}
-\end{equation}
-\begin{equation}
-\mathrm{Recall}_k = \frac{\mathrm{TP}_k}{\mathrm{TP}_k + \mathrm{FN}_k} \times 100\%
-\label{eq:recall}
-\end{equation}
-\begin{equation}
-F_{1, k} = \frac{2 \cdot \mathrm{Precision}_k \cdot \mathrm{Recall}_k}{\mathrm{Precision}_k + \mathrm{Recall}_k} = \frac{2\mathrm{TP}_k}{2\mathrm{TP}_k + \mathrm{FP}_k + \mathrm{FN}_k} \times 100\%
-\label{eq:f1} 
-\end{equation}
-โดยที่ $\mathrm{TP}_k, \mathrm{FP}_k, \mathrm{FN}_k$ แทนจำนวน True Positive, False Positive และ False Negative ของฟิลด์ที่ $k$ ตามลำดับ กรณีที่ระบบสกัดค่าผิดไปจากเฉลยจะถูกนับเป็นทั้ง $\mathrm{FP}$ และ $\mathrm{FN}$ พร้อมกัน
+\subsubsection{อัตราความผิดพลาดระดับคำมาตรฐาน (Normalized Word Error Rate: $\mathrm{WER}_{\mathrm{norm}}$)}
 
-\subsubsection{ค่าเฉลี่ยมาโครของคะแนนเอฟวัน (Macro-$F_1$)}
-ประเมินขีดความสามารถเฉลี่ยของการสกัดข้อมูลครอบคลุมฟิลด์ที่มีค่าบวกในชุดทดสอบจำนวน $K = 11$ ฟิลด์:
+อัตราความผิดพลาดระดับคำ (Word Error Rate: $\mathrm{WER}$) เป็นตัวชี้วัดมาตรฐานสากลในการประเมินระบบการรู้จำเสียงพูดอัตโนมัติ (ASR) โดยคำนวณจากระยะทางแก้ไขระดับคำของเลเวนชไตน์ (Levenshtein Distance) อย่างไรก็ดี ในบริบทของการแพทย์และการพยาธิวิทยา การเปรียบเทียบข้อความดิบโดยตรงมักเกิดความคลาดเคลื่อนจากความแตกต่างของรูปแบบตัวสะกดที่ไม่กระทบต่อความหมายทางการแพทย์ (เช่น ตัวพิมพ์เล็ก--ใหญ่ การเว้นวรรค เครื่องหมายวรรคตอน หรือการเขียนตัวเลขเป็นตัวหนังสือเทียบกับเลขอารบิก เช่น ``three point five'' กับ ``3.5'' หรือคำว่า ``centimeters'' กับ ``cm'') 
+
+เพื่อขจัดอคติดังกล่าวและวัดความสามารถในการฟังของแบบจำลองอย่างแท้จริง ทั้งข้อความอ้างอิงเฉลย ($R$) และข้อความผลลัพธ์การถอดความของระบบ ($H$) จะต้องผ่านตัวดำเนินการจัดมาตรฐานข้อความ ($\mathcal{T}_{\mathrm{norm}}$) ก่อนการคำนวณ:
 \begin{equation}
-\mathrm{Macro\text{-}}F_1 = \frac{1}{K} \sum_{k=1}^{K} F_{1, k}
+R_{\mathrm{norm}} = \mathcal{T}_{\mathrm{norm}}(R), \quad H_{\mathrm{norm}} = \mathcal{T}_{\mathrm{norm}}(H)
+\label{eq:textnorm}
+\end{equation}
+โดยกระบวนการ $\mathcal{T}_{\mathrm{norm}}$ ประกอบด้วย:
+\begin{enumerate}
+    \item การแปลงตัวอักษรภาษาอังกฤษทั้งหมดเป็นตัวพิมพ์เล็ก (Lowercasing)
+    \item การลบเครื่องหมายวรรคตอนและสัญลักษณ์พิเศษที่ไม่เกี่ยวข้องกับมิติ (Punctuation Stripping)
+    \item การแปลงคำอ่านตัวเลขภาษาอังกฤษให้อยู่ในรูปตัวเลขอารบิกมาตรฐานสากล พร้อมจัดรูปสัญลักษณ์มิติ เช่น แปลงคำว่า ``by'' ให้เป็นเครื่องหมายคูณมิติ ``x'' และแปลงคำว่า ``centimeter'', ``centimeters'' ให้เป็นหน่วยย่อ ``cm''
+\end{enumerate}
+
+จากนั้นนำข้อความมาตรฐาน $R_{\mathrm{norm}}$ และ $H_{\mathrm{norm}}$ มาจัดแนวคู่กันด้วยกำหนดการพลวัต (Dynamic Programming Word Alignment) เพื่อคำนวณค่า $\mathrm{WER}_{\mathrm{norm}}$ ตามสมการ:
+\begin{equation}
+\mathrm{WER}_{\mathrm{norm}} = \frac{S + D + I}{N_{\mathrm{ref}}} \times 100\%
+\label{eq:wernorm}
+\end{equation}
+โดยที่:
+\begin{itemize}
+    \item $S$ (Substitutions) คือ จำนวนคำที่แบบจำลองถอดความผิดเป็นคำอื่น เช่น คำว่า \textit{right} ถูกถอดความผิดเป็น \textit{write} หรือ \textit{discrete} ผิดเป็น \textit{discreet}
+    \item $D$ (Deletions) คือ จำนวนคำในข้อความอ้างอิงที่ตกหล่นไปโดยที่แบบจำลองไม่ได้ถอดความ
+    \item $I$ (Insertions) คือ จำนวนคำส่วนเกินที่แบบจำลองสร้างแทรกขึ้นมาเองโดยไม่มีอยู่ในข้อความต้นฉบับ (เช่น อาการพูดซ้ำวนลูปหรือภาพหลอนทางเสียง)
+    \item $N_{\mathrm{ref}}$ คือ จำนวนคำทั้งหมดในข้อความอ้างอิงเฉลยมาตรฐาน ($N_{\mathrm{ref}} = |R_{\mathrm{norm}}|$)
+\end{itemize}
+
+\subsubsection{อัตราความผิดพลาดคำศัพท์ทางคลินิก (Clinical Term Error Rate: $\mathrm{C\text{-}TER}$)}
+
+เนื่องจาก $\mathrm{WER}_{\mathrm{norm}}$ ให้ค่าน้ำหนักของคำทุกคำเท่ากัน (การถอดคำเชื่อมผิด เช่น ``the'' หรือ ``and'' จะถูกนับความผิดพลาดเท่ากับคำระบุตำแหน่งรอยโรคหรือสภาพขอบตัดผ่าตัด) ซึ่งไม่สอดคล้องกับความเสี่ยงจริงในเวชปฏิบัติ โครงงานจึงกำหนดตัวชี้วัด $\mathrm{C\text{-}TER}$ ขึ้นมาเฉพาะเจาะจง เพื่อประเมินความแม่นยำในการรู้จำคลังคำศัพท์กายวิภาคศาสตร์และพยาธิวิทยา ($\mathcal{V}_{\mathrm{CAP}}$) เช่น \textit{infiltrating, ductal, carcinoma, fibrocystic, margin, deep, superior, inferior, nipple, areola} เป็นต้น:
+\begin{equation}
+\mathrm{C\text{-}TER} = \frac{S_{\mathrm{clin}} + D_{\mathrm{clin}}}{N_{\mathrm{clin}}} \times 100\%
+\label{eq:cter}
+\end{equation}
+โดยที่:
+\begin{itemize}
+    \item $N_{\mathrm{clin}} = \sum_{w \in R_{\mathrm{norm}}} \mathbb{I}(w \in \mathcal{V}_{\mathrm{CAP}})$ คือจำนวนโทเคนคำศัพท์ทางคลินิกทั้งหมดที่ปรากฏในข้อความอ้างอิง
+    \item $S_{\mathrm{clin}}$ คือจำนวนคำศัพท์ทางคลินิกในข้อความอ้างอิงที่ถูกถอดความเป็นคำอื่น
+    \item $D_{\mathrm{clin}}$ คือจำนวนคำศัพท์ทางคลินิกในข้อความอ้างอิงที่ตกหล่นไปอย่างสิ้นเชิง
+\end{itemize}
+
+\subsubsection{อัตราความผิดพลาดของตัวเลขและมิติ (Numerical Dimension Error Rate: $\mathrm{N\text{-}DER}$)}
+
+ในรายงานพยาธิวิทยากายวิภาค ตัวเลขมิติของก้อนเนื้อร้าย ระยะห่างจากขอบตัดผ่าตัด และจำนวนต่อมน้ำเหลืองรักแร้ ถือเป็นสารสนเทศระดับวิกฤตสูงสุดต่อการกำหนดระยะของโรคมะเร็ง (TNM Staging) อัตราความผิดพลาด $\mathrm{N\text{-}DER}$ จึงถูกกำหนดขึ้นเพื่อวัดความถูกต้องเฉพาะกลุ่มโทเคนตัวเลขและมิติ ($\mathcal{V}_{\mathrm{num}}$) ซึ่งครอบคลุมตัวเลขอารบิก ทศนิยม ตัวเชื่อมมิติ (`x') หน่วยวัด (`cm', `mm') และรหัสสิ่งส่งตรวจ:
+\begin{equation}
+\mathrm{N\text{-}DER} = \frac{S_{\mathrm{num}} + D_{\mathrm{num}} + I_{\mathrm{num}}}{N_{\mathrm{num}}} \times 100\%
+\label{eq:nder}
+\end{equation}
+โดยที่ $N_{\mathrm{num}} = \sum_{w \in R_{\mathrm{norm}}} \mathbb{I}(w \in \mathcal{V}_{\mathrm{num}})$ คือจำนวนโทเคนตัวเลขและมิติทั้งหมดในข้อความอ้างอิง และ $S_{\mathrm{num}}, D_{\mathrm{num}}, I_{\mathrm{num}}$ คือจำนวนการแทนที่ ตกหล่น และแทรกเกินของโทเคนในกลุ่มตัวเลขและมิติตามลำดับ
+
+\subsection{การประเมินผลระดับการสกัดข้อมูล 15 ฟิลด์ CAP (Clinical Information Extraction Metrics)}
+
+\subsubsection{ความถูกต้องระดับช่องข้อมูล (Slot Accuracy: $\mathrm{Slot\ Acc}$)}
+
+วัดสัดส่วนความถูกต้องของการสกัดข้อมูลตรงกันทุกประการ (Exact Match) ระหว่างค่าที่สกัดได้จากข้อความถอดความ ($\hat{y}_{m,k}$) กับค่าเฉลยมาตรฐาน ($y_{m,k}$) ครอบคลุมทั้ง $M$ กรณีศึกษา และครบทั้ง $K = 15$ ฟิลด์มาตรฐาน CAP:
+\begin{equation}
+\mathrm{Slot\ Acc} = \frac{1}{M \cdot K} \sum_{m=1}^{M} \sum_{k=1}^{K} \mathbb{I}\!\left(\hat{y}_{m,k} = y_{m,k}\right) \times 100\%
+\label{eq:slotacc}
+\end{equation}
+โดย $\mathbb{I}(\cdot)$ คือฟังก์ชันบ่งชี้ (Indicator Function) ซึ่งมีค่าเป็น 1 เมื่อค่าตรงกันทุกประการ และมีค่าเป็น 0 เมื่อไม่ตรงกัน
+
+\subsubsection{ความแม่นยำ การระลึก และคะแนนเฉลี่ยมาโคร ($\mathrm{Precision}$, $\mathrm{Recall}$, $\mathrm{Macro\text{-}}F_1$)}
+
+สำหรับการประเมินความสามารถในการสกัดข้อมูลรายฟิลด์ กำหนดให้ $\mathrm{TP}_k$ (True Positive) คือจำนวนกรณีที่สกัดสารสนเทศทางคลินิกที่มีอยู่จริงได้ถูกต้อง, $\mathrm{FP}_k$ (False Positive) คือจำนวนกรณีที่สกัดค่าผิดหรือสร้างสารสนเทศขึ้นมาเองเมื่อไม่มีรอยโรค, และ $\mathrm{FN}_k$ (False Negative) คือจำนวนกรณีที่สารสนเทศมีอยู่ในข้อความแต่สกัดไม่พบ โดยคำนวณค่าความแม่นยำ (Precision) และการระลึก (Recall) ของฟิลด์ที่ $k$ ดังนี้:
+\begin{equation}
+\mathrm{Precision}_k = \frac{\mathrm{TP}_k}{\mathrm{TP}_k + \mathrm{FP}_k}, \quad \mathrm{Recall}_k = \frac{\mathrm{TP}_k}{\mathrm{TP}_k + \mathrm{FN}_k}
+\label{eq:precrecall}
+\end{equation}
+คะแนน $F_{1,k}$ ของแต่ละฟิลด์คือค่าเฉลี่ยฮาร์มอนิกของความแม่นยำและการระลึก:
+\begin{equation}
+F_{1,k} = \frac{2 \cdot \mathrm{Precision}_k \cdot \mathrm{Recall}_k}{\mathrm{Precision}_k + \mathrm{Recall}_k}
+\label{eq:f1k}
+\end{equation}
+และคะแนน $\mathrm{Macro\text{-}}F_1$ รวมของทั้งระบบคำนวณจากค่าเฉลี่ยไม่ถ่วงน้ำหนักครอบคลุมทั้ง $K = 15$ ฟิลด์มาตรฐาน CAP:
+\begin{equation}
+\mathrm{Macro\text{-}}F_1 = \frac{1}{K} \sum_{k=1}^{K} F_{1,k}, \quad K = 15
 \label{eq:macrof1}
 \end{equation}
 
-\subsubsection{ความสอดคล้องระดับช่องข้อมูล (Slot-Level Agreement) และความจำเพาะ (Specificity)}
-วัดสัดส่วนความถูกต้องรวมทุกช่องข้อมูล ($M = 15$ ฟิลด์ จาก $N_{\text{cases}} = 1{,}000$ กรณี รวมทั้งสิ้น 15,000 ช่องข้อมูล):
-\begin{equation}
-\mathrm{Slot\text{-}Agreement} = \frac{\sum_{k=1}^{M} (\mathrm{TP}_k + \mathrm{TN}_k)}{M \cdot N_{\text{cases}}} \times 100\%
-\label{eq:slot_agreement}
-\end{equation}
-และประเมินความจำเพาะสำหรับกลุ่มฟิลด์ควบคุมเชิงลบ 4 ฟิลด์ ($k \in \{\text{s6, s7, s8, s9}\}$):
-\begin{equation}
-\mathrm{Specificity}_k = \frac{\mathrm{TN}_k}{\mathrm{TN}_k + \mathrm{FP}_k} \times 100\%
-\label{eq:specificity}
-\end{equation}
-โดย $\mathrm{TN}_k$ แทนจำนวนช่องข้อมูลที่เฉลยเว้นว่างและระบบเว้นว่างได้ถูกต้อง
+\subsubsection{อัตราความผิดพลาดวิกฤตระดับเคส (Case-Level Critical Error Rate: $\mathrm{CER}_{\mathrm{case}}$)}
 
-\subsubsection{อัตราความผิดพลาดวิกฤตระดับเคส ($\mathrm{CER}_{\mathrm{case}}$) และความถูกต้องสมบูรณ์}
-ประเมินสัดส่วนกรณีศึกษาที่มีข้อผิดพลาดเกิดขึ้นในฟิลด์วิกฤตทางคลินิกอย่างน้อย 1 ฟิลด์ จากกลุ่มฟิลด์วิกฤต 6 ฟิลด์หลัก ($C_{\text{crit}} = \{\text{s1, s3, s10\_infiltrative, s10\_inf\_dims, s11, s14}\}$):
+ในทางการแพทย์ ข้อผิดพลาดในฟิลด์ที่ส่งผลต่อการวางแผนการรักษาของผู้ป่วยจัดเป็นข้อผิดพลาดวิกฤต (Critical Errors) โครงงานได้กำหนดชุดฟิลด์วิกฤต 6 ฟิลด์สำคัญ ($\mathcal{F}_{\mathrm{crit}}$) ได้แก่ ข้างที่ผ่าตัด (\texttt{s1\_side}), ขนาดสิ่งส่งตรวจ (\texttt{s3\_dims}), การมีก้อนเนื้อลุกลาม (\texttt{s10\_infiltrative}), ขนาดก้อนเนื้อร้าย (\texttt{s10\_inf\_dims}), ระยะห่างขอบตัดด้านลึก (\texttt{s11\_deep\_margin}), และจำนวนต่อมน้ำเหลือง (\texttt{s14\_check}):
 \begin{equation}
-\mathrm{CER}_{\mathrm{case}} = \frac{1}{N_{\text{cases}}} \sum_{i=1}^{N_{\text{cases}}} \mathbb{I}\left( \sum_{c \in C_{\text{crit}}} (\mathrm{FP}_{i, c} + \mathrm{FN}_{i, c}) > 0 \right) \times 100\%
+\mathcal{F}_{\mathrm{crit}} = \{\texttt{s1\_side}, \texttt{s3\_dims}, \texttt{s10\_infiltrative}, \texttt{s10\_inf\_dims}, \texttt{s11\_deep\_margin}, \texttt{s14\_check}\}
+\label{eq:fcrit}
+\end{equation}
+หากกรณีศึกษา $m$ มีข้อผิดพลาดในฟิลด์ใดฟิลด์หนึ่งใน $\mathcal{F}_{\mathrm{crit}}$ แม้แต่ฟิลด์เดียว จะถือว่ากรณีศึกษานั้นมีข้อผิดพลาดระดับวิกฤต ($\mathrm{CritError}_m = 1$):
+\begin{equation}
+\mathrm{CritError}_m = \mathbb{I}\!\left( \exists k \in \mathcal{F}_{\mathrm{crit}} : \hat{y}_{m,k} \ne y_{m,k} \right)
+\label{eq:critcase}
+\end{equation}
+และอัตราความผิดพลาดวิกฤตระดับเคสคำนวณจากสัดส่วนของกรณีศึกษาที่มีข้อผิดพลาดวิกฤตต่อกรณีศึกษาทั้งหมด $M$ กรณี:
+\begin{equation}
+\mathrm{CER}_{\mathrm{case}} = \frac{1}{M} \sum_{m=1}^{M} \mathrm{CritError}_m \times 100\%
 \label{eq:cercase}
 \end{equation}
-\begin{equation}
-\mathrm{Exactness}_{\mathrm{case}} = 100\% - \mathrm{CER}_{\mathrm{case}}
-\label{eq:exactness}
-\end{equation}
-โดยที่ $\mathbb{I}(\cdot)$ คือฟังก์ชันบ่งชี้ (Indicator Function) ซึ่งมีค่าเท่ากับ 1 เมื่อพบข้อผิดพลาดในเคส และเท่ากับ 0 เมื่อเคสดังกล่าวถูกต้องสมบูรณ์
 
-\subsubsection{อัตราความผิดพลาดของมโนทัศน์ทางคลินิก (Concept Error Rate: ConER)}
-วัดอัตราความผิดพลาดเฉพาะคำสำคัญทางคลินิก (คำศัพท์แพทย์ ตัวเลข และหน่วยมิติ):
-\begin{equation}
-\mathrm{ConER} = \frac{S_{\text{clinical}} + D_{\text{clinical}}}{N_{\text{clinical}}} \times 100\%
-\label{eq:coner}
-\end{equation}
-โดย $S_{\text{clinical}}$ และ $D_{\text{clinical}}$ คือจำนวนคำสำคัญทางคลินิกที่ถูกแทนที่ผิดและตกหล่น และ $N_{\text{clinical}}$ คือจำนวนคำสำคัญทางคลินิกทั้งหมดในเฉลย
+\subsection{การประเมินประสิทธิภาพการพยากรณ์แบบคัดเลือกและความปลอดภัย (Selective Prediction \& Safety Metrics)}
 
-\subsubsection{ชนิดของความผิดพลาดและความครอบคลุมของธงเตือน}
-แยกข้อผิดพลาดของการสกัดเป็นการเว้นว่าง (Omission) ซึ่งแพทย์เห็นช่องว่างได้ และการกรอกค่าผิด (Commission) ซึ่งผู้ตรวจอาจไม่สังเกต โดยให้ $r_{i,k}$ คือค่าเฉลยและ $h_{i,k}$ คือค่าที่สกัดได้ของฟิลด์ $k$ ในกรณีที่ $i$ และ $\varnothing$ คือช่องว่าง:
-\begin{equation}
-\mathrm{Omission} = \sum_{i=1}^{N_{\text{cases}}} \sum_{k=1}^{M} \mathbb{I}\left( r_{i,k} \neq \varnothing \wedge h_{i,k} = \varnothing \right)
-\label{eq:omission}
-\end{equation}
-\begin{equation}
-\mathrm{Commission} = \sum_{i=1}^{N_{\text{cases}}} \sum_{k=1}^{M} \mathbb{I}\left( h_{i,k} \neq \varnothing \wedge h_{i,k} \neq r_{i,k} \right)
-\label{eq:commission}
-\end{equation}
-ความครอบคลุมของธงเตือน (Flag Coverage) คือสัดส่วนของเคสที่ฟิลด์วิกฤตผิดและระบบแสดงธงเตือนอย่างน้อยหนึ่งธง:
-\begin{equation}
-\mathrm{FlagCoverage} = \frac{N_{\text{flag}}}{N_{\text{err}}} \times 100\%
-\label{eq:flagcov}
-\end{equation}
-โดยที่ $N_{\text{err}}$ คือจำนวนเคสที่ฟิลด์วิกฤตผิด และ $N_{\text{flag}}$ คือจำนวนเคสในกลุ่มนั้นที่ระบบแสดงธงเตือน
+ตามกรอบแนวคิดการพยากรณ์แบบคัดเลือก (Selective Prediction) \cite{geifman2017selective} ระบบ PathoWhisper ทำงานร่วมกับฟังก์ชันคัดกรองความปลอดภัย $g(x_m) \in \{0, 1\}$ โดย $g(x_m) = 1$ แทนกรณีศึกษาที่ผ่านเกณฑ์ความปลอดภัยทุกด่านและสามารถส่งบันทึกผลเข้าระบบฐานข้อมูลได้อัตโนมัติ ขณะที่ $g(x_m) = 0$ แทนกรณีศึกษาที่ถูกแจ้งเตือนความเสี่ยง (Flagged) เพื่อส่งต่อให้แพทย์พยาธิวิทยาตรวจทานด้วยตนเอง
 
-\subsubsection{เวลาประมวลผลและอัตราเร่ง (Latency and Speedup)}
-เวลาประมวลผลคือค่าเฉลี่ยของเวลาต่อกรณี (วินาที) รวมการกรองเสียงและการถอดความของ PathoWhisper:
+\subsubsection{สัดส่วนการยอมรับผลอัตโนมัติ (Coverage: $\Phi(g)$)}
+
+สัดส่วนของกรณีศึกษาทั้งหมดที่ระบบประเมินว่าปลอดภัยและอนุญาตให้ส่งผ่านโดยไม่ต้องตรวจทานด้วยมือ:
 \begin{equation}
-\mathrm{Latency} = \frac{1}{N_{\text{cases}}} \sum_{i=1}^{N_{\text{cases}}} t_i
-\label{eq:latency}
-\end{equation}
-และอัตราเร่งคืออัตราส่วนระหว่างเวลาของแบบจำลองพื้นฐานกับของ PathoWhisper:
-\begin{equation}
-\mathrm{Speedup} = \frac{\mathrm{Latency}_{\mathrm{Baseline}}}{\mathrm{Latency}_{\mathrm{PathoWhisper}}}
-\label{eq:speedup}
+\Phi(g) = \frac{1}{M} \sum_{m=1}^{M} g(x_m) \times 100\%
+\label{eq:coverage}
 \end{equation}
 
-\subsection{การวิเคราะห์ทางสถิติ}
-การเปรียบเทียบผลระหว่างแบบจำลองดำเนินการแบบจับคู่รายกรณี (Paired Evaluation) ให้ $m_i^{\text{base}}$ และ $m_i^{\text{ours}}$ คือค่าตัวชี้วัด (เช่น WER หรือเวลา) ของกรณีที่ $i$ ในแบบจำลองพื้นฐานและใน PathoWhisper ผลต่างเฉลี่ยและการลดลงเชิงสัมพัทธ์คำนวณจาก:
+\subsubsection{อัตราความผิดพลาดวิกฤตที่หลุดรอดแบบเงียบ (Silent Critical Error Rate: $\mathrm{CER}_{\mathrm{silent}}$)}
+
+ตัวชี้วัดความปลอดภัยสูงสุดทางคลินิก ซึ่งวัดสัดส่วนของกรณีศึกษาที่มีข้อผิดพลาดวิกฤตปะปนอยู่ในกลุ่มกรณีศึกษาที่ระบบตัดสินว่าปลอดภัย ($g(x_m) = 1$):
 \begin{equation}
-\Delta = \frac{1}{N_{\text{cases}}} \sum_{i=1}^{N_{\text{cases}}} \left( m_i^{\text{base}} - m_i^{\text{ours}} \right)
-\label{eq:delta}
+\mathrm{CER}_{\mathrm{silent}} = \frac{\sum_{m=1}^{M} g(x_m) \cdot \mathrm{CritError}_m}{\sum_{m=1}^{M} g(x_m)} \times 100\%
+\label{eq:silentcer}
 \end{equation}
+เป้าหมายของระบบความปลอดภัยทางการแพทย์คือการควบคุมให้ $\mathrm{CER}_{\mathrm{silent}} \to 0\%$ เพื่อมิให้ผู้ป่วยได้รับอันตรายจากรายงานที่มีข้อมูลผิดพลาดโดยที่แพทย์ไม่ได้รับคำเตือน
+
+\subsubsection{อัตราการดักจับข้อผิดพลาดวิกฤต (Critical Error Recall: $\mathrm{Recall}_{\mathrm{error}}$)}
+
+ความไวของระบบแจ้งเตือน (Screening Sensitivity) ในการตรวจจับและกักกันกรณีศึกษาที่มีข้อผิดพลาดวิกฤตจริง:
 \begin{equation}
-\mathrm{RelReduction} = \frac{\bar{m}^{\text{base}} - \bar{m}^{\text{ours}}}{\bar{m}^{\text{base}}} \times 100\%
-\label{eq:relred}
+\mathrm{Recall}_{\mathrm{error}} = \frac{\sum_{m=1}^{M} (1 - g(x_m)) \cdot \mathrm{CritError}_m}{\sum_{m=1}^{M} \mathrm{CritError}_m} \times 100\%
+\label{eq:errorrecall}
 \end{equation}
-ช่วงความเชื่อมั่นร้อยละ 95 ของ $\Delta$ ได้จากวิธี Bootstrap จำนวน 5,000 รอบ และทดสอบนัยสำคัญด้วยการทดสอบวิลคอกซอน (Wilcoxon Signed-Rank Test) สำหรับค่าความผิดพลาดระดับคำและเวลา ส่วนความผิดพลาดระดับเคสใช้การทดสอบแมกนีมาร์ (McNemar's Exact Test) โดยให้ $b$ คือจำนวนเคสที่ baseline ผิดแต่ PathoWhisper ถูก และ $c$ คือจำนวนเคสที่ PathoWhisper ผิดแต่ baseline ถูก:
+
+\subsubsection{สัดส่วนการลดภาระงานการตรวจทาน (Workload Reduction)}
+
+ประสิทธิภาพในการลดภาระงานของบุคลากรทางการแพทย์ คำนวณจากสัดส่วนของกรณีศึกษาที่ระบบบันทึกผลได้อัตโนมัติอย่างปลอดภัยโดยไม่ต้องให้แพทย์อ่านตรวจทานซ้ำทั้งฉบับ:
 \begin{equation}
-p = \min\left(1,\; 2 \sum_{j=0}^{\min(b,c)} \binom{b+c}{j} \left(\tfrac{1}{2}\right)^{b+c} \right)
+\mathrm{Workload\ Reduction} = \Phi(g) \times 100\%
+\label{eq:workloadred}
+\end{equation}
+
+\subsection{การทดสอบสมมติฐานทางสถิติและการควบคุมความผิดพลาดแบบพหุคูณ (Statistical Significance \& Multiple Testing Correction)}
+
+เพื่อยืนยันว่าการปรับปรุงประสิทธิภาพของแบบจำลองที่นำเสนอมิได้เกิดขึ้นจากความบังเอิญ โครงงานได้ใช้ระเบียบวิธีอนุมานทางสถิติแบบจับคู่รายกรณี (Paired Comparative Inference) ดังนี้:
+
+\subsubsection{การทดสอบลำดับเครื่องหมายของวิลคอกซอน (Wilcoxon Signed-Rank Test)}
+
+ใช้สำหรับทดสอบนัยสำคัญของผลต่างของตัวชี้วัดแบบต่อเนื่อง เช่น $\mathrm{WER}_{\mathrm{norm}}$ ระหว่างสองระบบ (เช่น ระบบเสนอ $S_3$ เทียบกับระบบฐาน $S_0$) สำหรับแต่ละกรณีศึกษา $m \in \{1, \dots, M\}$ กำหนดผลต่าง $d_m = \mathrm{WER}_{A,m} - \mathrm{WER}_{B,m}$ ขจัดคู่ที่ผลต่างเท่ากับศูนย์ ($d_m = 0$) และเรียงลำดับค่าสัมบูรณ์ $|d_m|$ จากน้อยไปมากเพื่อกำหนดค่าลำดับที่ $\mathrm{Rank}(|d_m|)$ โดยสถิติทดสอบ $W$ คำนวณจากผลรวมลำดับที่ที่มีค่าน้อยกว่าระหว่างผลต่างบวกและผลต่างลบ \cite{wilcoxon1945individual}:
+\begin{equation}
+W = \min\left( \sum_{m: d_m > 0} \mathrm{Rank}(|d_m|), \sum_{m: d_m < 0} \mathrm{Rank}(|d_m|) \right)
+\label{eq:wilcoxon}
+\end{equation}
+แล้วคำนวณค่า $p$-value แบบสองด้าน (Two-Sided $p$-value) เทียบกับสมมติฐานหลัก $H_0: \mathbb{E}[d_m] = 0$
+
+\subsubsection{การทดสอบแมกนีมาร์แบบแม่นตรง (Exact Two-Sided McNemar's Test)}
+
+ใช้สำหรับทดสอบนัยสำคัญของผลต่างของตัวชี้วัดทวิภาคระดับกรณีศึกษา เช่น ข้อผิดพลาดวิกฤต $\mathrm{CritError}_m \in \{0, 1\}$ โดยสร้างตารางความสอดคล้องแบบจับคู่ (Paired $2 \times 2$ Contingency Table):
+\begin{itemize}
+    \item $b_{10}$ คือ จำนวนกรณีที่ระบบเดิม ($A$) เกิดข้อผิดพลาดวิกฤต แต่ระบบที่นำเสนอ ($B$) ทำงานถูกต้อง
+    \item $b_{01}$ คือ จำนวนกรณีที่ระบบเดิม ($A$) ทำงานถูกต้อง แต่ระบบที่นำเสนอ ($B$) เกิดข้อผิดพลาดวิกฤต
+\end{itemize}
+เนื่องจากจำนวนคู่ที่ไม่สอดคล้องกัน ($b_{10} + b_{01}$) มีขนาดจำกัดในบางชุดทดสอบ โครงงานจึงใช้การทดสอบแมกนีมาร์แบบแม่นตรงจากการแจกแจงทวินาม (Exact Binomial Distribution) ภายใต้สมมติฐานหลัก $H_0: p = 0.5$ แทนการประมาณด้วยไคสแควร์เชิงเส้นกำกับ \cite{mcnemar1947note}:
+\begin{equation}
+p_{\mathrm{McNemar}} = 2 \sum_{k=0}^{\min(b_{10}, b_{01})} \binom{b_{10} + b_{01}}{k} \left(\frac{1}{2}\right)^{b_{10} + b_{01}}
 \label{eq:mcnemar}
 \end{equation}
+
+\subsubsection{การควบคุมอัตราความผิดพลาดสะสมด้วยวิธีโฮล์ม--บอนแฟร์โรนี (Holm--Bonferroni Step-Down Procedure)}
+
+ในการเปรียบเทียบประสิทธิภาพพร้อมกันหลายระบบข้ามหลายชุดทดสอบ การทดสอบสมมติฐานย่อยซ้ำซ้อนจะเพิ่มโอกาสเกิดความผิดพลาดแบบที่ 1 (Family-Wise Type I Error Inflation) โครงงานจึงควบคุมอัตราความผิดพลาดสะสมของกลุ่มการทดสอบที่ระดับนัยสำคัญ $\alpha = 0.05$ ด้วยขั้นตอนลดหลั่นของ Holm--Bonferroni \cite{holm1979simple} โดยเรียงลำดับค่า $p$-value ของการทดสอบทั้ง $K$ สมมติฐานจากน้อยไปหามาก:
+\begin{equation}
+p_{(1)} \le p_{(2)} \le \dots \le p_{(K)}
+\label{eq:psort}
+\end{equation}
+และปฏิเสธสมมติฐานหลัก $H_{(i)}$ ทีละลำดับเมื่อสอดคล้องกับเงื่อนไข:
+\begin{equation}
+p_{(i)} \le \frac{\alpha}{K - i + 1}
+\label{eq:holm}
+\end{equation}
+กระบวนการจะยุติการปฏิเสธทันทีที่พบดัชนี $j$ ตัวแรกที่ $p_{(j)} > \frac{\alpha}{K - j + 1}$ และยอมรับสมมติฐานหลักที่เหลือทั้งหมด
+
+\subsubsection{ช่วงความเชื่อมั่นของสัดส่วนแบบวิลสัน (Wilson Score Confidence Interval)}
+
+ในการรายงานค่าสัดส่วนทางสถิติ เช่น $\mathrm{CER}_{\mathrm{case}}$, $\mathrm{Slot\ Acc}$, และ $\mathrm{Coverage}$ การใช้ช่วงความเชื่อมั่นแบบวาลด์ (Wald Interval) มักเกิดความคลาดเคลื่อนรุนแรงเมื่อสัดส่วนเข้าใกล้ขอบเขต 0 หรือ 1 หรือเมื่อขนาดตัวอย่างจำกัด โครงงานจึงรายงานช่วงความเชื่อมั่นร้อยละ 95 ($z = 1.96$) ด้วยวิธีคะแนนของวิลสัน (Wilson Score Interval) \cite{wilson1927probable}:
+\begin{equation}
+\mathrm{CI}_{95\%} = \frac{\hat{p} + \frac{z^2}{2n} \pm z \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}
+\label{eq:wilson}
+\end{equation}
+โดยที่ $\hat{p}$ คือค่าสัดส่วนที่สังเกตได้ และ $n$ คือขนาดตัวอย่างทั้งหมดในชุดทดสอบนั้น
+

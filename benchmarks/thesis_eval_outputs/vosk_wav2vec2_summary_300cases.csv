@@ -1,0 +1,3 @@
+model_id,model_name,cases_count,mean_latency_sec,median_latency_sec,mean_wer_criterion_a,mean_wer_criterion_b,median_wer_criterion_b,cer_case_percent,mean_slot_accuracy
+vosk,"Vosk (Small en-us, Kaldi C++)",300,5.07,4.82,107.82,30.23,27.78,87.67,79.56
+wav2vec2,Meta Wav2Vec 2.0 Base (PyTorch CTC),300,4.36,3.98,110.24,32.91,30.0,98.0,77.29

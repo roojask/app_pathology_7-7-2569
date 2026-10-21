@@ -1,32 +1,7 @@
 import fitz  # PyMuPDF
 import datetime
-import io
-import hashlib
-import qrcode
-
 RED = (1, 0, 0)
 BLUE = (0, 0, 1)
-
-def generate_verification_qr_pixmap(surgical_no, timestamp_str):
-    """สร้าง QR Code รับรองความถูกต้องของรายงานทางการแพทย์และป้องกันการปลอมแปลง"""
-    payload = f"PATHOLOGY_VERIFIED|CASE:{surgical_no}|TIME:{timestamp_str}|SYS:PathoVoice_v1.0"
-    doc_hash = hashlib.sha256(payload.encode('utf-8')).hexdigest()[:12].upper()
-    qr_data = f"https://10.198.200.79:7860/verify?case={surgical_no}&hash={doc_hash}"
-    
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=3,
-        border=1
-    )
-    qr.add_data(qr_data)
-    qr.make(fit=True)
-    
-    img = qr.make_image(fill_color="black", back_color="white")
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='PNG')
-    
-    return fitz.Pixmap(img_byte_arr.getvalue()), doc_hash
 
 def draw_standard_tick_at(page, cx, cy):
     shape = page.new_shape()
@@ -93,16 +68,7 @@ def process_pdf_15_sections(template_path, output_path, data):
     doc = fitz.open(template_path)
     page = doc[0]
 
-    # --- Digital Verification QR Code Stamp ---
-    s_no = data.get("s0_surgical_no", "S-Unknown")
-    time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        qr_pixmap, doc_hash = generate_verification_qr_pixmap(s_no, time_str)
-        qr_rect = fitz.Rect(535, 18, 580, 63)
-        page.insert_image(qr_rect, pixmap=qr_pixmap)
-        page.insert_text(fitz.Point(535, 68), f"#{doc_hash}", fontsize=5.5, fontname="helv", color=(0.4, 0.4, 0.4))
-    except Exception as qr_err:
-        print(f"[PDF QR Note] {qr_err}")
+    # Note: QR Code verification stamp removed per clinical grossing protocol
 
     if data.get("s0_surgical_no"):
         s_val = str(data["s0_surgical_no"]).replace("S-", "").replace("S", "").strip()

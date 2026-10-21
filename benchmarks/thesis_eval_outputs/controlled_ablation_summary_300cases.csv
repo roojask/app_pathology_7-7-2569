@@ -1,0 +1,13 @@
+condition_id,condition_name,total_cases_evaluated,core_100_cases_evaluated,denoise,prompt,beam_size,temperature,cpu_threads,mean_latency_core_sec,median_latency_core_sec,p95_latency_core_sec,mean_wer_criterion_a_all,median_wer_criterion_a_all,mean_wer_criterion_b_all,median_wer_criterion_b_all,repetition_loops_count_wer_a,repetition_loops_count_wer_b,cer_case_percent_all,mean_slot_accuracy_all
+C0_ct2_fp32_baseline,"C0: Baseline FP32 (CT2 FP32, No Denoise, No Prompt, Beam 5)",300,100,False,False,5,0.0,8,16.4,14.23,24.07,37.16,32.14,7.81,6.67,2,2,18.67,98.09
+C1_vanilla,"C1: Vanilla (CT2 INT8, No Denoise, No Prompt, Beam 5)",300,100,False,False,5,0.0,8,6.14,4.89,8.96,40.0,32.67,9.49,6.67,3,3,19.33,98.09
+C2_denoise_only,"C2: +Denoise Only (CT2 INT8, Denoise, No Prompt, Beam 5)",300,100,True,False,5,0.0,8,6.86,7.61,9.52,38.07,32.08,9.83,6.3,6,4,30.0,96.91
+C3_prompt_only,"C3: +Prompt Only (CT2 INT8, No Denoise, Prompt, Beam 5)",300,100,False,True,5,0.0,8,7.01,5.69,10.48,30.41,27.27,3.31,1.39,3,2,7.67,99.18
+C4_beam1_only,"C4: +Greedy Only (CT2 INT8, No Denoise, No Prompt, Beam 1)",300,100,False,False,1,0.0,8,5.25,4.11,7.78,37.49,32.14,8.75,6.67,2,1,21.0,97.84
+C5_full_pathowhisper,"C5: Full PathoWhisper (CT2 INT8, Denoise, Prompt, Beam 1)",300,100,True,True,1,0.0,8,6.07,4.81,8.95,28.57,27.27,2.44,2.17,0,0,11.67,98.98
+C6_leaveout_denoise,"C6: Full - Denoise (CT2 INT8, No Denoise, Prompt, Beam 1)",300,100,False,True,1,0.0,8,5.57,4.56,8.65,28.28,27.27,2.63,1.52,2,1,7.0,99.27
+C7_leaveout_prompt,"C7: Full - Prompt (CT2 INT8, Denoise, No Prompt, Beam 1)",300,100,True,False,1,0.0,8,5.93,4.66,8.21,38.97,33.93,9.47,7.0,3,2,26.67,97.18
+C8_leaveout_beam1,"C8: Full - Greedy (CT2 INT8, Denoise, Prompt, Beam 5)",300,100,True,True,5,0.0,8,7.57,6.04,10.91,28.32,27.27,2.49,1.75,0,0,13.67,98.76
+SIZE_tiny,"Size: Tiny INT8 (Denoise, Prompt, Beam 1)",300,100,True,True,1,0.0,8,1.62,1.42,2.18,40.56,33.96,10.85,4.92,5,5,19.33,96.96
+SIZE_base,"Size: Base INT8 (Denoise, Prompt, Beam 1)",300,100,True,True,1,0.0,8,2.64,2.2,3.81,40.23,31.7,10.27,3.03,8,8,14.33,98.13
+SIZE_medium,"Size: Medium INT8 (Denoise, Prompt, Beam 1)",100,100,True,True,1,0.0,8,15.17,11.84,22.17,33.48,28.07,1.59,0.0,0,0,7.0,99.47

@@ -73,20 +73,20 @@ class Config:
     DEFAULT_LANGUAGE = "en"
     FORCE_ENGLISH_ONLY = True
     
-    # Whisper Model settings: 100% Local Offline Speech-to-Text Engine
+    # Whisper Model settings: 100% Local Offline Speech-to-Text Engine (PathoWhisper Clean-Slate v3)
     WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
     USE_FASTER_WHISPER_ENGINE = os.environ.get("USE_FASTER_WHISPER_ENGINE", "True").lower() in ("true", "1", "yes")
+    SNR_GATE_THRESHOLD_DB = float(os.environ.get("SNR_GATE_THRESHOLD_DB", "13.55"))
+    AFFTDN_NR_DB = int(os.environ.get("AFFTDN_NR_DB", "6"))
     PATHOLOGY_PROMPT = (
-        "Surgical pathology gross examination report. Surgical number S-26-1001. "
-        "Received in formalin is a right modified radical mastectomy specimen. "
-        "Left simple mastectomy. Skin ellipse. The nipple is everted, inverted, unremarkable, shows ulceration. "
-        "Infiltrative firm yellow-white mass located at upper outer quadrant, upper inner quadrant, "
-        "lower outer quadrant, lower inner quadrant, central, subareolar. "
-        "Well-defined firm white mass with slit-like appearance. Poorly circumscribed yellow-white lesion. "
-        "Previous surgical cavity with adjacent fibrous tissue. Residual mass. "
-        "Deep surgical resection margin, superior margin, inferior margin, medial margin, lateral margin, skin margin. "
-        "Centimeters, cm, millimeters, mm. Distance from closest margin. Grossly free from tumor. "
-        "Representative sections submitted in paraffin blocks. Axillary contents, level 1, level 2, lymph nodes."
+        "Breast pathology grossing: modified radical mastectomy, simple mastectomy, lumpectomy, "
+        "infiltrative, well-defined, slit-like, fibrocystic, subareolar, retroareolar, "
+        "everted, inverted, retracted, ulceration, surgical cavity, residual mass, axillary lymph nodes. "
+        "Accession S-26-01425. Dimensions 18.5 x 14.2 x 4.8 cm, skin 12.0 x 6.5 cm, "
+        "margins deep 1.2 cm, superior 2.4 cm, inferior 1.8 cm, medial 3.1 cm, lateral 2.7 cm, "
+        "nodes 0.4 to 1.8 cm. "
+        "Spellings: discrete not discreet; fibrocystic not fibrous-cystic; "
+        "everted vs inverted; right vs write; 2 x 3 cm not 2 by 3 cm."
     )
     
     # Clinical Audio Data Flywheel settings

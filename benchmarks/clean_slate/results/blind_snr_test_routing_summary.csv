@@ -1,0 +1,5 @@
+split,is_noisy_gt,n,est_snr_mean,est_snr_min,est_snr_max,routed_denoise_pct,routing_acc_pct
+test_seen,False,135,23.64465185185185,14.226,32.257,0.0,100.0
+test_seen,True,15,-3.3817333333333335,-3.78,-2.921,100.0,100.0
+test_unseen,False,135,23.087681481481482,11.196,37.196,2.96,97.04
+test_unseen,True,15,-3.3466666666666667,-4.381,-2.648,100.0,100.0

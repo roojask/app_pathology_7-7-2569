@@ -1,0 +1,7 @@
+split,system_a,system_b,n,wer_diff_mean,wilcoxon_wer_p,b10_a_err_b_ok,b01_a_ok_b_err,mcnemar_cer_p
+test_unseen,S0_ZeroShot_NoPrompt_SNRGated,S1c_ZeroShot_P4_SNRGated,150,4.262,6.34626059693968e-17,9,0,0.00390625
+test_unseen,S1b_ZeroShot_P4_StaticAfftdn,S1c_ZeroShot_P4_SNRGated,150,0.31,0.5218464646882632,10,1,0.01171875
+test_unseen,S1a_ZeroShot_P4_NoFilter,S1c_ZeroShot_P4_SNRGated,150,-0.254,0.14042971202851484,0,1,1.0
+test_unseen,S0_ZeroShot_NoPrompt_SNRGated,S2_LoRA_INT8_NoPrompt,150,4.196,1.9301810437913168e-13,21,2,6.604194641113281e-05
+test_unseen,S1c_ZeroShot_P4_SNRGated,S3_Full_PathoWhisper_LoRA_Prompt_SNRGated,150,-1.815,0.8749181977672841,13,3,0.021270751953125
+test_unseen,S0_ZeroShot_NoPrompt_SNRGated,S3_Full_PathoWhisper_LoRA_Prompt_SNRGated,150,2.447,1.631303675443983e-05,21,2,6.604194641113281e-05

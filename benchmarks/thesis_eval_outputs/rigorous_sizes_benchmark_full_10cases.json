@@ -1,0 +1,654 @@
+{
+  "telemetry": {
+    "os": "Windows 11 (10.0.26200)",
+    "cpu_name": "QEMU Virtual CPU version 2.5+",
+    "logical_cores": 8,
+    "python_version": "3.13.14",
+    "openmp_threads": "auto",
+    "timestamp": "2026-10-12 01:42:32"
+  },
+  "summary": [
+    {
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "cases_count": 10,
+      "repetitions": 1,
+      "avg_median_latency_sec": 6.31,
+      "mean_wer_criterion_a": 45.03,
+      "mean_wer_criterion_b": 12.18,
+      "reduction_points": 32.85
+    },
+    {
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "cases_count": 10,
+      "repetitions": 1,
+      "avg_median_latency_sec": 10.6,
+      "mean_wer_criterion_a": 40.92,
+      "mean_wer_criterion_b": 7.58,
+      "reduction_points": 33.34
+    },
+    {
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "cases_count": 10,
+      "repetitions": 1,
+      "avg_median_latency_sec": 30.54,
+      "mean_wer_criterion_a": 48.4,
+      "mean_wer_criterion_b": 16.55,
+      "reduction_points": 31.85
+    },
+    {
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "cases_count": 10,
+      "repetitions": 1,
+      "avg_median_latency_sec": 6.16,
+      "mean_wer_criterion_a": 29.74,
+      "mean_wer_criterion_b": 2.46,
+      "reduction_points": 27.28
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "case_0811",
+      "category_id": 1,
+      "category_name": "Cat 1: Standard Protocol",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 11.01,
+      "latency_reps": [
+        11.01
+      ],
+      "wer_criterion_a": 27.14,
+      "wer_criterion_b": 5.0,
+      "ref_text": "Surgical number S-24-1811. Received in formalin is a right modified radical mastectomy specimen measuring 29.1x15.5x7.5 cm. The skin ellipse measures 19.3x9.0 cm and appears normal. There is an infiltrative firm yellow white mass measuring 1.3x5.2x1.4 cm at the lower inner quadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 to 1.8 cm are identified.",
+      "hyp_text": "surgical number S24-1811. Received in formula is a right-modified radical mastectomy specimen measuring 29.1 x 15.5 x 7.5 cm. The skin ellipse measures 19.3 x 9.0 cm and appears normal. There is an infiltrative firm yellow white mass measuring 1.3 x 5.2 x 1.4 cm at the lower inner quadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 x 1.8 cm are identified."
+    },
+    {
+      "case_id": "case_0811",
+      "category_id": 1,
+      "category_name": "Cat 1: Standard Protocol",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 16.966,
+      "latency_reps": [
+        16.966
+      ],
+      "wer_criterion_a": 28.57,
+      "wer_criterion_b": 6.25,
+      "ref_text": "Surgical number S-24-1811. Received in formalin is a right modified radical mastectomy specimen measuring 29.1x15.5x7.5 cm. The skin ellipse measures 19.3x9.0 cm and appears normal. There is an infiltrative firm yellow white mass measuring 1.3x5.2x1.4 cm at the lower inner quadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 to 1.8 cm are identified.",
+      "hyp_text": "surgical number S24-1811. Received in Formlin is a right-modified radical mastectomy specimen measuring 29.1 by 15.5 by 7.5 cm. The skin ellipse measures 19.3 by 9.0 cm and appears normal. There is an infiltrative firm yellow white mass measuring 1.3 by 5.2 by 1.4 cm at the lower in-equadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 to 1.8 cm are identified."
+    },
+    {
+      "case_id": "case_0811",
+      "category_id": 1,
+      "category_name": "Cat 1: Standard Protocol",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 42.599,
+      "latency_reps": [
+        42.599
+      ],
+      "wer_criterion_a": 24.29,
+      "wer_criterion_b": 2.5,
+      "ref_text": "Surgical number S-24-1811. Received in formalin is a right modified radical mastectomy specimen measuring 29.1x15.5x7.5 cm. The skin ellipse measures 19.3x9.0 cm and appears normal. There is an infiltrative firm yellow white mass measuring 1.3x5.2x1.4 cm at the lower inner quadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 to 1.8 cm are identified.",
+      "hyp_text": "Surgical number S24-1811. Received in formalin is a right-modified radical mastectomy specimen measuring 29.1 by 15.5 by 7.5 cm. The skin ellipse measures 19.3 by 9.0 cm and appears normal. There is an infiltrative firm yellow-white mass measuring 1.3 by 5.2 by 1.4 cm at the lower inner quadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 to 1.8 cm are identified."
+    },
+    {
+      "case_id": "case_0811",
+      "category_id": 1,
+      "category_name": "Cat 1: Standard Protocol",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 9.72,
+      "latency_reps": [
+        9.72
+      ],
+      "wer_criterion_a": 21.43,
+      "wer_criterion_b": 0.0,
+      "ref_text": "Surgical number S-24-1811. Received in formalin is a right modified radical mastectomy specimen measuring 29.1x15.5x7.5 cm. The skin ellipse measures 19.3x9.0 cm and appears normal. There is an infiltrative firm yellow white mass measuring 1.3x5.2x1.4 cm at the lower inner quadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 to 1.8 cm are identified.",
+      "hyp_text": "Surgical number S-24-1811. Received in formalin is a right modified radical mastectomy specimen,  measuring 29.1 by 15.5 by 7.5 cm. The skin ellipse measures 19.3 by 9.0 cm, and appears normal.  There is an infiltrative firm yellow-white mass measuring 1.3 by 5.2 by 1.4 cm, at  the lower inner quadrant. Deep margin is 0.9 cm. 13 lymph nodes ranging from 0.3 to 1.8 cm are identified."
+    },
+    {
+      "case_id": "case_0142",
+      "category_id": 2,
+      "category_name": "Cat 2: Out-of-Order Sequence",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 8.342,
+      "latency_reps": [
+        8.342
+      ],
+      "wer_criterion_a": 31.48,
+      "wer_criterion_b": 3.12,
+      "ref_text": "An infiltrative mass measuring 2.2x3.8x4.5 cm is found at upper inner quadrant. Specimen is left modified radical mastectomy measuring 17.2x11.9x12.8 cm. Surgical number S-24-1142. Skin ellipse 8.9x2.8 cm. Deep margin 1.5 cm. 20 lymph nodes ranging from 0.7 to 2.2 cm.",
+      "hyp_text": "An infiltrative mass measuring 2.2 by 3.8 by 4.5 cm is found at upper inner quadrant. Specimen is left-modified radical mastectomy measuring 17.2 by 11.9 by 12.8 cm. Sergical number is 24-1142. Skin ellipse 8.9 by 2.8 cm, deep margin 1.5 cm. 20 lymph nodes ranging from 0.7 to 2.2 cm."
+    },
+    {
+      "case_id": "case_0142",
+      "category_id": 2,
+      "category_name": "Cat 2: Out-of-Order Sequence",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 13.133,
+      "latency_reps": [
+        13.133
+      ],
+      "wer_criterion_a": 40.74,
+      "wer_criterion_b": 10.94,
+      "ref_text": "An infiltrative mass measuring 2.2x3.8x4.5 cm is found at upper inner quadrant. Specimen is left modified radical mastectomy measuring 17.2x11.9x12.8 cm. Surgical number S-24-1142. Skin ellipse 8.9x2.8 cm. Deep margin 1.5 cm. 20 lymph nodes ranging from 0.7 to 2.2 cm.",
+      "hyp_text": "An infiltrative mass measuring 2.2 by 3.8 by 4.5 cm is founded upper in a quadrant. Specimen is left modified radical mastectamine measuring 17.2 by 11.9 by 12.8 cm. Surgical number S24-1142 Skin ellipse 8.9 by 2.8 cm deep margin 1.5 cm 20 lymph nodes ranging from 0.7 to 2.2 cm."
+    },
+    {
+      "case_id": "case_0142",
+      "category_id": 2,
+      "category_name": "Cat 2: Out-of-Order Sequence",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 37.319,
+      "latency_reps": [
+        37.319
+      ],
+      "wer_criterion_a": 40.74,
+      "wer_criterion_b": 10.94,
+      "ref_text": "An infiltrative mass measuring 2.2x3.8x4.5 cm is found at upper inner quadrant. Specimen is left modified radical mastectomy measuring 17.2x11.9x12.8 cm. Surgical number S-24-1142. Skin ellipse 8.9x2.8 cm. Deep margin 1.5 cm. 20 lymph nodes ranging from 0.7 to 2.2 cm.",
+      "hyp_text": "An infiltrative mass measuring 2.2 by 3.8 by 4.5 centimeters is found at upper inner quadrant. Specimen is left modified radical mastectomy measuring 17.2 by 11.9 by 12.8 centimeters. Surgical number S24-1142. Skin ellipse 8.9 by 2.8 centimeters deep margin 1.5 centimeters. 20 lymph nodes ranging from 0.7 to 2.2 centimeters."
+    },
+    {
+      "case_id": "case_0142",
+      "category_id": 2,
+      "category_name": "Cat 2: Out-of-Order Sequence",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 9.317,
+      "latency_reps": [
+        9.317
+      ],
+      "wer_criterion_a": 29.63,
+      "wer_criterion_b": 1.56,
+      "ref_text": "An infiltrative mass measuring 2.2x3.8x4.5 cm is found at upper inner quadrant. Specimen is left modified radical mastectomy measuring 17.2x11.9x12.8 cm. Surgical number S-24-1142. Skin ellipse 8.9x2.8 cm. Deep margin 1.5 cm. 20 lymph nodes ranging from 0.7 to 2.2 cm.",
+      "hyp_text": "An infiltrative mass measuring 2.2 by 3.8 by 4.5 cm, is found at upper inner quadrant.  Specimen, is left modified radical mastectomy measuring 17.2 by 11.9 by 12.8 cm.  Surgical number S-24-1142. Skin ellipse 8.9 by 2.8 cm, deep margin, 1.5 cm.  Deep lymph nodes ranging from 0.7 to 2.2 cm."
+    },
+    {
+      "case_id": "case_0033",
+      "category_id": 3,
+      "category_name": "Cat 3: Self-Correction Speech",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 7.305,
+      "latency_reps": [
+        7.305
+      ],
+      "wer_criterion_a": 41.67,
+      "wer_criterion_b": 19.57,
+      "ref_text": "Surgical number S-24-1033. Received specimen right... sorry left modified radical mastectomy measuring 25.4x10.5x10.5 cm. Mass size is 2x2... correction 2.3x4.3x3.5 cm. Skin appears normal. Lymph nodes 19 nodes.",
+      "hyp_text": "surgical number s24-1033. Received specimen right, sorry left modified radical mastectomy measuring 25.4x10.5x10.5cm. Mars size is 2 times 2, correction to .3x4.3x3.5cm. Skin appears normal."
+    },
+    {
+      "case_id": "case_0033",
+      "category_id": 3,
+      "category_name": "Cat 3: Self-Correction Speech",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 8.562,
+      "latency_reps": [
+        8.562
+      ],
+      "wer_criterion_a": 52.78,
+      "wer_criterion_b": 10.87,
+      "ref_text": "Surgical number S-24-1033. Received specimen right... sorry left modified radical mastectomy measuring 25.4x10.5x10.5 cm. Mass size is 2x2... correction 2.3x4.3x3.5 cm. Skin appears normal. Lymph nodes 19 nodes.",
+      "hyp_text": "surgical number S24-1033 received specimen right, sorry left modified radical mastectomy measuring 25.4 x 10.5 x 10.5 cm mass size is 2 times 2 correction to dot 3 x 4.3 x 3.5 cm skin appears normal lymph nodes 19 nodes"
+    },
+    {
+      "case_id": "case_0033",
+      "category_id": 3,
+      "category_name": "Cat 3: Self-Correction Speech",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 30.307,
+      "latency_reps": [
+        30.307
+      ],
+      "wer_criterion_a": 27.78,
+      "wer_criterion_b": 8.7,
+      "ref_text": "Surgical number S-24-1033. Received specimen right... sorry left modified radical mastectomy measuring 25.4x10.5x10.5 cm. Mass size is 2x2... correction 2.3x4.3x3.5 cm. Skin appears normal. Lymph nodes 19 nodes.",
+      "hyp_text": "surgical number S24-1033. Received specimen right, sorry left modified radical mastectomy measuring 25.4x10.5x10.5cm. Mass size is 2 times 2, correction to .3x4.3x3.5cm. Skin appears normal. Lymph nodes 19 nodes."
+    },
+    {
+      "case_id": "case_0033",
+      "category_id": 3,
+      "category_name": "Cat 3: Self-Correction Speech",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 5.599,
+      "latency_reps": [
+        5.599
+      ],
+      "wer_criterion_a": 22.22,
+      "wer_criterion_b": 4.35,
+      "ref_text": "Surgical number S-24-1033. Received specimen right... sorry left modified radical mastectomy measuring 25.4x10.5x10.5 cm. Mass size is 2x2... correction 2.3x4.3x3.5 cm. Skin appears normal. Lymph nodes 19 nodes.",
+      "hyp_text": "Surgical number S-24-1033. Received specimen right, sorry left modified radical mastectomy  measuring 25.4x10.5x10.5cm. Mass size is 2 times 2, correction to .3x4.3x3.5cm. Skin appears  normal. Lymph nodes 19 nodes."
+    },
+    {
+      "case_id": "case_0944",
+      "category_id": 4,
+      "category_name": "Cat 4: Multi-Margin Assessment",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 7.609,
+      "latency_reps": [
+        7.609
+      ],
+      "wer_criterion_a": 37.5,
+      "wer_criterion_b": 9.09,
+      "ref_text": "Specimen S-24-1944 is a right simple mastectomy measuring 28.0x15.8x2.8 cm. Skin ellipse 19.4x9.8 cm. Mass 4.9x3.9x4.0 cm at lower outer quadrant. Deep margin 1.0 cm, superior margin 2.0 cm, inferior margin 1.5 cm, medial margin 0.5 cm, lateral margin 2.5 cm.",
+      "hyp_text": "Specimen S24-1944 is a right-simple mastectomy measuring 28.0 by 15.8 by 2.8 cm. Skin ellipse 19.4 by 9.8 cm. Mass 4.9 by 3.9 by 4.0 cm at lower outer quadrant. Deep margin 1 cm, superior margin 2.0 cm. 1.5 cm, ideal margin 0.5 cm, lateral margin 2.5 cm."
+    },
+    {
+      "case_id": "case_0944",
+      "category_id": 4,
+      "category_name": "Cat 4: Multi-Margin Assessment",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 17.248,
+      "latency_reps": [
+        17.248
+      ],
+      "wer_criterion_a": 32.14,
+      "wer_criterion_b": 4.55,
+      "ref_text": "Specimen S-24-1944 is a right simple mastectomy measuring 28.0x15.8x2.8 cm. Skin ellipse 19.4x9.8 cm. Mass 4.9x3.9x4.0 cm at lower outer quadrant. Deep margin 1.0 cm, superior margin 2.0 cm, inferior margin 1.5 cm, medial margin 0.5 cm, lateral margin 2.5 cm.",
+      "hyp_text": "Specimen S24-1944 is a right-simple mastectomy measuring 28.0 x 15.8 x 2.8 cm. Skin ellipse 19.4 x 9.8 cm. Mass 4.9 x 3.9 x 4.0 cm at lower outer quadrant. Deep margin 1 cm. Superior margin 2.0 cm. Inferior margin 1.5 cm. Medial margin 0.5 cm. Lateral margin 2.5 cm."
+    },
+    {
+      "case_id": "case_0944",
+      "category_id": 4,
+      "category_name": "Cat 4: Multi-Margin Assessment",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 37.758,
+      "latency_reps": [
+        37.758
+      ],
+      "wer_criterion_a": 32.14,
+      "wer_criterion_b": 4.55,
+      "ref_text": "Specimen S-24-1944 is a right simple mastectomy measuring 28.0x15.8x2.8 cm. Skin ellipse 19.4x9.8 cm. Mass 4.9x3.9x4.0 cm at lower outer quadrant. Deep margin 1.0 cm, superior margin 2.0 cm, inferior margin 1.5 cm, medial margin 0.5 cm, lateral margin 2.5 cm.",
+      "hyp_text": "Specimen S24Dsch 1944 is a right simple mastectomy measuring 28.0 x 15.8 x 2.8 cm. Skin ellipse 19.4 x 9.8 cm. Mass 4.9 x 3.9 x 4.0 cm at lower outer quadrant. Deep Margin 1 cm. Superior Margin 2.0 cm. Inferior Margin 1.5 cm. Medial Margin 0.5 cm. Lateral Margin 2.5 cm."
+    },
+    {
+      "case_id": "case_0944",
+      "category_id": 4,
+      "category_name": "Cat 4: Multi-Margin Assessment",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 9.029,
+      "latency_reps": [
+        9.029
+      ],
+      "wer_criterion_a": 28.57,
+      "wer_criterion_b": 1.52,
+      "ref_text": "Specimen S-24-1944 is a right simple mastectomy measuring 28.0x15.8x2.8 cm. Skin ellipse 19.4x9.8 cm. Mass 4.9x3.9x4.0 cm at lower outer quadrant. Deep margin 1.0 cm, superior margin 2.0 cm, inferior margin 1.5 cm, medial margin 0.5 cm, lateral margin 2.5 cm.",
+      "hyp_text": "Specimen S-24-1944 is a right simple mastectomy measuring 28.0 x 15.8 x 2.8 cm. Skin ellipse 19.4 x 9.8 cm.  Mass 4.9 x 3.9 x 4.0 cm at lower outer quadrant. Deep margin 1 cm. Superior margin 2.0 cm.  Inferior margin 1.5 cm. Medial margin 0.5 cm. Lateral margin 2.5 cm."
+    },
+    {
+      "case_id": "case_0355",
+      "category_id": 5,
+      "category_name": "Cat 5: Heavy Lymph Nodes Count",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 3.836,
+      "latency_reps": [
+        3.836
+      ],
+      "wer_criterion_a": 21.21,
+      "wer_criterion_b": 8.11,
+      "ref_text": "Surgical number S-24-1355. right modified radical mastectomy measuring 20.4x11.8x2.7 cm with axillary content. Identified 19 lymph nodes ranging from 0.5 to 2.2 cm in greatest dimension.",
+      "hyp_text": "surgical number s24-1355 Write modified radical mastectomy measuring 20.4x11.8x2.7cm with axillary content Identified 19 lymph nodes ranging from 0.5 to 2.2cm in greatest dimension"
+    },
+    {
+      "case_id": "case_0355",
+      "category_id": 5,
+      "category_name": "Cat 5: Heavy Lymph Nodes Count",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 6.845,
+      "latency_reps": [
+        6.845
+      ],
+      "wer_criterion_a": 12.12,
+      "wer_criterion_b": 5.41,
+      "ref_text": "Surgical number S-24-1355. right modified radical mastectomy measuring 20.4x11.8x2.7 cm with axillary content. Identified 19 lymph nodes ranging from 0.5 to 2.2 cm in greatest dimension.",
+      "hyp_text": "surgical number S24-1355 right-modified radical mastectomy measuring 20.4x11.8x2.7cm with axillary content identified 19 lymph nodes ranging from 0.5 to 2.2 cm in greatest dimension"
+    },
+    {
+      "case_id": "case_0355",
+      "category_id": 5,
+      "category_name": "Cat 5: Heavy Lymph Nodes Count",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 20.631,
+      "latency_reps": [
+        20.631
+      ],
+      "wer_criterion_a": 24.24,
+      "wer_criterion_b": 21.62,
+      "ref_text": "Surgical number S-24-1355. right modified radical mastectomy measuring 20.4x11.8x2.7 cm with axillary content. Identified 19 lymph nodes ranging from 0.5 to 2.2 cm in greatest dimension.",
+      "hyp_text": "surgical number S24-1355 write modified radical mastectomy measuring 20.4x11.8x to .7cm with identified 19 lymph nodes ranging from 0.5 to 2.2 cm in greatest dimension."
+    },
+    {
+      "case_id": "case_0355",
+      "category_id": 5,
+      "category_name": "Cat 5: Heavy Lymph Nodes Count",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 4.393,
+      "latency_reps": [
+        4.393
+      ],
+      "wer_criterion_a": 6.06,
+      "wer_criterion_b": 0.0,
+      "ref_text": "Surgical number S-24-1355. right modified radical mastectomy measuring 20.4x11.8x2.7 cm with axillary content. Identified 19 lymph nodes ranging from 0.5 to 2.2 cm in greatest dimension.",
+      "hyp_text": "Surgical number S-24-1355. Right modified radical mastectomy measuring 20.4x11.8x2.7cm, with axillary  content. Identified 19 lymph nodes ranging from 0.5 to 2.2 cm in greatest dimension."
+    },
+    {
+      "case_id": "case_0316",
+      "category_id": 6,
+      "category_name": "Cat 6: Fibrocystic Benign Control",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 4.587,
+      "latency_reps": [
+        4.587
+      ],
+      "wer_criterion_a": 38.46,
+      "wer_criterion_b": 13.33,
+      "ref_text": "Surgical number S-24-1316. Received right modified radical mastectomy measuring 25.3x22.7x2.1 cm. Sectioning reveals no discrete mass, entirely fibrocystic change. Unremarkable parenchyma.",
+      "hyp_text": "surgical number S24-1316 received right modified radical mastectomy measuring 25.3 by 22.7 by 2.1 cm. Sectioning reveals no discreet mass, entirely fibrocystic change. Unremarkable perenchema"
+    },
+    {
+      "case_id": "case_0316",
+      "category_id": 6,
+      "category_name": "Cat 6: Fibrocystic Benign Control",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 9.567,
+      "latency_reps": [
+        9.567
+      ],
+      "wer_criterion_a": 34.62,
+      "wer_criterion_b": 10.0,
+      "ref_text": "Surgical number S-24-1316. Received right modified radical mastectomy measuring 25.3x22.7x2.1 cm. Sectioning reveals no discrete mass, entirely fibrocystic change. Unremarkable parenchyma.",
+      "hyp_text": "surgical number S24-1316 received right modified radical mastectomy measuring 25.3 by 22.7 by 2.1 cm sectioning reveals no discrete mass, entirely fibrocystic change unremarkable perenchyma"
+    },
+    {
+      "case_id": "case_0316",
+      "category_id": 6,
+      "category_name": "Cat 6: Fibrocystic Benign Control",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 19.313,
+      "latency_reps": [
+        19.313
+      ],
+      "wer_criterion_a": 34.62,
+      "wer_criterion_b": 10.0,
+      "ref_text": "Surgical number S-24-1316. Received right modified radical mastectomy measuring 25.3x22.7x2.1 cm. Sectioning reveals no discrete mass, entirely fibrocystic change. Unremarkable parenchyma.",
+      "hyp_text": "surgical number S24-1316, received right modified radical mastectomy measuring 25.3 x 22.7 x 2.1 cm. Sectioning reveals no discreet mass, entirely fibrocystic change. Unremarkable parenchyma"
+    },
+    {
+      "case_id": "case_0316",
+      "category_id": 6,
+      "category_name": "Cat 6: Fibrocystic Benign Control",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 4.909,
+      "latency_reps": [
+        4.909
+      ],
+      "wer_criterion_a": 30.77,
+      "wer_criterion_b": 6.67,
+      "ref_text": "Surgical number S-24-1316. Received right modified radical mastectomy measuring 25.3x22.7x2.1 cm. Sectioning reveals no discrete mass, entirely fibrocystic change. Unremarkable parenchyma.",
+      "hyp_text": "Surgical number S-24-1316. Received right modified radical mastectomy, measuring 25.3 by 22.7 by 2.1 cm.  Sectioning reveals no discrete mass. Entirely fibrous istic change. Unremarkable parenchyma."
+    },
+    {
+      "case_id": "case_0287",
+      "category_id": 7,
+      "category_name": "Cat 7: High-Speed Rapid Speech",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 5.164,
+      "latency_reps": [
+        5.164
+      ],
+      "wer_criterion_a": 100.0,
+      "wer_criterion_b": 11.9,
+      "ref_text": "S-24-1287 right simple mastectomy 11.6x24.0x7.4cm mass 2.0x5.1x2.3cm upper inner quadrant skin 13.5x3.8cm deep margin 1.5cm 8 nodes.",
+      "hyp_text": "S24-1287 writes simple mastectomy 11.6 by 24.0 by 7.4 cm mass 2.0 by 5.1 by 2.3 cm upper in a quadrant skin 13.5 by 3.8 cm deep margin 1.5 cm 8 nodes."
+    },
+    {
+      "case_id": "case_0287",
+      "category_id": 7,
+      "category_name": "Cat 7: High-Speed Rapid Speech",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 8.165,
+      "latency_reps": [
+        8.165
+      ],
+      "wer_criterion_a": 92.86,
+      "wer_criterion_b": 7.14,
+      "ref_text": "S-24-1287 right simple mastectomy 11.6x24.0x7.4cm mass 2.0x5.1x2.3cm upper inner quadrant skin 13.5x3.8cm deep margin 1.5cm 8 nodes.",
+      "hyp_text": "S24-1287 write simple mastectomy 11.6 by 24.0 by 7.4 cm mass 2.0 by 5.1 by 2.3 cm upper inner quadrant skin 13.5 by 3.8 cm deep margin 1.5 cm 8 nodes"
+    },
+    {
+      "case_id": "case_0287",
+      "category_id": 7,
+      "category_name": "Cat 7: High-Speed Rapid Speech",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 17.647,
+      "latency_reps": [
+        17.647
+      ],
+      "wer_criterion_a": 92.86,
+      "wer_criterion_b": 7.14,
+      "ref_text": "S-24-1287 right simple mastectomy 11.6x24.0x7.4cm mass 2.0x5.1x2.3cm upper inner quadrant skin 13.5x3.8cm deep margin 1.5cm 8 nodes.",
+      "hyp_text": "S24-1287 write simple mastectomy 11.6 by 24.0 by 7.4 cm mass 2.0 by 5.1 by 2.3 cm upper inner quadrant skin 13.5 by 3.8 cm deep margin 1.5 cm 8 nodes"
+    },
+    {
+      "case_id": "case_0287",
+      "category_id": 7,
+      "category_name": "Cat 7: High-Speed Rapid Speech",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 4.035,
+      "latency_reps": [
+        4.035
+      ],
+      "wer_criterion_a": 85.71,
+      "wer_criterion_b": 2.38,
+      "ref_text": "S-24-1287 right simple mastectomy 11.6x24.0x7.4cm mass 2.0x5.1x2.3cm upper inner quadrant skin 13.5x3.8cm deep margin 1.5cm 8 nodes.",
+      "hyp_text": "Mass 24-1287. Right simple mastectomy. 11.6 x 24.0 x 7.4 cm. Mass 2.0 x 5.1 x 2.3 cm. Upper inner  quadrant skin 13.5 x 3.8 cm. Deep margin 1.5 cm. 8 nodes."
+    },
+    {
+      "case_id": "case_0178",
+      "category_id": 8,
+      "category_name": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 4.894,
+      "latency_reps": [
+        4.894
+      ],
+      "wer_criterion_a": 64.52,
+      "wer_criterion_b": 20.51,
+      "ref_text": "Surgical number S-24-1178. Received in formalin right simple mastectomy measuring 21.1x20.1x6.4 cm. Infiltrative yellow white mass 2.3x5.7x4.4 cm. Deep margin 1.0 cm.",
+      "hyp_text": "surgical number S, 24-1178. Received in formal and right-simple mastectomy measuring 21.1 by 20.1 by 6.4 centimeters. Infiltrate of yellow white mass 2.3 by 5.7 by 4.4 centimeters deep margin 1 centimeter."
+    },
+    {
+      "case_id": "case_0178",
+      "category_id": 8,
+      "category_name": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 7.199,
+      "latency_reps": [
+        7.199
+      ],
+      "wer_criterion_a": 48.39,
+      "wer_criterion_b": 7.69,
+      "ref_text": "Surgical number S-24-1178. Received in formalin right simple mastectomy measuring 21.1x20.1x6.4 cm. Infiltrative yellow white mass 2.3x5.7x4.4 cm. Deep margin 1.0 cm.",
+      "hyp_text": "Surgical number S, 24-1178. Received in formal and right simple mastectomy measuring 21.1 by 20.1 by 6.4 cm. Infiltrative yellow white mass 2.3 by 5.7 by 4.4 cm deep margin 1 cm."
+    },
+    {
+      "case_id": "case_0178",
+      "category_id": 8,
+      "category_name": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 20.507,
+      "latency_reps": [
+        20.507
+      ],
+      "wer_criterion_a": 41.94,
+      "wer_criterion_b": 2.56,
+      "ref_text": "Surgical number S-24-1178. Received in formalin right simple mastectomy measuring 21.1x20.1x6.4 cm. Infiltrative yellow white mass 2.3x5.7x4.4 cm. Deep margin 1.0 cm.",
+      "hyp_text": "Surgical number S, 24-1178, received in formalin right simple mastectomy measuring 21.1 by 20.1 by 6.4 cm, infiltrative yellow-white mass 2.3 by 5.7 by 4.4 cm, deep margin 1 cm."
+    },
+    {
+      "case_id": "case_0178",
+      "category_id": 8,
+      "category_name": "Cat 8: Fume Hood Exhaust Noise (-10dB)",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 4.89,
+      "latency_reps": [
+        4.89
+      ],
+      "wer_criterion_a": 41.94,
+      "wer_criterion_b": 2.56,
+      "ref_text": "Surgical number S-24-1178. Received in formalin right simple mastectomy measuring 21.1x20.1x6.4 cm. Infiltrative yellow white mass 2.3x5.7x4.4 cm. Deep margin 1.0 cm.",
+      "hyp_text": "Surgical number S-24-1178. Received in formalin right simple mastectomy measuring 21.1 by 20.1 by 6.4 cm.  Infiltrative yellow-white mass 2.3 by 5.7 by 4.4 cm. Deep margin 1 cm."
+    },
+    {
+      "case_id": "case_0949",
+      "category_id": 9,
+      "category_name": "Cat 9: Ductal Carcinoma / Microinvasion",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 7.162,
+      "latency_reps": [
+        7.162
+      ],
+      "wer_criterion_a": 42.86,
+      "wer_criterion_b": 15.79,
+      "ref_text": "Surgical number S-24-1949. Received in formalin is a left simple mastectomy specimen measuring 21.1x11.3x10.1 cm. Sectioning reveals a well circumscribed gray white mass measuring 5.0x2.6x4.3 cm at the upper outer quadrant. Deep margin is 1.5 cm. 11 lymph nodes identified.",
+      "hyp_text": "surgical number S24-1949. Received in Formlan is a left-simple mastectomy specimen measuring 21.1 by 11.3 by 10.1 centimeters. Sectioning reveals a well-circum scribed grey white mass measuring 5.0 by 2.6 by 4.3 centimeters at the upper outer quadrant. Deep margin is 1.5 centimeters, 11 lymph nodes identified."
+    },
+    {
+      "case_id": "case_0949",
+      "category_id": 9,
+      "category_name": "Cat 9: Ductal Carcinoma / Microinvasion",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 13.062,
+      "latency_reps": [
+        13.062
+      ],
+      "wer_criterion_a": 30.61,
+      "wer_criterion_b": 5.26,
+      "ref_text": "Surgical number S-24-1949. Received in formalin is a left simple mastectomy specimen measuring 21.1x11.3x10.1 cm. Sectioning reveals a well circumscribed gray white mass measuring 5.0x2.6x4.3 cm at the upper outer quadrant. Deep margin is 1.5 cm. 11 lymph nodes identified.",
+      "hyp_text": "Surgical number S24-1949 Received in Formlin is a left-simple mastectomy specimen measuring 21.1 by 11.3 by 10.1 cm. Sectioning reveals a well circumscribed gray white mass measuring 5.0 by 2.6 by 4.3 cm at the upper outer quadrant. Deep margin is 1.5 cm. 11 lymph nodes identified."
+    },
+    {
+      "case_id": "case_0949",
+      "category_id": 9,
+      "category_name": "Cat 9: Ductal Carcinoma / Microinvasion",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 64.479,
+      "latency_reps": [
+        64.479
+      ],
+      "wer_criterion_a": 124.49,
+      "wer_criterion_b": 85.96,
+      "ref_text": "Surgical number S-24-1949. Received in formalin is a left simple mastectomy specimen measuring 21.1x11.3x10.1 cm. Sectioning reveals a well circumscribed gray white mass measuring 5.0x2.6x4.3 cm at the upper outer quadrant. Deep margin is 1.5 cm. 11 lymph nodes identified.",
+      "hyp_text": "Surgical number S24-1949. Received in formalin is a left simple mastectomy specimen measuring 21.1 x 11.3 x 10.1 cm. Sectioning reveals a well-circumscribed grey white mass measuring 5.0 x 2.6 x 4.3 cm at the upper outer quadrant. Deep margin is 1.5 cm. 11 lymph nodes identified. Surgical number S24-1949. Received in formalin is a left simple mastectomy specimen measuring 21.3 x 10.1 cm at the upper outer quadrant. Received in formalin is a left simple mastectomy specimen measuring 21.3 x 10.5 cm at the upper outer quadrant."
+    },
+    {
+      "case_id": "case_0949",
+      "category_id": 9,
+      "category_name": "Cat 9: Ductal Carcinoma / Microinvasion",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 5.161,
+      "latency_reps": [
+        5.161
+      ],
+      "wer_criterion_a": 26.53,
+      "wer_criterion_b": 1.75,
+      "ref_text": "Surgical number S-24-1949. Received in formalin is a left simple mastectomy specimen measuring 21.1x11.3x10.1 cm. Sectioning reveals a well circumscribed gray white mass measuring 5.0x2.6x4.3 cm at the upper outer quadrant. Deep margin is 1.5 cm. 11 lymph nodes identified.",
+      "hyp_text": "Surgical number S-24-1949. Received in formalin is a left simple mastectomy specimen measuring  21.1 by 11.3 by 10.1 cm. Sectioning reveals a well-circumsccribed gray-white mass measuring  5.0 by 2.6 by 4.3 cm at the upper outer quadrant. Deep margin is 1.5 cm. 11 lymph nodes identified."
+    },
+    {
+      "case_id": "case_0140",
+      "category_id": 10,
+      "category_name": "Cat 10: Clinical Edge Cases & Missing Fields",
+      "model_id": "tiny",
+      "model_name": "Whisper Tiny (PyTorch)",
+      "median_latency_sec": 3.234,
+      "latency_reps": [
+        3.234
+      ],
+      "wer_criterion_a": 45.45,
+      "wer_criterion_b": 15.38,
+      "ref_text": "Specimen S-24-1140 right mastectomy measuring 11.7x15.6x2.7 cm. Infiltrative mass identified without dimensions. Deep margin 1.2 cm.",
+      "hyp_text": "Specimen S24-1140 right mastectomy measuring 11.7 by 15.6 by 2.7 centimeters, infiltrative mass identified without dimensions. Deep margin 1.2 centimeters."
+    },
+    {
+      "case_id": "case_0140",
+      "category_id": 10,
+      "category_name": "Cat 10: Clinical Edge Cases & Missing Fields",
+      "model_id": "base",
+      "model_name": "Whisper Base (PyTorch)",
+      "median_latency_sec": 5.261,
+      "latency_reps": [
+        5.261
+      ],
+      "wer_criterion_a": 36.36,
+      "wer_criterion_b": 7.69,
+      "ref_text": "Specimen S-24-1140 right mastectomy measuring 11.7x15.6x2.7 cm. Infiltrative mass identified without dimensions. Deep margin 1.2 cm.",
+      "hyp_text": "Specimen S24-1140 right mastectomy measuring 11.7 x 15.6 x 2.7 cm, infiltrative mass identified without dimensions. Deep margin 1.2 cm."
+    },
+    {
+      "case_id": "case_0140",
+      "category_id": 10,
+      "category_name": "Cat 10: Clinical Edge Cases & Missing Fields",
+      "model_id": "small_baseline",
+      "model_name": "Whisper Small (PyTorch Baseline)",
+      "median_latency_sec": 14.794,
+      "latency_reps": [
+        14.794
+      ],
+      "wer_criterion_a": 40.91,
+      "wer_criterion_b": 11.54,
+      "ref_text": "Specimen S-24-1140 right mastectomy measuring 11.7x15.6x2.7 cm. Infiltrative mass identified without dimensions. Deep margin 1.2 cm.",
+      "hyp_text": "Specimen S24-1140 write mastectomy measuring 11.7 x 15.6 x 2.7 cm, infiltrative mass identified without dimensions. Deep margin 1.2 cm."
+    },
+    {
+      "case_id": "case_0140",
+      "category_id": 10,
+      "category_name": "Cat 10: Clinical Edge Cases & Missing Fields",
+      "model_id": "pathowhisper",
+      "model_name": "PathoWhisper Small (INT8, cpu_threads=8)",
+      "median_latency_sec": 4.581,
+      "latency_reps": [
+        4.581
+      ],
+      "wer_criterion_a": 4.55,
+      "wer_criterion_b": 3.85,
+      "ref_text": "Specimen S-24-1140 right mastectomy measuring 11.7x15.6x2.7 cm. Infiltrative mass identified without dimensions. Deep margin 1.2 cm.",
+      "hyp_text": "Decimine S-24-1140 right mastectomy measuring 11.7x15.6x2.7 cm. Infiltrative mass identified without dimensions.  Deep margin 1.2 cm."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+id,name,cond_a,cond_b,metric,mean_a,mean_b,median_a,median_b,mean_diff,median_diff,ci_95,w_stat,effect_size_r,raw_p,n,test_type,holm_p,sig
+H1,C5 vs C1 (WER Criterion B),C5_full,C1_vanilla,WER-B,2.44,9.49,2.17,6.67,-7.05,-4.35,"[-10.78, -4.37]",2245.0,0.761,1.0707547913001064e-39,300,Paired Wilcoxon (Pratt),0.0,***
+H2,C5 vs C0 (WER Criterion B),C5_full,C0_baseline,WER-B,2.44,7.81,2.17,6.67,-5.37,-4.35,"[-7.14, -4.10]",2532.0,0.749,1.5909979160004448e-38,300,Paired Wilcoxon (Pratt),0.0,***
+H3,C5 vs C1 (CER_case),C5_full,C1_vanilla,CER_case (%),11.67,19.33,0.0,0.0,-7.67,0.0,"[-13.00, -2.67] (b=44, c=21)","b=44,c=21",0.354,0.005918433252619306,300,McNemar Exact Two-Tailed,0.0178,*
+H4,C5 vs C0 (CER_case),C5_full,C0_baseline,CER_case (%),11.67,18.67,0.0,0.0,-7.0,0.0,"[-12.33, -2.00] (b=43, c=22)","b=43,c=22",0.323,0.012502546136489844,300,McNemar Exact Two-Tailed,0.025,*
+H5,C1 vs C0 (Quantization INT8),C1_vanilla,C0_baseline,WER-B,9.49,7.81,6.67,6.67,1.68,0.0,"[-0.17, 4.74]",11551.5,0.036,0.5377196095501693,300,Paired Wilcoxon (Pratt),0.5377,n.s.
+H6,C5 vs C0 (Latency Core Cases),C5_full,C0_baseline,Latency (s),6.05,16.4,4.81,14.23,-10.35,-8.87,"[-11.22, -9.56]",0.0,0.868,3.896559845095909e-18,100,Paired Wilcoxon (Pratt),0.0,***

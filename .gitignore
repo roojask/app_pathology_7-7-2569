@@ -50,11 +50,41 @@ scratch/
 # Large Benchmark Audio Data
 benchmarks/datasets/*.wav
 benchmarks/datasets/*.mp3
+data/dataset_ft/audio/
+data/dataset_ft/audio_clean/
+data/dataset_ft/audio_multisnrs/
+data/dataset_ft/*.wav
 
-# Model Checkpoints (unless tracked with Git LFS)
-models/pathowhisper_lora/*.safetensors
-models/pathowhisper_lora/*.bin
-models/faster_whisper_small/
+# Model Weights & Binary Checkpoints (Keep out of Git, host on Releases/HF)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+models/
+benchmarks/clean_slate/results/lora_checkpoints/
+
+# Temporary, Scratch & Backups
+scratch/
+docs/thesis_latex_backup/
+docs/AI_Project_final (7)/
+results_top10_for_claude/
+README_FOR_CLAUDE.md
+benchmarks/thesis_eval_outputs/README_AUDIT_CLAUDE.md
+*.docx
+clean_slate_all_results_master.tex
+clean_slate_complete_dump.tex
+clean_slate_benchmark_results/
+docs/thesis_latex/prompt10*.txt
+docs/thesis_latex/pdf_page_0.txt
+docs/thesis_latex/template_text.txt
+docs/thesis_latex/test_mermaid.*
+docs/thesis_latex/report_styled.html
+docs/thesis_latex/test_waitress_ssl.py
+docs/thesis_latex/crop_line15.png
+docs/thesis_latex/run_sizes_criterion_b.py
+docs/thesis_latex/eval_sizes_b.py
+*_legacy_backup.py
 
 # Clinical Dataset & Large Experiments
 data/clinical_dataset/audio/

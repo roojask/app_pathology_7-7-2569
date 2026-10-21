@@ -9,8 +9,9 @@ import os
 
 # ดึงแอปพลิเคชันจาก app.py
 from app import app
+from configs.config import Config
 
-SERVER_PORT = int(os.environ.get("PORT", 5000))
+SERVER_PORT = int(os.environ.get("PORT", 7860))
 SERVER_URL = f"http://127.0.0.1:{SERVER_PORT}"
 
 def run_flask():
@@ -18,6 +19,7 @@ def run_flask():
     import logging
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
+    Config.USE_HTTPS = False
     app.run(host="127.0.0.1", port=SERVER_PORT, debug=False, use_reloader=False)
 
 def find_app_mode_browser():
@@ -40,10 +42,19 @@ def find_app_mode_browser():
 class PathologyLauncherApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Pathology Voice Assistant - Controller")
+        self.root.title("PathoWhisper Assistant - Gross Pathology Dictation")
         self.root.geometry("460x320")
         self.root.resizable(False, False)
         self.root.configure(bg="#181825")
+
+        # ตั้งค่าไอคอนหน้าต่างถ้ามี
+        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+        icon_path = os.path.join(base_dir, "app_icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.root.iconbitmap(icon_path)
+            except Exception:
+                pass
 
         # จัดให้อยู่กึ่งกลางหน้าจอ
         self.center_window()

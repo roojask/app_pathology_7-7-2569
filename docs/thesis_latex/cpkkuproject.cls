@@ -574,7 +574,7 @@
       {\@firstStudentNameTH.}
       {\@firstStudentNameTH\ และ \@secondStudentNameTH.}
   \@academicYearTH{}. \textbf{\@titleTH{}.}
-   โครงงานคอมพิวเตอร์. ปริญญา\@degreeTH{} หลักสูตร\@majorTH{} สาขาวิชาวิทยาการคอมพิวเตอร์
+   โครงงานคอมพิวเตอร์. ปริญญา\@degreeTH{} หลักสูตร\@majorTH{}
    วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น.}
   {\textbf{อาจารย์ที่ปรึกษา:} \@advisorTH}
 
@@ -596,7 +596,7 @@
       {\@firstStudentNameEN.}
       {\@firstStudentNameEN\ and \@secondStudentNameEN.}
   \@academicYearEN{}. \textbf{\@titleEN{}.}
-   Computer Project, \@degreeEN{}, Program in \@majorEN{}, Department of Computer Science, College of Computing, Khon Kaen University.}
+   Computer Project, \@degreeEN{}, Program in \@majorEN{}, College of Computing, Khon Kaen University.}
   {\textbf{Project Advisor:} \@advisorEN}
 
   \vspace{2.5mm}

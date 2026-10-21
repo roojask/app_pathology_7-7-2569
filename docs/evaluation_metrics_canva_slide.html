@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Sarabun', sans-serif; }
+  body { width: 1920px; height: 1080px; background: #ffffff; padding: 50px 70px; color: #1e293b; overflow: hidden; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; border-bottom: 3px solid #006677; padding-bottom: 18px; }
+  .title { font-size: 42px; font-weight: 700; color: #006677; }
+  .subtitle { font-size: 20px; color: #64748b; font-weight: 400; margin-top: 4px; }
+  .logo-text { font-size: 22px; font-weight: 700; color: #006677; text-align: right; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; height: 820px; }
+  .card { background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 16px; padding: 24px 28px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+  .card-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 14px; }
+  .card-title { font-size: 23px; font-weight: 700; color: #0f172a; }
+  .badge { font-size: 13.5px; font-weight: 600; padding: 4px 12px; border-radius: 20px; background: #e0f2fe; color: #0369a1; }
+  .badge.danger { background: #fee2e2; color: #b91c1c; }
+  .badge.success { background: #dcfce7; color: #15803d; }
+  .formula-box { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 14px; font-size: 25px; color: #006677; }
+  .desc-list { list-style: none; font-size: 15.5px; line-height: 1.55; color: #334155; }
+  .desc-list li { margin-bottom: 5px; padding-left: 18px; position: relative; }
+  .desc-list li::before { content: '•'; position: absolute; left: 0; color: #006677; font-weight: bold; }
+  .highlight { font-weight: 600; color: #0f172a; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">ตัวชี้วัดและสูตรการประเมินผลระบบ (Evaluation Metrics)</div>
+      <div class="subtitle">ระบบสมการตัวชี้วัดประสิทธิภาพเชิงคณิตศาสตร์และคลินิกตามมาตรฐาน CAP Protocol</div>
+    </div>
+    <div class="logo-text">COLLEGE OF COMPUTING<br><span style="font-size: 15px; font-weight: 400; color: #64748b;">KHON KAEN UNIVERSITY</span></div>
+  </div>
+
+  <div class="grid">
+    <!-- Card 1: WER -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">1. Word Error Rate (WER)</div>
+        <div class="badge">ความแม่นยำการแปลงเสียง</div>
+      </div>
+      <div class="formula-box">
+        $$\mathrm{WER} = \frac{S + D + I}{N} \times 100\%$$
+      </div>
+      <ul class="desc-list">
+        <li><span class="highlight">S (Substitutions):</span> คำที่ถอดความผิด, <span class="highlight">D (Deletions):</span> คำตกหล่น, <span class="highlight">I (Insertions):</span> คำแทรกเกิน</li>
+        <li><span class="highlight">N:</span> จำนวนคำทั้งหมดในข้อความเฉลย (Ground Truth)</li>
+        <li><span class="highlight">เกณฑ์ A:</span> ตัดวรรคตอนทั่วไป (ยังติดปัญหาการเว้นวรรคมิติ)</li>
+        <li><span class="highlight">เกณฑ์ B:</span> จัดมาตรฐานมิติและหน่วยวัดตามหลักคลินิก สะท้อนคำศัพท์แพทย์จริง</li>
+      </ul>
+    </div>
+
+    <!-- Card 2: CERcase -->
+    <div class="card" style="border-color: #fca5a5; background: #fffcfc;">
+      <div class="card-header">
+        <div class="card-title" style="color: #991b1b;">2. Critical Error Rate (CER<sub>case</sub>)</div>
+        <div class="badge danger">ความปลอดภัยทางคลินิก (Patient Safety)</div>
+      </div>
+      <div class="formula-box" style="color: #991b1b; border-color: #fca5a5;">
+        $$\mathrm{CER}_{\mathrm{case}} = \frac{1}{N_{\mathrm{cases}}} \sum_{i=1}^{N_{\mathrm{cases}}} \mathbb{I}\left( \sum_{c \in C_{\mathrm{crit}}} (\mathrm{FP}_{i, c} + \mathrm{FN}_{i, c}) > 0 \right) \times 100\%$$
+      </div>
+      <ul class="desc-list">
+        <li><span class="highlight">ไม่ใช่ Character Error Rate</span> แต่วัดสัดส่วนเคสที่มีจุดผิดพลาดวิกฤต</li>
+        <li><span class="highlight">6 ฟิลด์วิกฤต (C<sub>crit</sub>):</span> ข้าง (s1), ขนาดชิ้นเนื้อ (s3), ก้อนมะเร็ง (s10), ขนาดก้อน (s10_dims), ขอบตัดลึก (s11), ต่อมน้ำเหลือง (s14)</li>
+        <li><span class="highlight">กฎ Fail-Safe:</span> หากผิดแม้แต่ 1 ฟิลด์วิกฤต เคสนั้นจะตัดสินว่าไม่ปลอดภัยทันที</li>
+      </ul>
+    </div>
+
+    <!-- Card 3: Slot-Level Agreement -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">3. Slot-Level Accuracy (Slot Acc.)</div>
+        <div class="badge success">ความถูกต้องของแบบฟอร์ม</div>
+      </div>
+      <div class="formula-box">
+        $$\mathrm{Slot\text{-}Acc} = \frac{\sum_{k=1}^{M} (\mathrm{TP}_k + \mathrm{TN}_k)}{M \cdot N_{\mathrm{cases}}} \times 100\%$$
+      </div>
+      <ul class="desc-list">
+        <li><span class="highlight">TP (True Positive):</span> ช่องที่เฉลยมีข้อมูล และระบบสกัดได้ถูกต้องตรงกัน</li>
+        <li><span class="highlight">TN (True Negative):</span> ช่องที่เฉลยเว้นว่าง และระบบเว้นว่างได้ถูกต้อง (ไม่มโน)</li>
+        <li><span class="highlight">ตัวหาร (M · N<sub>cases</sub>):</span> จำนวนช่องข้อมูลทั้งหมด (15 ฟิลด์ × จำนวนเคส เช่น 4,500 ช่อง ใน 300 เคส)</li>
+      </ul>
+    </div>
+
+    <!-- Card 4: Macro-F1 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">4. Macro-F1 Score</div>
+        <div class="badge">ความแม่นยำเฉลี่ยเท่าเทียมกัน</div>
+      </div>
+      <div class="formula-box">
+        $$\mathrm{Macro\text{-}}F_1 = \frac{1}{K} \sum_{k=1}^{K} F_{1, k} \quad , \quad F_1 = \frac{2 \cdot \mathrm{P} \cdot \mathrm{R}}{\mathrm{P} + \mathrm{R}}$$
+      </div>
+      <ul class="desc-list">
+        <li><span class="highlight">Macro-Averaging:</span> คำนวณ F1 ของแต่ละฟิลด์แยกกัน แล้วเฉลี่ยแบบให้น้ำหนักเท่ากัน 11 ฟิลด์</li>
+        <li><span class="highlight">แก้ปัญหา Class Imbalance:</span> ป้องกันไม่ให้ฟิลด์ที่เจอบ่อยมากลบฟิลด์เฉพาะทาง</li>
+        <li>สะท้อนความสมดุลระหว่างความถูกต้อง (Precision) และความครอบคลุมไม่ตกหล่น (Recall)</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "analysis_timestamp": "2026-10-13 03:46:07",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python_version": "3.13.14",
+  "numpy_version": "2.4.6",
+  "scipy_version": "1.18.0",
+  "pandas_version": "3.0.5",
+  "bootstrap_resamples": 10000,
+  "bootstrap_seed": 42,
+  "wilcoxon_zero_method": "pratt",
+  "total_cases_dataset": 300,
+  "total_rows_evaluated": 3400
+}

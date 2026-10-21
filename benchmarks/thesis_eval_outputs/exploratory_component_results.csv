@@ -1,0 +1,7 @@
+Comparison,WER-B Mean A/B,WER-B Diff,WER-B p,CER Mean A/B,CER p
+C2 vs C1 (+Denoise Only vs Vanilla),9.83% vs 9.49%,0.34,0.9013,30.0% vs 19.3%,<0.0001
+C3 vs C1 (+Prompt Only vs Vanilla),3.31% vs 9.49%,-6.18,<0.0001,7.7% vs 19.3%,<0.0001
+C4 vs C1 (+Greedy Only vs Vanilla),8.75% vs 9.49%,-0.75,0.7227,21.0% vs 19.3%,0.2668
+C6 vs C5 (Full - Denoise vs Full),2.63% vs 2.44%,0.19,<0.0001,7.0% vs 11.7%,0.0026
+C7 vs C5 (Full - Prompt vs Full),9.47% vs 2.44%,7.02,<0.0001,26.7% vs 11.7%,<0.0001
+C8 vs C5 (Full - Greedy vs Full),2.49% vs 2.44%,0.05,0.1559,13.7% vs 11.7%,0.1094

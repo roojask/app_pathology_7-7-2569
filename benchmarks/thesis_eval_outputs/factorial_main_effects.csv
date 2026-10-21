@@ -1,0 +1,4 @@
+Factor,WER-B (+ / -),WER-B Delta,CER_case (+ / -),CER_case Delta,Latency (+ / -)
+Pathology Prompt,2.72% vs 9.38%,-6.67,10.00% vs 24.25%,-14.25,6.54s vs 6.03s
+Search Strategy (Greedy Beam 1),5.82% vs 6.28%,-0.46,16.58% vs 17.67%,-1.08,5.69s vs 6.88s
+Audio Preprocessing (afftdn Denoise),6.06% vs 6.05%,0.01,20.50% vs 13.75%,6.75,6.58s vs 5.98s

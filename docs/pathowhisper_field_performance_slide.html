@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Sarabun', sans-serif; }
+  body { 
+    width: 1920px; 
+    height: 1080px; 
+    background: #ffffff; 
+    padding: 50px 75px; 
+    color: #1e293b; 
+    overflow: hidden; 
+  }
+  .header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 25px; 
+    border-bottom: 3px solid #006677; 
+    padding-bottom: 15px; 
+  }
+  .title { 
+    font-size: 38px; 
+    font-weight: 700; 
+    color: #006677; 
+  }
+  .subtitle { 
+    font-size: 19px; 
+    color: #64748b; 
+    font-weight: 400; 
+    margin-top: 4px; 
+  }
+  .logo-text { 
+    font-size: 22px; 
+    font-weight: 700; 
+    color: #006677; 
+    text-align: right; 
+    line-height: 1.2;
+  }
+  .logo-sub {
+    font-size: 14px; 
+    font-weight: 400; 
+    color: #64748b;
+  }
+  .table-container {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1.5px solid #cbd5e1;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 18px;
+    text-align: left;
+  }
+  th {
+    background: #006677;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 14px 20px;
+    font-size: 19px;
+    letter-spacing: 0.3px;
+  }
+  th.center, td.center {
+    text-align: center;
+  }
+  th.right, td.right {
+    text-align: right;
+  }
+  td {
+    padding: 11px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+  }
+  tr:nth-child(even) {
+    background: #f8fafc;
+  }
+  tr:hover {
+    background: #f1f5f9;
+  }
+  .code-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16.5px;
+    background: #e2e8f0;
+    color: #0f172a;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .field-name {
+    font-weight: 500;
+    color: #0f172a;
+  }
+  .val-num {
+    font-variant-numeric: tabular-nums;
+  }
+  .f1-val {
+    font-weight: 700;
+    color: #006677;
+  }
+  .f1-perfect {
+    font-weight: 700;
+    color: #0d9488;
+  }
+  .footer-row {
+    background: #f0fdfa !important;
+    border-top: 2.5px solid #006677;
+  }
+  .footer-row td {
+    padding: 16px 20px;
+    font-size: 21px;
+    font-weight: 700;
+    color: #006677;
+  }
+  .footnote {
+    margin-top: 15px;
+    font-size: 15px;
+    color: #64748b;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">ประสิทธิภาพการสกัดข้อมูลรายฟิลด์ของ PathoWhisper (N = 1,000 กรณี)</div>
+      <div class="subtitle">ผลการประเมินการสกัดข้อมูลลงแบบฟอร์ม 11 ฟิลด์ที่มีค่าบวกตามเกณฑ์มาตรฐานทางพยาธิวิทยา (CAP Protocol)</div>
+    </div>
+    <div class="logo-text">
+      COLLEGE OF COMPUTING<br>
+      <span class="logo-sub">KHON KAEN UNIVERSITY</span>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 22%;">ฟิลด์ข้อมูล</th>
+          <th style="width: 32%;">ความหมายทางคลินิก</th>
+          <th class="center" style="width: 14%;">จำนวนเคสบวก</th>
+          <th class="center" style="width: 10%;">Precision (%)</th>
+          <th class="center" style="width: 10%;">Recall (%)</th>
+          <th class="center" style="width: 12%;">F1-Score (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="code-pill">s0_surgical_no</span></td>
+          <td class="field-name">เลขที่สิ่งส่งตรวจทางศัลยกรรม</td>
+          <td class="center val-num">1,000</td>
+          <td class="center val-num">98.0</td>
+          <td class="center val-num">97.8</td>
+          <td class="center f1-val">97.9</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s1_side</span></td>
+          <td class="field-name">ด้านของเต้านม (Right / Left)</td>
+          <td class="center val-num">1,000</td>
+          <td class="center val-num">99.9</td>
+          <td class="center val-num">99.9</td>
+          <td class="center f1-perfect">99.9</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s2_proc</span></td>
+          <td class="field-name">ประเภทหัตถการผ่าตัด (Mastectomy)</td>
+          <td class="center val-num">900</td>
+          <td class="center val-num">100.0</td>
+          <td class="center val-num">100.0</td>
+          <td class="center f1-perfect">100.0</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s3_dims</span></td>
+          <td class="field-name">ขนาด 3 มิติของชิ้นเนื้อ (ซม.)</td>
+          <td class="center val-num">1,000</td>
+          <td class="center val-num">98.6</td>
+          <td class="center val-num">97.7</td>
+          <td class="center f1-val">98.1</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s4_skin</span></td>
+          <td class="field-name">มีชิ้นผิวหนังติดมาหรือไม่</td>
+          <td class="center val-num">500</td>
+          <td class="center val-num">100.0</td>
+          <td class="center val-num">99.6</td>
+          <td class="center f1-perfect">99.8</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s5_dims</span></td>
+          <td class="field-name">ขนาด 2 มิติของชิ้นผิวหนัง (ซม.)</td>
+          <td class="center val-num">400</td>
+          <td class="center val-num">98.7</td>
+          <td class="center val-num">98.2</td>
+          <td class="center f1-val">98.5</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s10_infiltrative</span></td>
+          <td class="field-name">ลักษณะของก้อน (พบก้อนลุกลามหรือไม่)</td>
+          <td class="center val-num">800</td>
+          <td class="center val-num">98.5</td>
+          <td class="center val-num">99.2</td>
+          <td class="center f1-val">98.9</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s10_inf_dims</span></td>
+          <td class="field-name">ขนาด 3 มิติของก้อนมะเร็งหลัก (ซม.)</td>
+          <td class="center val-num">700</td>
+          <td class="center val-num">97.5</td>
+          <td class="center val-num">94.3</td>
+          <td class="center f1-val">95.9</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s10_5_quadrant</span></td>
+          <td class="field-name">ตำแหน่งจตุภาคที่พบก้อนมะเร็ง</td>
+          <td class="center val-num">500</td>
+          <td class="center val-num">99.6</td>
+          <td class="center val-num">99.6</td>
+          <td class="center f1-perfect">99.6</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s11_deep_margin</span></td>
+          <td class="field-name">ระยะห่างจากขอบตัดด้านลึก (ซม.)</td>
+          <td class="center val-num">700</td>
+          <td class="center val-num">99.1</td>
+          <td class="center val-num">93.7</td>
+          <td class="center f1-val">96.3</td>
+        </tr>
+        <tr>
+          <td><span class="code-pill">s14_check</span></td>
+          <td class="field-name">การตรวจพบต่อมน้ำเหลืองรักแร้</td>
+          <td class="center val-num">600</td>
+          <td class="center val-num">100.0</td>
+          <td class="center val-num">99.7</td>
+          <td class="center f1-perfect">99.8</td>
+        </tr>
+        <tr class="footer-row">
+          <td colspan="2">Macro-F1 เฉลี่ยรวม (11 ฟิลด์คลินิก)</td>
+          <td class="center val-num">7,800 ช่อง</td>
+          <td class="center val-num">99.17%</td>
+          <td class="center val-num">98.15%</td>
+          <td class="center" style="font-size: 24px; color: #006677;">98.61%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footnote">
+    <span>• <strong>Precision (P):</strong> สัดส่วนความถูกต้องแม่นยำของข้อมูลที่สกัดได้ | <strong>Recall (R):</strong> สัดส่วนความครอบคลุมไม่ตกหล่นของข้อมูล | <strong>F1-Score:</strong> ค่าเฉลี่ยฮาร์โมนิกของ P และ R</span>
+    <span>• หมายเหตุ: อีก 4 ฟิลด์ (s6, s7, s8, s9) เป็นฟิลด์ควบคุมเชิงลบ (Negative Controls) ซึ่งมีความจำเพาะ (Specificity) 100%</span>
+  </div>
+</body>
+</html>
