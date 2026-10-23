@@ -289,6 +289,8 @@
 \newcommand{\degreeEN}[1]{\def\@degreeEN{#1}}
 \newcommand{\majorTH}[1]{\def\@majorTH{#1}}
 \newcommand{\majorEN}[1]{\def\@majorEN{#1}}
+\newcommand{\coadvisorTH}[1]{\def\@coadvisorTH{#1}}
+\newcommand{\coadvisorEN}[1]{\def\@coadvisorEN{#1}}
 
 \newcommand{\printadvisorTH}{\@advisorTH}
 \newcommand{\printadvisorEN}{\@advisorEN}
@@ -328,14 +330,18 @@
 {\large \@firstStudentID~\@firstStudentPrefixTH\@firstStudentNameTH \\}
 {\large \@secondStudentID~\@secondStudentPrefixTH\@secondStudentNameTH \\[2cm]}
 
-{\large อาจารย์ที่ปรึกษา \\ \@advisorTH \\[2cm]}
+{\large อาจารย์ที่ปรึกษา \\ \@advisorTH}
+\IfEmptyTF{\@coadvisorTH}{}{%
+  \\[0.5cm]
+  {\large อาจารย์ที่ปรึกษาร่วม \\ \@coadvisorTH}
+}%
+\\[2cm]
 
 \vfill
 
 {\large รายงานฉบับนี้เป็นส่วนหนึ่งของการศึกษา\\}
 {\large หลักสูตร\@degreeTH{} สาขาวิชา\@majorTH\\}
-{\large วิทยาลัยการคอมพิวเตอร์\\}
-{\large มหาวิทยาลัยขอนแก่น\\}
+{\large วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น\\}
 {\large ปีการศึกษา \@academicYearTH}
 
 \end{titlepage}
@@ -577,7 +583,7 @@
    โครงงานคอมพิวเตอร์. ปริญญา\@degreeTH{} หลักสูตร\@majorTH{}
    วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น.}
   {\textbf{อาจารย์ที่ปรึกษา:} \@advisorTH}
-
+  {\textbf{อาจารย์ที่ปรึกษาร่วม:} \@coadvisorTH}
   \vspace{2.5mm}
   \begin{center}\large\textbf{บทคัดย่อ}\end{center}
   \vspace{2.5mm}
@@ -598,6 +604,7 @@
   \@academicYearEN{}. \textbf{\@titleEN{}.}
    Computer Project, \@degreeEN{}, Program in \@majorEN{}, College of Computing, Khon Kaen University.}
   {\textbf{Project Advisor:} \@advisorEN}
+  {\textbf{Project Co-advisor:} \@coadvisorEN}
 
   \vspace{2.5mm}
   \begin{center}\large\textbf{ABSTRACT}\end{center}

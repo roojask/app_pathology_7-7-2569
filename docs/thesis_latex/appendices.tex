@@ -7,18 +7,7 @@
 \appendiceschapter{การตั้งค่าระบบและพารามิเตอร์ของไปป์ไลน์}
 \section*{คำสั่งและตรรกะการกรองสัญญาณเสียงแบบปรับตัว (\texttt{D8\_snr\_gated})}
 
-ระบบประเมินค่าอัตราส่วนสัญญาณต่อเสียงรบกวนแบบไม่ต้องใช้สัญญาณอ้างอิง ($\widehat{\mathrm{SNR}}$) จากผลต่างเปอร์เซ็นไทล์ค่ารากกำลังสองเฉลี่ยของพลังงาน (Root-Mean-Square Energy: RMS) ของเฟรมเสียงความยาว 25 มิลลิวินาที (ระยะเลื่อนเฟรม 10 มิลลิวินาที) เปรียบเทียบกับค่าเกณฑ์ขีดแบ่งที่สอบเทียบด้วยดัชนียูเดน (Youden's Index) บนชุดข้อมูลตรวจสอบ ($\tau^* = 13.55\text{ dB}$) โดยจะเรียกใช้งานสายโซ่ตัวกรองความถี่ของโปรแกรม FFmpeg เฉพาะเมื่อ $\widehat{\mathrm{SNR}} < 13.55\text{ dB}$ และส่งผ่านสัญญาณเสียงต้นฉบับโดยไม่กรอง (Bypass) เมื่อ $\widehat{\mathrm{SNR}} \ge 13.55\text{ dB}$ เพื่อรักษาสเปกตรัมความถี่ของเสียงพยัญชนะสั้น ดังคำสั่งต่อไปนี้:
-
-\begin{verbatim}
-# Case 1: Heavy Noise Detected (Estimated Blind SNR < 13.55 dB)
-ffmpeg -y -i input.wav -ac 1 -ar 16000 -af \
-  "highpass=f=80,afftdn=nr=6:nf=-30:nt=w,\
-   silenceremove=start_periods=1:start_duration=0.1:start_threshold=-40dB:\
-   stop_periods=-1:stop_duration=0.6:stop_threshold=-40dB" output.wav
-
-# Case 2: Clean Speech Detected (Estimated Blind SNR >= 13.55 dB)
-# Bypass spectral filtering (pass original 16 kHz mono waveform directly)
-\end{verbatim}
+ระบบประเมินค่าอัตราส่วนสัญญาณต่อเสียงรบกวนแบบไม่ต้องใช้สัญญาณอ้างอิง ($\widehat{\mathrm{SNR}}$) จากผลต่างเปอร์เซ็นไทล์ค่ารากกำลังสองเฉลี่ยของพลังงาน (Root-Mean-Square Energy: RMS) ของเฟรมเสียงความยาว 25 มิลลิวินาที (ระยะเลื่อนเฟรม 10 มิลลิวินาที) เปรียบเทียบกับค่าเกณฑ์ขีดแบ่งที่สอบเทียบด้วยดัชนียูเดน (Youden's Index) บนชุดข้อมูลตรวจสอบ ($\tau^* = 13.55\text{ dB}$) โดยจะเรียกใช้งานสายโซ่ตัวกรองความถี่ของโปรแกรม FFmpeg เฉพาะเมื่อ $\widehat{\mathrm{SNR}} < 13.55\text{ dB}$ และส่งผ่านสัญญาณเสียงต้นฉบับโดยไม่กรอง (Bypass) เมื่อ $\widehat{\mathrm{SNR}} \ge 13.55\text{ dB}$ เพื่อรักษาสเปกตรัมความถี่ของเสียงพยัญชนะสั้น
 
 \begin{table}[H]
 \centering
@@ -76,13 +65,12 @@ Blind SNR Gate & $\tau^*$ ($P_{85} - P_{15}$ Frame Energy) & $13.55\text{ dB}$ (
 \end{quote}
 
 \appendiceschapter{ฟิลด์ข้อมูลที่สกัดและผลการประเมินโดยละเอียด}
-\section*{รายการฟิลด์มาตรฐาน CAP ทั้ง 15 ฟิลด์}
-
+\section*{รายการฟิลด์มาตรฐานทั้ง 15 ฟิลด์}
 \begin{table}[H]
 \centering
-\caption{ฟิลด์ข้อมูลทางศัลยพยาธิวิทยาเต้านมตามเกณฑ์มาตรฐาน CAP ทั้ง 15 ฟิลด์ที่ระบบรองรับและใช้ประเมินผล}
+\caption{ฟิลด์ข้อมูลทางศัลยพยาธิวิทยาเต้านมตามเกณฑ์มาตรฐานทั้ง 15 ฟิลด์ที่ระบบรองรับและใช้ประเมินผล}
 \label{tab:appfields}
-\footnotesize\setlength{\tabcolsep}{3pt}
+\small
 \begin{tabular}{|c|p{4.6cm}|p{7.0cm}|}
 \hline
 \textbf{ที่} & \textbf{รหัสฟิลด์} & \textbf{ความหมายและบทบาทในการประเมิน} \\
@@ -126,13 +114,12 @@ Blind SNR Gate & $\tau^*$ ($P_{85} - P_{15}$ Frame Energy) & $13.55\text{ dB}$ (
 
 \begin{table}[H]
 \centering
-\caption{จำนวนนับผลบวกจริง (TP), ผลบวกลวง (FP), ผลลบลวง (FN) และผลลบจริง (TN) ต่อฟิลด์บนชุดทดสอบรวม 300 กรณี (\texttt{test\_seen} 150 กรณี + \texttt{test\_unseen} 150 กรณี) เปรียบเทียบระหว่างระบบพื้นฐาน ($S_0$) และระบบบูรณาการ $S_3$ (กรณีสกัดค่าผิดไปจากเฉลยจะถูกนับเป็นทั้ง FP และ FN)}
+\caption{จำนวนนับผลบวกจริง (TP), ผลบวกลวง (FP), ผลลบลวง (FN) และผลลบจริง (TN) ต่อฟิลด์บนชุดทดสอบรวม 300 กรณี (\text{test\_seen} 150 กรณี + \text{test\_unseen} 150 กรณี) เปรียบเทียบระหว่างระบบพื้นฐาน ($S_0$) และระบบบูรณาการ $S_3$ (กรณีสกัดค่าผิดไปจากเฉลยจะถูกนับเป็นทั้ง FP และ FN)}
 \label{tab:confmat}
-\scriptsize\setlength{\tabcolsep}{2.5pt}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|r|r|r|r|r|r|r|r|}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{|l|c|c|c|c||c|c|c|c|}
 \hline
- & \multicolumn{4}{c|}{\textbf{Baseline ($S_0$: $P_0$)}} & \multicolumn{4}{c|}{\textbf{PathoWhisper ($S_3$: LoRA + $P_4$ + \texttt{D8})}} \\
+ & \multicolumn{4}{c||}{\textbf{ระบบพื้นฐาน ($S_0$)}} & \multicolumn{4}{c|}{\textbf{ระบบบูรณาการ ($S_3$)}} \\
 \hline
 \textbf{ฟิลด์} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{TN} \\
 \hline
@@ -168,8 +155,7 @@ Blind SNR Gate & $\tau^*$ ($P_{85} - P_{15}$ Frame Energy) & $13.55\text{ dB}$ (
 \hline
 \textbf{รวมทั้ง 15 ฟิลด์} & \textbf{2,429} & \textbf{44} & \textbf{121} & \textbf{1,942} & \textbf{2,481} & \textbf{36} & \textbf{69} & \textbf{1,943} \\
 \hline
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
 \noindent จากช่องข้อมูลทั้งหมด $300 \times 15 = 4{,}500$ ช่อง ระบบบูรณาการ $S_3$ ให้ความถูกต้องระดับช่องข้อมูล ($\text{TP} + \text{TN}$) สูงถึง $4{,}424 / 4{,}500$ ช่อง (คิดเป็นร้อยละ $98.31$) และลดจำนวนการตกหล่นหรือสกัดผิดพลาดของข้อมูลที่มีอยู่จริง (FN) ลงจาก $121$ ช่อง เหลือเพียง $69$ ช่อง (ลดลงร้อยละ $43.0$)
@@ -178,11 +164,10 @@ Blind SNR Gate & $\tau^*$ ($P_{85} - P_{15}$ Frame Energy) & $13.55\text{ dB}$ (
 
 \begin{table}[H]
 \centering
-\caption{จำนวนช่องข้อมูลที่สกัดผิดของระบบบูรณาการ $S_3$ จำแนกตามฟิลด์และหมวดหมู่การทดสอบทั้ง 10 หมวดหมู่ (หมวดหมู่ละ 30 กรณี: \texttt{test\_seen} 15 กรณี + \texttt{test\_unseen} 15 กรณี)}
+\caption{จำนวนช่องข้อมูลที่สกัดผิดของระบบบูรณาการ $S_3$ จำแนกตามฟิลด์และหมวดหมู่การทดสอบทั้ง 10 หมวดหมู่ (หมวดหมู่ละ 30 กรณี: \text{test\_seen} 15 กรณี + \text{test\_unseen} 15 กรณี)}
 \label{tab:caterr}
-\scriptsize\setlength{\tabcolsep}{2.5pt}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|r|r|r|r|r|r|r|r|r|r|r|}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|c|c|}
 \hline
 \textbf{ฟิลด์} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} & \textbf{9} & \textbf{10} & \textbf{รวม} \\
 \hline
@@ -218,8 +203,7 @@ Blind SNR Gate & $\tau^*$ ($P_{85} - P_{15}$ Frame Energy) & $13.55\text{ dB}$ (
 \hline
 \textbf{รวมช่องที่ผิด} & \textbf{1} & \textbf{0} & \textbf{8} & \textbf{8} & \textbf{8} & \textbf{0} & \textbf{3} & \textbf{45} & \textbf{1} & \textbf{2} & \textbf{76} \\
 \hline
-\end{tabular}%
-}
+\end{tabular}
 \end{table}
 
 \noindent จากตารางจะเห็นได้ว่าในหมวดหมู่ที่ 2 (การบรรยายข้อมูลสลับลำดับ: Out-of-Order Reporting) และหมวดหมู่ที่ 6 (สิ่งส่งตรวจเนื้อเยื่อปกติที่ไม่ใช่มะเร็ง: Benign Control) ระบบบูรณาการ $S_3$ มีความผิดพลาดเป็นศูนย์ ($0$ ช่อง) ส่วนความผิดพลาดส่วนใหญ่กระจุกตัวอยู่ในหมวดหมู่ที่ 8 (สภาวะเสียงรบกวนพัดลมตู้ดูดควันระดับรุนแรง $\mathrm{SNR} = -10\text{ dB}$) ซึ่งระบบแจ้งเตือนความปลอดภัยหลายสัญญาณจะยกธงแจ้งเตือนความเสี่ยงในสัดส่วนสูงที่สุดเพื่อส่งต่อให้พยาธิแพทย์ตรวจทานซ้ำตามระเบียบวิธีคัดกรองความปลอดภัย
@@ -230,8 +214,8 @@ Blind SNR Gate & $\tau^*$ ($P_{85} - P_{15}$ Frame Energy) & $13.55\text{ dB}$ (
 \centering
 \caption{ผลการทดสอบระดับหน่วยของตัวปรับข้อความสำหรับคัดกรองการพูดแก้ไขตัวเองกลางประโยค (16 กรณีทดสอบ) และการทดสอบบูรณาการระดับระบบ (4 ชุดการทดสอบหลัก)}
 \label{tab:unit}
-\scriptsize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{|p{1.2cm}|p{5.2cm}|p{5.2cm}|p{1.2cm}|}
+\footnotesize\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{|p{1.7cm}|p{5.0cm}|p{5.0cm}|p{1.4cm}|}
 \hline
 \textbf{รหัส} & \textbf{ข้อมูลนำเข้า / ชุดการทดสอบ} & \textbf{ผลลัพธ์ที่ได้} & \textbf{สถานะ} \\
 \hline
@@ -268,67 +252,69 @@ E2E-04 & ทดสอบจุดเชื่อมต่อ \texttt{POST /api/t
 
 โครงสร้างของคลังข้อมูลและสคริปต์ได้รับการออกแบบตามหลักการแยกส่วนอย่างเคร่งครัด (Modular Architecture) เพื่อให้สามารถตรวจสอบย้อนกลับ (Auditability) และทำซ้ำการทดลองได้ในทุกระดับ โดยแบ่งออกเป็น 5 หมวดหมู่หลักตามตารางที่ \ref{tab:appfiles}
 
-\begin{table}[H]
-\centering
-\caption{โครงสร้างไฟล์ข้อมูล สคริปต์การทดลองแบบแยกส่วน และไฟล์ผลลัพธ์ในสถาปัตยกรรมการทดลอง}
-\label{tab:appfiles}
-\scriptsize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{|p{5.6cm}|p{9.4cm}|}
+{\footnotesize\setlength{\tabcolsep}{3.5pt}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{5.6cm}|p{9.4cm}|}
+\caption{โครงสร้างไฟล์ข้อมูล สคริปต์การทดลองแบบแยกส่วน และไฟล์ผลลัพธ์ในสถาปัตยกรรมการทดลอง}\label{tab:appfiles}\\
 \hline
 \textbf{ไฟล์ / โฟลเดอร์} & \textbf{หน้าที่และเนื้อหา} \\
 \hline
+\endfirsthead
+\caption[]{โครงสร้างไฟล์ข้อมูล สคริปต์การทดลองแบบแยกส่วน และไฟล์ผลลัพธ์ในสถาปัตยกรรมการทดลอง (ต่อ)}\\
+\hline
+\textbf{ไฟล์ / โฟลเดอร์} & \textbf{หน้าที่และเนื้อหา} \\
+\hline
+\endhead
 \multicolumn{2}{|l|}{\textbf{1. ชุดข้อมูลและข้อมูลเฉลยมาตรฐาน (Synthetic Dataset and Ground Truth)}} \\
 \hline
-\texttt{scripts/make\_finetune\_data.py} & สคริปต์สร้างชุดข้อมูลสังเคราะห์ 1,000 กรณี พร้อมแยกคลังสำนวนประโยคระหว่าง \texttt{train} (600), \texttt{val} (100), \texttt{test\_seen} (150) และ \texttt{test\_unseen} (150) ด้วยหลักการ Zero-Phrase-Leakage และทดสอบทวนสอบตัวสกัด 15 ฟิลด์ได้ค่า Macro-$F_1 = 100\%$ \\
+\texttt{scripts/\allowbreak{}make\_\allowbreak{}finetune\_\allowbreak{}data.py} & สคริปต์สร้างชุดข้อมูลสังเคราะห์ 1,000 กรณี พร้อมแยกคลังสำนวนประโยคระหว่าง \texttt{train} (600), \texttt{val} (100), \texttt{test\_\allowbreak{}seen} (150) และ \texttt{test\_\allowbreak{}unseen} (150) ด้วยหลักการ Zero-Phrase-Leakage และทดสอบทวนสอบตัวสกัด 15 ฟิลด์ได้ค่า Macro-$F_1 = 100\%$ \\
 \hline
-\texttt{data/dataset\_ft/ground\_truth\_ft.json}, \texttt{manifest.csv} & ไฟล์ข้อมูลเฉลยครบทั้ง 15 ฟิลด์ CAP และรายการดัชนีไฟล์เสียงความละเอียดสูง 16 kHz ทั้ง 1,000 กรณีศึกษา \\
+\texttt{data/\allowbreak{}dataset\_\allowbreak{}ft/\allowbreak{}ground\_\allowbreak{}truth\_\allowbreak{}ft.json}, \texttt{manifest.csv} & ไฟล์ข้อมูลเฉลยครบทั้ง 15 ฟิลด์ CAP และรายการดัชนีไฟล์เสียงความละเอียดสูง 16 kHz ทั้ง 1,000 กรณีศึกษา \\
 \hline
-\texttt{benchmarks/clean\_slate/results/calibrated\_tau.json} & ค่าเกณฑ์ขีดแบ่งอัตราส่วนสัญญาณต่อเสียงรบกวน ($\tau^* = 13.55\text{ dB}$) ที่สอบเทียบจากดัชนียูเดนบนชุดตรวจสอบ \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}results/\allowbreak{}calibrated\_\allowbreak{}tau.json} & ค่าเกณฑ์ขีดแบ่งอัตราส่วนสัญญาณต่อเสียงรบกวน ($\tau^* = 13.55\text{ dB}$) ที่สอบเทียบจากดัชนียูเดนบนชุดตรวจสอบ \\
 \hline
 \multicolumn{2}{|l|}{\textbf{2. โมดูลระบบหลักและตัวสกัดข้อมูล (Core Pipeline and Parser Modules)}} \\
 \hline
-\texttt{src/nlp/extractor\_v3.py} & ตัวสกัดข้อมูลแบบกำหนดแน่นอนรุ่นที่ 3 (Deterministic Rule-Based Parser) ครอบคลุม 15 ฟิลด์ CAP พร้อมระบบสร้างธงเตือนความปลอดภัยหลายสัญญาณ (Multiple Safety Risk Flags) \\
+\texttt{src/\allowbreak{}nlp/\allowbreak{}extractor\_\allowbreak{}v3.py} & ตัวสกัดข้อมูลแบบกำหนดแน่นอนรุ่นที่ 3 (Deterministic Rule-Based Parser) ครอบคลุม 15 ฟิลด์ CAP พร้อมระบบสร้างธงเตือนความปลอดภัยหลายสัญญาณ (Multiple Safety Risk Flags) \\
 \hline
-\texttt{src/core/engine\_faster\_whisper.py} & โมดูลเอนจินการถอดรหัสเสียงออฟไลน์ เชื่อมต่อโมเดล CTranslate2 INT8, กลไกคัดกรองสัญญาณ \texttt{D8\_snr\_gated} และพารามิเตอร์การถอดความ \\
+\texttt{src/\allowbreak{}core/\allowbreak{}engine\_\allowbreak{}faster\_\allowbreak{}whisper.py} & โมดูลเอนจินการถอดรหัสเสียงออฟไลน์ เชื่อมต่อโมเดล CTranslate2 INT8, กลไกคัดกรองสัญญาณ \texttt{D8\_\allowbreak{}snr\_\allowbreak{}gated} และพารามิเตอร์การถอดความ \\
 \hline
 \texttt{config.py} & ไฟล์กำหนดค่าพารามิเตอร์ระบบส่วนกลาง (พาธแบบจำลอง, ค่าขีดแบ่ง $\tau^*$, ข้อความนำ $P_4$, โฮสต์และพอร์ตการทำงาน) \\
 \hline
 \multicolumn{2}{|l|}{\textbf{3. ชุดสคริปต์การทดลองและการคำนวณตัวชี้วัด (Clean-Slate Benchmark Suite)}} \\
 \hline
-\texttt{benchmarks/clean\_slate/acoustic\_filters.py} & โมดูลคำนวณค่าประมาณ $\widehat{\mathrm{SNR}}$ แบบไม่ต้องใช้สัญญาณอ้างอิง และกลไกคัดกรองสัญญาณเสียงแบบปรับตัว \texttt{D8\_snr\_gated} \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}acoustic\_\allowbreak{}filters.py} & โมดูลคำนวณค่าประมาณ $\widehat{\mathrm{SNR}}$ แบบไม่ต้องใช้สัญญาณอ้างอิง และกลไกคัดกรองสัญญาณเสียงแบบปรับตัว \texttt{D8\_\allowbreak{}snr\_\allowbreak{}gated} \\
 \hline
-\texttt{benchmarks/clean\_slate/metrics\_clean.py} & โมดูลคำนวณตัวชี้วัดทางการแพทย์และ ASR (Normalized WER, C-TER, N-DER, 15-Field Macro-$F_1$, $\mathrm{CER}_{\mathrm{case}}$ และ Clinical Risk Score) \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}metrics\_\allowbreak{}clean.py} & โมดูลคำนวณตัวชี้วัดทางการแพทย์และ ASR (Normalized WER, C-TER, N-DER, 15-Field Macro-$F_1$, $\mathrm{CER}_{\mathrm{case}}$ และ Clinical Risk Score) \\
 \hline
-\texttt{benchmarks/clean\_slate/run\_clean\_slate\_experiments.py} & สคริปต์หลักสำหรับรันการทดลองที่ 1--3 (การสอบเทียบ $\tau^*$, ตารางกริดค้นหาพารามิเตอร์ \texttt{afftdn}, การแยกส่วนข้อความนำ $P_0 \dots P_4$ และการทดสอบโมเดลฐาน) \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}run\_\allowbreak{}clean\_\allowbreak{}slate\_\allowbreak{}experiments.py} & สคริปต์หลักสำหรับรันการทดลองที่ 1--3 (การสอบเทียบ $\tau^*$, ตารางกริดค้นหาพารามิเตอร์ \texttt{afftdn}, การแยกส่วนข้อความนำ $P_0 \dots P_4$ และการทดสอบโมเดลฐาน) \\
 \hline
-\texttt{benchmarks/clean\_slate/expand\_arch\_study.py} & สคริปต์ประเมินเปรียบเทียบข้ามสถาปัตยกรรม (Kaldi FST Vosk, Wav2Vec 2.0 Base/Large CTC, HuBERT, WavLM และ Whisper Base/Small) \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}expand\_\allowbreak{}arch\_\allowbreak{}study.py} & สคริปต์ประเมินเปรียบเทียบข้ามสถาปัตยกรรม (Kaldi FST Vosk, Wav2Vec 2.0 Base/Large CTC, HuBERT, WavLM และ Whisper Base/Small) \\
 \hline
-\texttt{benchmarks/clean\_slate/train\_whisper\_lora.py} & สคริปต์ฝึกฝน LoRA ($r=8, \alpha=32$) บนชุดข้อมูล \texttt{train} 600 กรณี, การแปลงแบบจำลองเป็น CTranslate2 INT8 และประเมินผลการลดความผิดพลาดตามลำดับขั้น ($S_0 \dots S_3$) \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}train\_\allowbreak{}whisper\_\allowbreak{}lora.py} & สคริปต์ฝึกฝน LoRA ($r=8, \alpha=32$) บนชุดข้อมูล \texttt{train} 600 กรณี, การแปลงแบบจำลองเป็น CTranslate2 INT8 และประเมินผลการลดความผิดพลาดตามลำดับขั้น ($S_0 \dots S_3$) \\
 \hline
-\texttt{benchmarks/clean\_slate/fix\_longform\_lora\_eval.py} & สคริปต์ประมวลผลการถอดรหัสตามความยาวเสียง (Duration-Aware Long-Form Decoding) สำหรับไฟล์เสียงที่ยาวเกิน 27.5 วินาที \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}fix\_\allowbreak{}longform\_\allowbreak{}lora\_\allowbreak{}eval.py} & สคริปต์ประมวลผลการถอดรหัสตามความยาวเสียง (Duration-Aware Long-Form Decoding) สำหรับไฟล์เสียงที่ยาวเกิน 27.5 วินาที \\
 \hline
 \multicolumn{2}{|l|}{\textbf{4. การวิเคราะห์เชิงสถิติ ตารางสรุป และรูปภาพประกอบ (Statistical Analysis and Results)}} \\
 \hline
-\texttt{benchmarks/clean\_slate/generate\_final_thesis\_tables.py} & สคริปต์รวบรวมผลลัพธ์การทดลองทั้งหมด คำนวณช่วงความเชื่อมั่น 95\% ทดสอบนัยสำคัญทางสถิติ (McNemar's test, Wilcoxon signed-rank test พร้อมการปรับแก้แบบ Holm-Bonferroni) และสร้างตารางสรุปผลวิทยานิพนธ์ (ตารางที่ 6--13) \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}generate\_\allowbreak{}final\_\allowbreak{}thesis\_\allowbreak{}tables.py} & สคริปต์รวบรวมผลลัพธ์การทดลองทั้งหมด คำนวณช่วงความเชื่อมั่น 95\% ทดสอบนัยสำคัญทางสถิติ (McNemar's test, Wilcoxon signed-rank test พร้อมการปรับแก้แบบ Holm-Bonferroni) และสร้างตารางสรุปผลวิทยานิพนธ์ (ตารางที่ 6--13) \\
 \hline
-\texttt{benchmarks/clean\_slate/generate\_thesis\_figures.py} & สคริปต์พล็อตและเรนเดอร์ภาพกราฟประกอบวิทยานิพนธ์ทั้ง 6 ภาพ (ภาพที่ 1--6) ที่ความละเอียดสูง 300 DPI ด้วย Matplotlib และ Seaborn \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}generate\_\allowbreak{}thesis\_\allowbreak{}figures.py} & สคริปต์พล็อตและเรนเดอร์ภาพกราฟประกอบวิทยานิพนธ์ทั้ง 6 ภาพ (ภาพที่ 1--6) ที่ความละเอียดสูง 300 DPI ด้วย Matplotlib และ Seaborn \\
 \hline
-\texttt{benchmarks/clean\_slate/results/final\_thesis\_master\_summary.json} & ไฟล์ฐานข้อมูลผลการทดลองฉบับสมบูรณ์ (Master Summary JSON) ที่รวบรวมค่าตัวชี้วัดทุกระดับของระบบ $S_0 \dots S_3$ ไว้อย่างเป็นเอกภาพ \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}results/\allowbreak{}final\_\allowbreak{}thesis\_\allowbreak{}master\_\allowbreak{}summary.json} & ไฟล์ฐานข้อมูลผลการทดลองฉบับสมบูรณ์ (Master Summary JSON) ที่รวบรวมค่าตัวชี้วัดทุกระดับของระบบ $S_0 \dots S_3$ ไว้อย่างเป็นเอกภาพ \\
 \hline
-\texttt{benchmarks/clean\_slate/results/*.csv} & ไฟล์บันทึกผลลัพธ์รายกรณี ($N=150$) และตารางสรุปของการทดลองทั้งหมด (\texttt{snr\_calibration\_*}, \texttt{exp1\_*}, \texttt{exp2\_*}, \texttt{exp3\_*}, \texttt{exp4\_*}, \texttt{final\_table\_*}) \\
+\texttt{benchmarks/\allowbreak{}clean\_\allowbreak{}slate/\allowbreak{}results/\allowbreak{}*.csv} & ไฟล์บันทึกผลลัพธ์รายกรณี ($N=150$) และตารางสรุปของการทดลองทั้งหมด (\texttt{snr\_\allowbreak{}calibration\_\allowbreak{}*}, \texttt{exp1\_\allowbreak{}*}, \texttt{exp2\_\allowbreak{}*}, \texttt{exp3\_\allowbreak{}*}, \texttt{exp4\_\allowbreak{}*}, \texttt{final\_\allowbreak{}table\_\allowbreak{}*}) \\
 \hline
-\multicolumn{2}{|l|}{\textbf{5. แอปพลิเคชันเว็บและตัวติดตั้งสำหรับใช้งานจริง (Application and Desktop Deployment)}} \\
+\multicolumn{2}{|l|}{\textbf{5. แอปพลิเคชันและตัวติดตั้งสำหรับใช้งานจริง (Application and Desktop Deployment)}} \\
 \hline
-\texttt{app.py} & เว็บเซิร์ฟเวอร์ Flask ให้บริการจุดเชื่อมต่อ API ถอดความเสียง สกัดข้อมูล และหน้าเว็บอินเทอร์เฟซผู้ใช้ \\
+\texttt{app.py} & เซิร์ฟเวอร์ Flask ให้บริการจุดเชื่อมต่อ API ถอดความเสียง สกัดข้อมูล และหน้าอินเทอร์เฟซผู้ใช้ \\
 \hline
-\texttt{gui\_app.py} & แอปพลิเคชัน Desktop พร้อมถาดระบบ (System Tray) สำหรับเปิดปิดบริการเซิร์ฟเวอร์ภายในเครื่องแบบ Standalone \\
+\texttt{gui\_\allowbreak{}app.py} & แอปพลิเคชัน Desktop พร้อมถาดระบบ (System Tray) สำหรับเปิดปิดบริการเซิร์ฟเวอร์ภายในเครื่องแบบ Standalone \\
 \hline
-\texttt{tests/test\_app\_clean\_slate\_e2e.py} & สคริปต์ทดสอบการทำงานร่วมกันแบบครบวงจร (End-to-End System Tests) ของระบบบูรณาการ $S_3$ \\
+\texttt{tests/\allowbreak{}test\_\allowbreak{}app\_\allowbreak{}clean\_\allowbreak{}slate\_\allowbreak{}e2e.py} & สคริปต์ทดสอบการทำงานร่วมกันแบบครบวงจร (End-to-End System Tests) ของระบบบูรณาการ $S_3$ \\
 \hline
-\texttt{build\_installer.ps1}, \texttt{installer.iss} & สคริปต์ PowerShell และ Inno Setup สำหรับสร้างแพ็กเกจตัวติดตั้งแบบ Standalone ออฟไลน์บนระบบปฏิบัติการ Windows \\
+\texttt{build\_\allowbreak{}installer.ps1}, \texttt{installer.iss} & สคริปต์ PowerShell และ Inno Setup สำหรับสร้างแพ็กเกจตัวติดตั้งแบบ Standalone ออฟไลน์บนระบบปฏิบัติการ Windows \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}}
 
 \section*{คำอธิบายโครงสร้างไฟล์ผลลัพธ์การทดลอง (Experiment Output Data Structure)}
 
@@ -339,31 +325,6 @@ E2E-04 & ทดสอบจุดเชื่อมต่อ \texttt{POST /api/t
     \item \textbf{ไฟล์ฐานข้อมูลสถิติรวมศูนย์ (\texttt{final\_thesis\_master\_summary.json}):} ทำหน้าที่เป็น Single Source of Truth บันทึกสถิติสรุป ค่าสถิติอนุมาน (ค่าสถิติทดสอบ $W$ และ $\chi^2$, ค่า $p$ ก่อนและหลังปรับแก้ Holm-Bonferroni) และช่วงความเชื่อมั่นร้อยละ 95 เพื่อให้สคริปต์สร้างตารางและสร้างรูปภาพดึงข้อมูลจากแหล่งเดียวกันอย่างสอดคล้องสมบูรณ์
 \end{enumerate}
 
-\section*{คำสั่งสำหรับการทำซ้ำผลการทดลอง (Reproducibility Commands)}
-
-การรันสคริปต์เพื่อทำซ้ำผลการทดลองทั้งหมดตั้งแต่ขั้นตอนการเตรียมข้อมูล การฝึกฝน การประเมินผลเชิงสถิติ ไปจนถึงการสร้างภาพประกอบวิทยานิพนธ์ สามารถดำเนินการตามลำดับ 6 ขั้นตอนดังต่อไปนี้:
-
-\begin{verbatim}
-# Step 1: Generate 1,000-case dataset (15 CAP fields) & verify parser (100% Macro-F1)
-python scripts/make_finetune_data.py
-
-# Step 2: Calibrate SNR threshold (tau*=13.55 dB) & run baseline Experiments 1-3
-python benchmarks/clean_slate/run_clean_slate_experiments.py --stage all_core
-python benchmarks/clean_slate/expand_arch_study.py
-
-# Step 3: Train Whisper Small LoRA (r=8, alpha=32), export INT8 & run progression S0-S3
-python benchmarks/clean_slate/train_whisper_lora.py --epochs 3
-python benchmarks/clean_slate/fix_longform_lora_eval.py
-
-# Step 4: Run statistical hypothesis tests (McNemar, Wilcoxon, Holm) & generate tables 6-13
-python benchmarks/clean_slate/generate_final_thesis_tables.py
-
-# Step 5: Render high-resolution publication figures (300 DPI Figures 1-6)
-python benchmarks/clean_slate/generate_thesis_figures.py
-
-# Step 6: Execute end-to-end integration and offline desktop application tests
-python tests/test_app_clean_slate_e2e.py
-\end{verbatim}
 
 \appendiceschapter{หลักฐานการทดสอบการทำงานแบบออฟไลน์}
 
@@ -373,7 +334,7 @@ python tests/test_app_clean_slate_e2e.py
 \centering
 \caption{สรุปขั้นตอนและผลการทดสอบการทำงานของระบบในสภาวะออฟไลน์}
 \label{tab:offline}
-\footnotesize\setlength{\tabcolsep}{4pt}
+\small
 \begin{tabular}{|c|p{4.2cm}|p{7.8cm}|}
 \hline
 \textbf{ลำดับ} & \textbf{ขั้นตอนการทดสอบ} & \textbf{ผลการทดสอบและหลักฐานเชิงประจักษ์} \\
@@ -424,13 +385,118 @@ python tests/test_app_clean_slate_e2e.py
     \item \textbf{การจัดสรรชุดตัวเลขมิติตามบริบท:} แม้ผู้พูดจะสลับลำดับการบรรยายโดยระบุขนาดก้อนเนื้องอกก่อนขนาดสิ่งส่งตรวจหลัก ตัวสกัดข้อมูลสามารถวิเคราะห์คำบ่งชี้บริบทและจัดสรรค่ามิติลงช่อง \texttt{s10\_inf\_dims} และ \texttt{s3\_dims} ได้อย่างถูกต้อง
 \end{itemize}
 
-\appendiceschapter{คู่มือการใช้งานระบบเว็บแอปพลิเคชัน}
+\appendiceschapter{คู่มือการติดตั้งแอปพลิเคชัน}
+\label{app:setup install}
+
+
+คู่มือฉบับนี้นำเสนอขั้นตอนการดาวน์โหลดและการติดตั้งแอปพลิเคชัน \textbf{Pathology Voice Assistant} ลงบนเครื่องคอมพิวเตอร์ส่วนบุคคล (PC) สำหรับสถานีตรวจชิ้นเนื้อทางศัลยพยาธิวิทยา โดยระบบได้รับการออกแบบเป็นตัวติดตั้งแบบอัตโนมัติ (Standard Setup Installer) เพื่ออำนวยความสะดวกให้ผู้ใช้งานและผู้ดูแลระบบสามารถติดตั้งและพร้อมใช้งานออฟไลน์ได้โดยง่าย
+
+\section*{1. ข้อกำหนดขั้นต่ำของระบบ (System Requirements)}
+ก่อนเริ่มดำเนินกระบวนการติดตั้ง ผู้ดูแลระบบหรือผู้ใช้งานควรตรวจสอบคุณสมบัติของเครื่องคอมพิวเตอร์ให้ตรงตามข้อกำหนดขั้นต่ำของระบบ ดังนี้:
+\begin{itemize}
+    \item \textbf{ระบบปฏิบัติการ (Operating System):} Microsoft Windows 10 หรือ Windows 11 (64-bit)
+    \item \textbf{หน่วยประมวลผลกลาง (CPU):} Intel Core i5 / AMD Ryzen 5 ขึ้นไป (แนะนำหน่วยประมวลผลขนาด 8 เธรดขึ้นไป)
+    \item \textbf{หน่วยความจำหลัก (RAM):} 8 GB ขึ้นไป (แนะนำ 16 GB เพื่อประสิทธิภาพการถอดความสูงสุด)
+    \item \textbf{พื้นที่จัดเก็บข้อมูล (Hard Disk Space):} พื้นที่ว่างอย่างน้อย 5 GB (สำหรับตัวโปรแกรม ค่าน้ำหนักแบบจำลองออฟไลน์ และฐานข้อมูลภายในเครื่อง)
+    \item \textbf{อุปกรณ์เชื่อมต่อภายนอก (Peripherals):} ไมโครโฟนรับสัญญาณเสียง และแป้นเหยียบสั่งงานผ่านพอร์ต USB (USB Foot Pedal)
+\end{itemize}
+
+\section*{2. ขั้นตอนการดาวน์โหลดและติดตั้งแอปพลิเคชัน}
+
+\section*{1. ข้อกำหนดขั้นต่ำของระบบ (System Requirements)}
+ก่อนเริ่มดำเนินกระบวนการติดตั้ง ผู้ดูแลระบบหรือผู้ใช้งานควรตรวจสอบคุณสมบัติของเครื่องคอมพิวเตอร์ให้ตรงตามข้อกำหนดขั้นต่ำของระบบ ดังนี้:
+\begin{itemize}
+    \item \textbf{ระบบปฏิบัติการ (Operating System):} Microsoft Windows 10 หรือ Windows 11 (64-bit)
+    \item \textbf{หน่วยประมวลผลกลาง (CPU):} Intel Core i5 / AMD Ryzen 5 ขึ้นไป (แนะนำหน่วยประมวลผลขนาด 8 เธรดขึ้นไป)
+    \item \textbf{หน่วยความจำหลัก (RAM):} 8 GB ขึ้นไป (แนะนำ 16 GB เพื่อประสิทธิภาพการถอดความสูงสุด)
+    \item \textbf{พื้นที่จัดเก็บข้อมูล (Hard Disk Space):} พื้นที่ว่างอย่างน้อย 5 GB (สำหรับตัวโปรแกรม ค่าน้ำหนักแบบจำลองออฟไลน์ และฐานข้อมูลภายในเครื่อง)
+    \item \textbf{อุปกรณ์เชื่อมต่อภายนอก (Peripherals):} ไมโครโฟนรับสัญญาณเสียง และแป้นเหยียบสั่งงานผ่านพอร์ต USB (USB Foot Pedal)
+\end{itemize}
+
+\section*{2. ขั้นตอนการดาวน์โหลดและติดตั้งแอปพลิเคชัน}
+
+\subsection*{2.1 ขั้นตอนที่ 1: การดาวน์โหลดไฟล์ติดตั้งจาก Google Drive}
+\begin{enumerate}
+    \item[2.1.1] เข้าสู่ระบบผ่านลิงก์เชื่อมโยง Google Drive ที่ได้รับมอบหมายเพื่อดาวน์โหลดชุดไฟล์ติดตั้งโปรแกรม
+    \item[2.1.2] คลิกปุ่ม \textbf{"ดาวน์โหลด" (Download)} ไฟล์ติดตั้งแอปพลิเคชัน ชื่อ \texttt{PathologyApp\_Setup.exe} ลงในเครื่องคอมพิวเตอร์
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{คู่มือการติดตั้ง/Screenshot 2026-10-22 161359.png}
+    \caption{แสดงหน้าต่างการดาวน์โหลดไฟล์ติดตั้ง \texttt{PathologyApp\_Setup.exe} จากระบบ Google Drive}
+    \label{fig:fig1}
+\end{figure}
+
+\subsection*{2.2 ขั้นตอนที่ 2: การเปิดรันไฟล์ติดตั้งโปรแกรม (Installer Execution)}
+\begin{enumerate}
+    \item[2.2.1] ดับเบิลคลิกที่ไฟล์ \texttt{PathologyApp\_Setup.exe} เพื่อเข้าสู่โปรแกรมช่วยติดตั้ง (Setup Wizard)
+    \item[2.2.2] หากระบบปฏิบัติการแสดงหน้าต่างแจ้งเตือนสิทธิ์การใช้งาน (User Account Control: UAC) ให้คลิกตอบรับ \textbf{"Yes"} หรือ \textbf{"Run anyway"} เพื่อยินยอมให้โปรแกรมดำเนินการติดตั้ง
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{คู่มือการติดตั้ง/Screenshot 2026-10-22 162642.png}
+    \caption{แสดงหน้าต่างการแจ้งเตือนสิทธิ์การใช้งาน (UAC) และการกดอนุญาตเพื่อรันโปรแกรมติดตั้ง}
+    \label{fig:fig2}
+\end{figure}
+
+\subsection*{2.3 ขั้นตอนที่ 3: ตำแหน่งโฟลเดอร์ปลายทางสำหรับการติดตั้ง}
+\begin{enumerate}
+    \item[2.3.1] หน้าต่างตั้งค่าจะเลือกตำแหน่งโฟลเดอร์ปลายทางมาตรฐานที่ \texttt{C:\textbackslash Program Files\textbackslash PathologyApp} โดยอัตโนมัติ
+    \item[2.3.2] จากนั้นคลิกปุ่ม \textbf{"Next >"}
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{คู่มือการติดตั้ง/Screenshot 2026-10-22 162742.png}
+    \caption{หน้าต่างจะเลือกตำแหน่งโฟลเดอร์สำหรับจัดเก็บไฟล์โปรแกรม PathologyApp โดยอัตโนมัติ}
+    \label{fig:fig3}
+\end{figure}
+
+\subsection*{2.4 ขั้นตอนที่ 4: การดำเนินการติดตั้งระบบและค่าน้ำหนักแบบจำลอง}
+\begin{enumerate}
+    \item[2.4.1] ตรวจสอบความถูกต้องของรายการตั้งค่า แล้วคลิกปุ่ม \textbf{"Install"}
+    \item[2.4.2] โปรแกรมช่วยติดตั้งจะทำการคัดลอกไฟล์ซอร์สโค้ด ค่าน้ำหนักแบบจำลองออฟไลน์ และไฟล์ส่วนประกอบระบบลงบนเครื่องคอมพิวเตอร์
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{คู่มือการติดตั้ง/Screenshot 2026-10-22 162925.png}
+    \caption{แสดงหน้าต่างแถบแสดงความก้าวหน้า (Progress Bar) ระหว่างการคัดลอกไฟล์ลงในระบบ}
+    \label{fig:fig4}
+\end{figure}
+
+\subsection*{2.5 ขั้นตอนที่ 5: การเสร็จสิ้นการติดตั้งและการเปิดใช้งานครั้งแรก}
+\begin{enumerate}
+    \item[2.5.1] เมื่อคัดลอกไฟล์เสร็จสมบูรณ์ ทำเครื่องหมายหน้าช่อง \textbf{"Launch PathologyApp"} แล้วคลิกปุ่ม \textbf{"Finish"}
+    \item[2.5.2] ระบบจะสร้างไอคอนทางลัด (Shortcut Icon) ชื่อ \textbf{PathologyApp} ไว้บนหน้าจอเดสก์ท็อปเพื่อความสะดวกในการเปิดใช้งาน
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{คู่มือการติดตั้ง/Screenshot 2026-10-22 163128.png}
+    \caption{แสดงหน้าต่างยืนยันการติดตั้งโปรแกรมเสร็จสมบูรณ์ และไอคอนทางลัดบนหน้าจอเดสก์ท็อป}
+    \label{fig:fig5}
+\end{figure}
+
+\section*{3. การตรวจสอบความพร้อมของหน้าจอหลักเมื่อเปิดใช้งาน}
+เมื่อเปิดโปรแกรม PathologyApp ขึ้นมาครั้งแรก ระบบจะทำการโหลดแบบจำลองภาษาและเครื่องมือสกัดข้อมูลออฟไลน์เข้าสู่หน่วยความจำหลักโดยอัตโนมัติ โดยผู้ใช้งานจะพบกับหน้าจอหลักที่พร้อมรองรับการบันทึกเสียงบรรยายผลการตรวจชิ้นเนื้อ 15 ฟิลด์ตามมาตรฐาน CAP
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{คู่มือการติดตั้ง/Screenshot 2026-10-22 163428.png}
+    \caption{แสดงหน้าจอหลัก (User Interface) ของแอปพลิเคชัน PathologyApp พร้อมใช้งานแบบออฟไลน์}
+    \label{fig:fig6}
+\end{figure}
+
+\appendiceschapter{คู่มือการใช้งานระบบแอปพลิเคชัน}
 \label{app:usermanual}
 
-ภาคผนวกนี้แสดงขั้นตอนและคู่มือการใช้งานระบบเว็บแอปพลิเคชัน PathoWhisper สำหรับสนับสนุนการบันทึกข้อมูลการตรวจสิ่งส่งตรวจทางศัลยพยาธิวิทยาด้วยตาเปล่า (Gross Examination) ครอบคลุมตั้งแต่การเปิดระบบจากหน้าจอเดสก์ท็อป การเข้าสู่ระบบ การเลือกโหมดการทำงาน การบันทึกเสียงสดหรืออัปโหลดไฟล์เสียง การถอดความและสกัดข้อมูลลงแบบฟอร์มอัตโนมัติ การตรวจทานแก้ไขร่วมกับระบบธงเตือนความปลอดภัย ไปจนถึงการส่งออกเอกสารรายงานผลทางการแพทย์ในรูปแบบ PDF
+ภาคผนวกนี้แสดงขั้นตอนและคู่มือการใช้งานระบบแอปพลิเคชัน ระบบแปลงเสียงเป็นข้อความ สำหรับสนับสนุนการบันทึกข้อมูลการตรวจสิ่งส่งตรวจทางศัลยพยาธิวิทยาด้วยตาเปล่า (Gross Examination) ครอบคลุมตั้งแต่การเปิดระบบจากหน้าจอเดสก์ท็อป การเข้าสู่ระบบ การเลือกโหมดการทำงาน การบันทึกเสียงสดหรืออัปโหลดไฟล์เสียง การถอดความและสกัดข้อมูลลงแบบฟอร์มอัตโนมัติ การตรวจทานแก้ไขร่วมกับระบบธงเตือนความปลอดภัย ไปจนถึงการส่งออกเอกสารรายงานผลทางการแพทย์ในรูปแบบ PDF
 
 \section*{ขั้นตอนที่ 1: การเริ่มต้นระบบจากเดสก์ท็อป (System Startup)}
-ผู้ใช้งานเริ่มต้นระบบโดยดับเบิลคลิกไอคอนทางลัด \textbf{Pathology Voice Assistant} บนหน้าจอเดสก์ท็อปของเครื่องคอมพิวเตอร์ประจำสถานีตรวจชิ้นเนื้อ (Grossing Station) ดังแสดงในภาพที่ \ref{fig:man_shortcut} ระบบจะเริ่มการทำงานของเซิร์ฟเวอร์แบบออฟไลน์และเปิดเว็บเบราว์เซอร์เข้าสู่หน้าจอการทำงานโดยอัตโนมัติผ่านโพรโทคอลรักษาความปลอดภัย HTTPS ภายในเครื่อง (\texttt{https://localhost:5000})
+ผู้ใช้งานเริ่มต้นระบบโดยดับเบิลคลิกไอคอนทางลัด \textbf{Pathology Voice Assistant} บนหน้าจอเดสก์ท็อปของเครื่องคอมพิวเตอร์ประจำสถานีตรวจชิ้นเนื้อ (Grossing Station) ดังแสดงในภาพที่ \ref{fig:man_shortcut} ระบบจะเริ่มการทำงานของเซิร์ฟเวอร์แบบออฟไลน์และเปิดเบราว์เซอร์เข้าสู่หน้าจอการทำงานโดยอัตโนมัติ
 
 \begin{figure}[H]
 \centering
@@ -564,10 +630,10 @@ python tests/test_app_clean_slate_e2e.py
     \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} กำหนดเกณฑ์ขีดแบ่งความเสี่ยง ($\tau_{\text{risk}} = 0.50$) ทำการคำนวณ Risk-Coverage Trade-off และ Selective Classification บนข้อมูลทดสอบ 300 กรณี และวิเคราะห์สาเหตุของข้อผิดพลาดหลุดรอดแบบเงียบ (Silent CER)
 \end{itemize}
 
-\item \textbf{การพัฒนาส่วนต่อประสานเว็บแอปพลิเคชันและการทำงานแบบออฟไลน์ (Web Application, Hands-Free UI \& Offline Architecture)}
+\item \textbf{การพัฒนาส่วนต่อประสานแอปพลิเคชันและการทำงานแบบออฟไลน์ (Web Application, Hands-Free UI \& Offline Architecture)}
 \begin{itemize}[leftmargin=1.5em]
     \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity (AI Coding Assistant)
-    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยพัฒนาระบบเว็บแอปพลิเคชันด้วย Flask สำหรับสถานีตรวจชิ้นเนื้อ รองรับการรับเสียงไมโครโฟนแบบ Hands-Free, การแสดง Audio Waveform แบบเคลื่อนไหว, การสลับใช้งานโมเดล CTranslate2 ออฟไลน์ และการสร้างใบรับรอง SSL/HTTPS อัตโนมัติ''
+    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยพัฒนาระบบแอปพลิเคชันด้วย Flask สำหรับสถานีตรวจชิ้นเนื้อ รองรับการรับเสียงไมโครโฟนแบบ Hands-Free, การแสดง Audio Waveform แบบเคลื่อนไหว, การสลับใช้งานโมเดล CTranslate2 ออฟไลน์ ''
     \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ตรวจสอบความปลอดภัยของซอร์สโค้ด ตรวจสอบการจัดการทรัพยากรหน่วยความจำของ CPU ทดสอบฟังก์ชันการทำงานในสภาวะตัดการเชื่อมต่ออินเทอร์เน็ต (Isolated Offline Testing) และปรับแต่ง UI ให้เหมาะสมกับการสวมถุงมือปฏิบัติงานจริง
 \end{itemize}
 
@@ -584,19 +650,4 @@ python tests/test_app_clean_slate_e2e.py
     \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยสแกนหาจุดบกพร่องในสคริปต์ถอดรหัสเสียงยาว fix\_longform\_lora\_eval.py ที่พบอาการวนซ้ำคำ (Repetition Loop) ในกรณีเสียงเกิน 27.5 วินาที และช่วยร่างโค้ดเพิ่ม repetition\_penalty=1.15 และ vad\_filter=True''
     \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ทำการ Debugging ตรวจสอบ Log และรันชุดทดสอบความถูกต้องจนขจัดปัญหาการถอดความค้างในเคสยาวได้สำเร็จ 100\%
 \end{itemize}
-
-\item \textbf{การคำนวณการทดสอบสมมติฐานทางสถิติและการสร้างภาพประกอบ (Statistical Hypothesis Testing \& Figure Plotting)}
-\begin{itemize}[leftmargin=1.5em]
-    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity / Anthropic Claude 3.5 Sonnet
-    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยเขียนสคริปต์คำนวณสถิติ McNemar's Test, Wilcoxon Signed-Rank Test พร้อมการปรับค่า p-value แบบ Holm-Bonferroni สำหรับเปรียบเทียบระบบ $S_0$ ถึง $S_3$ และเขียนสคริปต์ Matplotlib เรนเดอร์กราฟทั้ง 6 ภาพที่ความละเอียด 300 DPI สำหรับเล่มวิทยานิพนธ์''
-    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} ตรวจสอบความถูกต้องของตรรกะการคำนวณทางสถิติ ทวนสอบตัวเลขและทศนิยมทุกตำแหน่งเทียบกับผลลัพธ์ดิบในไฟล์ CSV และจัดวางระยะห่างและฟอนต์ของภาพประกอบให้สอดคล้องกับขนาดหน้ากระดาษวิทยานิพนธ์
-\end{itemize}
-
-\item \textbf{การจัดเตรียมและตรวจทานเอกสารวิทยานิพนธ์ (Thesis Typesetting, Auditing \& Verification)}
-\begin{itemize}[leftmargin=1.5em]
-    \item \textbf{เครื่องมือที่ใช้:} Google DeepMind Antigravity / OpenAI ChatGPT
-    \item \textbf{ตัวอย่าง Prompt / คำสั่ง:} ``ช่วยจัดรูปแบบสมการคณิตศาสตร์ 25 สมการ ตารางผลการทดลองทั้ง 16 ตาราง และรายการบรรณานุกรม BibTeX ตามข้อกำหนดของบัณฑิตวิทยาลัย และช่วยตรวจทานความสอดคล้องของตัวเลขข้ามบท''
-    \item \textbf{การควบคุมและปรับปรุงโดยมนุษย์:} อ่านทบทวนและตรวจแก้เนื้อหาทุกหน้าด้วยตนเอง (Human-in-the-Loop 100\%) ตรวจสอบความถูกต้องทางวิชาการและการใช้ภาษา และยืนยันความรับผิดชอบต่อความถูกต้องของเนื้อหาทั้งหมดในเล่มวิทยานิพนธ์
-\end{itemize}
-
 \end{enumerate}

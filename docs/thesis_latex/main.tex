@@ -1,4 +1,4 @@
-\documentclass{cpkkuproject}
+\documentclass[draft]{cpkkuproject}
 
 \titleTH{การพัฒนาระบบแปลงเสียงเป็นข้อความโดยใช้ปัญญาประดิษฐ์เพื่อบันทึกข้อมูลอัตโนมัติในงานพยาธิวิทยา}
 \titleEN{Development of an AI-Based Speech-to-Text System for Automatic Data Recording in Pathology}
@@ -19,19 +19,27 @@
 \degreeEN{Bachelor of Science}
 \majorTH{ปัญญาประดิษฐ์}
 \majorEN{Artificial Intelligence}
-\advisorTH{ผศ.ดร.ไอศูรย์ กาญจนสุรัตน์ \\ ผศ.นพ.ชัยวัชร์ อภิวาทนสิริ}
-\advisorEN{Asst. Prof. Isoon Kanjanasurat, Ph.D. \\ Asst. Prof. Chaiwat Apiwatnasiri, M.D. (Co-Advisor)}
+\advisorTH{ผศ. ดร.ไอศูรย์ กาญจนสุรัตน์}
+\coadvisorTH {ผศ. นพ.ชัยวัชร์ อภิวาทนสิริ}
+\advisorEN {Asst. Prof. Isoon Kanjanasurat} 
+\coadvisorEN {Asst. Prof. Chaiwat Apiwatnasiri}
 
-\academicYearTH{2568}
-\academicYearEN{2025}
+\academicYearTH{2569}
+\academicYearEN{2026}
 
 \keywordsTH{ปัญญาประดิษฐ์, การแปลงเสียงเป็นข้อความ, พยาธิวิทยา, Whisper, การสกัดข้อมูลทางการแพทย์, การกรองสัญญาณรบกวน}
 \keywordsEN{Artificial Intelligence, Speech-to-Text, Gross Pathology, Whisper, Clinical Information Extraction, Noise Reduction}
 
-
+\usepackage{longtable,array}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    citecolor=black,  % เปลี่ยนสีตัวอ้างอิงในเนื้อหา (เช่น [3], [6]) ให้เป็นสีดำ
+    linkcolor=black,  % สีของลิงก์ภายในเอกสาร (สารบัญ, สมการ) เป็นสีดำ
+    urlcolor=black    % สีของลิงก์เว็บไซต์เป็นสีดำ
+}
 \begin{document}
-
-\maketitlepage
+\maketitlepage 
 \pagenumbering{arabic}
 \setcounter{page}{0}
 \renewcommand{\thepage}{\ThaiAlph{\value{page}}}
